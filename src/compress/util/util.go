@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/malt3/rules_img/src/api"
 	"github.com/malt3/rules_img/src/compress"
-	"github.com/malt3/rules_img/src/compress/factory"
 )
 
 var (
@@ -19,9 +17,10 @@ var (
 	compressionLevel     *int
 	compressionAlgorithm string
 	hashFunction         string
+	contentType          string
 	inputFilePath        string
 	outputFilePath       string
-	append               bool
+	appendOutput         bool
 )
 
 func main() {
@@ -37,7 +36,8 @@ func main() {
 	})
 	flag.StringVar(&compressionAlgorithm, "compression-algorithm", "gzip", "Compression algorithm to use")
 	flag.StringVar(&hashFunction, "hash-function", "sha256", "Hash function to use")
-	flag.BoolVar(&append, "append", false, "Append to an existing output file")
+	flag.StringVar(&contentType, "content-type", "", "Content type of the input file")
+	flag.BoolVar(&appendOutput, "append", false, "Append to an existing output file")
 	flag.Parse()
 
 	if flag.NArg() != 2 {
@@ -55,7 +55,7 @@ func main() {
 	defer inputFile.Close()
 
 	outputFileFlags := os.O_WRONLY | os.O_CREATE
-	if append {
+	if appendOutput {
 		outputFileFlags |= os.O_APPEND
 	} else {
 		outputFileFlags |= os.O_TRUNC
@@ -77,19 +77,23 @@ func main() {
 	}
 
 	fileInfo, err := outputFile.Stat()
-	if append && stateIn != "" && state.CompressedSize != fileInfo.Size() {
+	if appendOutput && stateIn != "" && state.CompressedSize != fileInfo.Size() {
 		fmt.Printf("Warning: The output file size %d does not match the state file size %d. The state file may be invalid.\n", fileInfo.Size(), state.CompressedSize)
 	}
 
-	opts := compress.Options{
-		CompressionLevel: compressionLevel,
+	var opts []compress.Option
+	if compressionLevel != nil {
+		opts = append(opts, compress.CompressionLevel(*compressionLevel))
+	}
+	if len(contentType) > 0 {
+		opts = append(opts, compress.ContentType(contentType))
 	}
 
 	var appender api.Appender
 	if stateIn != "" {
-		appender, err = factory.ResumeFactory(hashFunction, compressionAlgorithm, state, outputFile, opts)
+		appender, err = compress.ResumeFactory(hashFunction, compressionAlgorithm, state, outputFile, opts...)
 	} else {
-		appender, err = factory.AppenderFactory(hashFunction, compressionAlgorithm, outputFile, opts)
+		appender, err = compress.AppenderFactory(hashFunction, compressionAlgorithm, outputFile, opts...)
 	}
 	if err != nil {
 		fmt.Printf("Error creating appender: %v\n", err)
@@ -115,40 +119,30 @@ func main() {
 }
 
 func readStateFromFile(filePath string) (api.AppenderState, error) {
-	file, err := os.Open(filePath)
+	rawFile, err := os.ReadFile(filePath)
 	if err != nil {
 		return api.AppenderState{}, fmt.Errorf("opening state file: %w", err)
 	}
-	defer file.Close()
 
 	var state api.AppenderState
-	decoder := json.NewDecoder(file)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&state); err != nil {
-		return api.AppenderState{}, fmt.Errorf("decoding state file: %w", err)
+	if err := state.UnmarshalBinary(rawFile); err != nil {
+		return api.AppenderState{}, fmt.Errorf("unmarshalling state file: %w", err)
 	}
 
 	return state, nil
 }
 
 func writeStateToFile(filePath string, state api.AppenderState) error {
-	var file io.Writer
-	if len(filePath) > 0 {
-		osFile, err := os.Create(filePath)
-		if err != nil {
-			return fmt.Errorf("creating state file: %w", err)
-		}
-		defer osFile.Close()
-		file = osFile
-	} else {
-		file = os.Stdout
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("creating state file: %w", err)
 	}
+	defer file.Close()
 
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(state); err != nil {
-		return fmt.Errorf("encoding state file: %w", err)
+	rawFile, err := state.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("marshalling state file: %w", err)
 	}
-
-	return nil
+	_, err = file.Write(rawFile)
+	return err
 }
