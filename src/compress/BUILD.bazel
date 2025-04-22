@@ -1,0 +1,13 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "compress",
+    srcs = [
+        "compress.go",
+        "factory.go",
+        "options.go",
+    ],
+    importpath = "github.com/malt3/rules_img/src/compress",
+    visibility = ["//visibility:public"],
+    deps = ["//src/api"],
+)

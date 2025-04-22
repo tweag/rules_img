@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "tree",
+    srcs = [
+        "recorder.go",
+        "runfiles.go",
+    ],
+    importpath = "github.com/malt3/rules_img/src/tree",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/api",
+        "@rules_go//go/runfiles",
+    ],
+)
