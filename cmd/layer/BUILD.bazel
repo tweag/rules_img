@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "layer",
+    srcs = [
+        "flagtypes.go",
+        "layer.go",
+        "paramfile.go",
+    ],
+    importpath = "github.com/malt3/rules_img/cmd/layer",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/api",
+        "//src/compress",
+        "//src/tarcas",
+        "//src/tree",
+        "//src/tree/runfiles",
+    ],
+)

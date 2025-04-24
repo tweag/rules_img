@@ -3,7 +3,19 @@ package api
 import (
 	"archive/tar"
 	"io"
+	"io/fs"
 	"iter"
+)
+
+type FileType struct{ inner string }
+
+func (f FileType) String() string {
+	return f.inner
+}
+
+var (
+	RegularFile = FileType{"f"}
+	Directory   = FileType{"d"}
 )
 
 type AppenderState struct {
@@ -31,10 +43,21 @@ type Appender interface {
 }
 
 type CAS interface {
-	Import(hashes iter.Seq[[]byte])
-	Export() [][]byte
+	Import(CASStateSupplier)
+	Export(CASStateExporter) error
 	Store(r io.Reader) ([]byte, int64, error)
 	StoreKnownHashAndSize(r io.Reader, hash []byte, size int64) error
+	StoreTree(fsys fs.FS) ([]byte, error)
+	StoreTreeKnownHash(fsys fs.FS, hash []byte) error
+}
+
+type CASStateSupplier interface {
+	BlobHashes() iter.Seq[[]byte]
+	TreeHashes() iter.Seq[[]byte]
+}
+
+type CASStateExporter interface {
+	Export(CASStateSupplier) error
 }
 
 type TarWriter interface {
