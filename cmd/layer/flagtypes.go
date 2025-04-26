@@ -169,3 +169,56 @@ func (e *executables) Set(value string) error {
 	})
 	return nil
 }
+
+type symlinksFromFileArgs []string
+
+func (s *symlinksFromFileArgs) String() string {
+	return strings.Join(*s, ", ")
+}
+
+func (s *symlinksFromFileArgs) Set(value string) error {
+	if _, err := os.Stat(value); err != nil {
+		return fmt.Errorf("file %s does not exist: %w", value, err)
+	}
+	*s = append(*s, value)
+	return nil
+}
+
+type symlink struct {
+	LinkName string
+	Target   string
+}
+
+type symlinks []symlink
+
+func (s *symlinks) String() string {
+	var sb strings.Builder
+	for i, s := range *s {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(s.LinkName)
+		sb.WriteString(" → ")
+		sb.WriteString(s.Target)
+	}
+	return sb.String()
+}
+
+func (s *symlinks) Set(value string) error {
+	parts := strings.SplitN(value, "=", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid format for --symlink: %s", value)
+	}
+	if len(parts[0]) == 0 {
+		return fmt.Errorf("link name cannot be empty: %s", value)
+	}
+	if parts[0][0] == '/' {
+		// remove leading slash in link name
+		parts[0] = parts[0][1:]
+	}
+	*s = append(*s, symlink{
+		LinkName: parts[0],
+		Target:   parts[1],
+	})
+	return nil
+}

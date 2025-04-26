@@ -20,6 +20,8 @@ func LayerProcess(ctx context.Context, args []string) {
 	var addFromFile addFromFileArgs
 	var runfilesFlags runfilesForExecutables
 	var executableFlags executables
+	var symlinkFlags symlinks
+	var symlinksFromFiles symlinksFromFileArgs
 
 	flagSet := flag.NewFlagSet("layer", flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -43,6 +45,8 @@ The file contains one line per file, where each line contains a path in the imag
 The type is either 'f' for regular files, 'd' for directories. The parameter file is usually written by Bazel.`)
 	flagSet.Var(&executableFlags, "executable", `Add the executable file at the specified path in the image. This should be combined with the --runfiles flag to include the runfiles of the executable.`)
 	flagSet.Var(&runfilesFlags, "runfiles", `Add the runfiles of an executable file. The runfiles are read from the specified parameter file with the same encoding used by --add-from-file. The parameter file is usually written by Bazel.`)
+	flagSet.Var(&symlinkFlags, "symlink", `Add a symlink to the image layer. The parameter is a string of the form <path_in_image>=<target> where <path_in_image> is the path in the image and <target> is the target of the symlink.`)
+	flagSet.Var(&symlinksFromFiles, "symlinks-from-file", `Add all symlinks listed in the parameter file to the image layer. The parameter file is usually written by Bazel.`)
 
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
@@ -70,6 +74,16 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 			os.Exit(1)
 		}
 		addFiles = append(addFiles, addFileOpsFromParamFile...)
+	}
+
+	// read the symlinksFromFile parameter file and create a list of operations
+	for _, paramFile := range symlinksFromFiles {
+		symlinkOpsFromParamFile, err := readSymlinkParamFile(paramFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading symlink parameter file: %v\n", err)
+			os.Exit(1)
+		}
+		symlinkFlags = append(symlinkFlags, symlinkOpsFromParamFile...)
 	}
 
 	// first, due to the way Bazel attributes work, we need to find out if a pathInImage is used multiple times
@@ -103,14 +117,14 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 		}
 	}
 
-	_, err = handleLayerState(addFiles, executableFlags, outputFile)
+	_, err = handleLayerState(addFiles, executableFlags, symlinkFlags, outputFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Writing layer: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func handleLayerState(addFiles addFiles, addExecutables executables, outputFile io.Writer) (compressorState api.AppenderState, err error) {
+func handleLayerState(addFiles addFiles, addExecutables executables, addSymlinks symlinks, outputFile io.Writer) (compressorState api.AppenderState, err error) {
 	compressor, err := compress.AppenderFactory("sha256", "gzip", outputFile)
 	if err != nil {
 		return compressorState, fmt.Errorf("creating compressor: %w", err)
@@ -134,14 +148,14 @@ func handleLayerState(addFiles addFiles, addExecutables executables, outputFile 
 	}()
 
 	recorder := tree.NewRecorder(tw)
-	if err := writeLayer(recorder, addFiles, addExecutables); err != nil {
+	if err := writeLayer(recorder, addFiles, addExecutables, addSymlinks); err != nil {
 		return compressorState, err
 	}
 
 	return compressorState, nil
 }
 
-func writeLayer(recorder tree.Recorder, addFiles addFiles, addExecutables executables) error {
+func writeLayer(recorder tree.Recorder, addFiles addFiles, addExecutables executables, addSymlinks symlinks) error {
 	for _, op := range addFiles {
 		switch op.FileType {
 		case api.RegularFile:
@@ -168,6 +182,12 @@ func writeLayer(recorder tree.Recorder, addFiles addFiles, addExecutables execut
 		}
 		if err := recorder.Executable(op.Executable, op.PathInImage, accessor); err != nil {
 			return fmt.Errorf("writing executable: %w", err)
+		}
+	}
+
+	for _, op := range addSymlinks {
+		if err := recorder.Symlink(op.Target, op.LinkName); err != nil {
+			return fmt.Errorf("writing symlink: %w", err)
 		}
 	}
 

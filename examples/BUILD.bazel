@@ -33,4 +33,8 @@ layer(
         "var/hello.txt": ":hello.txt",
         "var/log": ":log",
     },
+    symlinks = {
+        "/bin": "/usr/bin",
+        "a": "b",
+    },
 )

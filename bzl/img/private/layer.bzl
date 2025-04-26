@@ -23,6 +23,13 @@ def _symlinks_arg(x):
     type = _file_type(x.target_file)
     return "{}\0{}{}_main/{}".format(x.path, type, x.target_file.path)
 
+def _symlink_tuple_to_arg(pair):
+    source = pair[0]
+    dest = pair[1]
+    if source.startswith("/"):
+        source = source[1:]
+    return "{}\0{}".format(source, dest)
+
 def _layer_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".tgz")
     args = ["layer"]
@@ -60,6 +67,13 @@ def _layer_impl(ctx):
         if default_info.files == None:
             fail("Expected {} ({}) to contain an executable or files, got None".format(pathInImage, files))
         files_args.add_all(default_info.files, map_each = _files_arg, format_each = "{}\0%s".format(pathInImage), expand_directories = False)
+
+    if len(ctx.attr.symlinks) > 0:
+        symlink_args = ctx.actions.args()
+        symlink_args.set_param_file_format("multiline")
+        symlink_args.use_param_file("--symlinks-from-file=%s", use_always = True)
+        symlink_args.add_all(ctx.attr.symlinks.items(), map_each = _symlink_tuple_to_arg)
+        args.append(symlink_args)
     args.append(files_args)
     args.append(out.path)
 

@@ -136,6 +136,15 @@ func (r Recorder) Executable(binaryPath, target string, accessor runfilesSupplie
 	return nil
 }
 
+func (r Recorder) Symlink(target, linkName string) error {
+	hdr := &tar.Header{
+		Typeflag: tar.TypeSymlink,
+		Name:     linkName,
+		Linkname: target,
+	}
+	return r.tf.WriteHeader(hdr)
+}
+
 func relativeSymlinkTarget(target, linkName string) string {
 	sourceDir := path.Dir(linkName)
 	sourceParts := strings.Split(path.Clean(sourceDir), "/")
