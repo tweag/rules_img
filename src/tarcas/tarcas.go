@@ -157,6 +157,7 @@ func (c *CAS[HM]) Write(b []byte) (int, error) {
 		Typeflag: tar.TypeLink,
 		Name:     name,
 		Linkname: contentName,
+		Mode:     0o555,
 	}
 	return n, c.writeHeaderOrDefer(header)
 }
@@ -213,9 +214,10 @@ func (c *CAS[HM]) StoreKnownHashAndSize(r io.Reader, hash []byte, size int64) er
 
 	contentName := fmt.Sprintf(".cas/blob/%x", hash)
 	header := &tar.Header{
-		Name: contentName,
-		Size: size,
-		Mode: 0o555,
+		Typeflag: tar.TypeReg,
+		Name:     contentName,
+		Size:     size,
+		Mode:     0o555,
 	}
 	if err := c.tarFile.WriteHeader(header); err != nil {
 		return err
@@ -292,6 +294,7 @@ func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, hash []byte) error {
 			Typeflag: tar.TypeLink,
 			Name:     path.Join(treeBase, p),
 			Linkname: fmt.Sprintf(".cas/blob/%x", blobHash),
+			Mode:     0o555,
 		}
 		if err := c.tarFile.WriteHeader(header); err != nil {
 			return fmt.Errorf("writing link for %s: %w", p, err)
