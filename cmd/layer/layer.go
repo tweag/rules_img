@@ -2,6 +2,7 @@ package layer
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ func LayerProcess(ctx context.Context, args []string) {
 	var executableFlags executables
 	var symlinkFlags symlinks
 	var symlinksFromFiles symlinksFromFileArgs
+	var metadataOutputFlag string
 
 	flagSet := flag.NewFlagSet("layer", flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -29,9 +31,9 @@ func LayerProcess(ctx context.Context, args []string) {
 		fmt.Fprintf(flagSet.Output(), "Usage: img layer [--add-from-file param_file] [--executable path_in_image=executable_file] [--runfiles executable_file=param_file] [output]\n")
 		flagSet.PrintDefaults()
 		examples := []string{
-			"image layer --add /etc/passwd=./passwd --executable /bin/myapp=./myapp layer.tgz",
-			"image layer --add-from-file param_file.txt layer.tgz",
-			"image layer --add --executable /bin/app=./app --runfiles ./app=runfiles_list.txt layer.tgz",
+			"img layer --add /etc/passwd=./passwd --executable /bin/myapp=./myapp layer.tgz",
+			"img layer --add-from-file param_file.txt layer.tgz",
+			"img layer --add --executable /bin/app=./app --runfiles ./app=runfiles_list.txt layer.tgz",
 		}
 		fmt.Fprintf(flagSet.Output(), "\nExamples:\n")
 		for _, example := range examples {
@@ -47,6 +49,7 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 	flagSet.Var(&runfilesFlags, "runfiles", `Add the runfiles of an executable file. The runfiles are read from the specified parameter file with the same encoding used by --add-from-file. The parameter file is usually written by Bazel.`)
 	flagSet.Var(&symlinkFlags, "symlink", `Add a symlink to the image layer. The parameter is a string of the form <path_in_image>=<target> where <path_in_image> is the path in the image and <target> is the target of the symlink.`)
 	flagSet.Var(&symlinksFromFiles, "symlinks-from-file", `Add all symlinks listed in the parameter file to the image layer. The parameter file is usually written by Bazel.`)
+	flagSet.StringVar(&metadataOutputFlag, "metadata", "", `Write the metadata to the specified file. The metadata is a JSON file containing info needed to use the layer as part of an OCI image.`)
 
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
@@ -117,10 +120,24 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 		}
 	}
 
-	_, err = handleLayerState(addFiles, executableFlags, symlinkFlags, outputFile)
+	compressorState, err := handleLayerState(addFiles, executableFlags, symlinkFlags, outputFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Writing layer: %v\n", err)
 		os.Exit(1)
+	}
+
+	if len(metadataOutputFlag) > 0 {
+		metadataOutputFile, err := os.OpenFile(metadataOutputFlag, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error opening metadata output file: %v\n", err)
+			os.Exit(1)
+		}
+		defer metadataOutputFile.Close()
+
+		if err := writeMetadata(compressorState, metadataOutputFile); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing metadata: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }
 
@@ -191,5 +208,20 @@ func writeLayer(recorder tree.Recorder, addFiles addFiles, addExecutables execut
 		}
 	}
 
+	return nil
+}
+
+func writeMetadata(compressorState api.AppenderState, outputFile io.Writer) error {
+	metadata := api.LayerMetadata{
+		DiffID:    fmt.Sprintf("sha256:%x", compressorState.ContentHash),
+		MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
+		Digest:    fmt.Sprintf("sha256:%x", compressorState.OuterHash),
+		Size:      compressorState.CompressedSize,
+	}
+
+	json.NewEncoder(outputFile).SetIndent("", "  ")
+	if err := json.NewEncoder(outputFile).Encode(metadata); err != nil {
+		return fmt.Errorf("encoding metadata: %w", err)
+	}
 	return nil
 }

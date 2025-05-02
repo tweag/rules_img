@@ -1,64 +1,143 @@
-load("//bzl/img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo")
+"""rule to import OCI images from a local directory."""
 
-def _image_index_import_impl(ctx):
-    decoded = json.decode(ctx.attr.encoded)
-    for (i, manifest_info) in enumerate(decoded):
-        manifest = ctx.files.manifests[i]
-        config = ctx.files.configs[i]
-        decoded[i]["manifest"] = manifest
-        decoded[i]["config"] = config
+load("//bzl/img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "LayerInfo", "PullInfo")
 
-    return ImageIndexInfo(
+def _digest_to_path(digest):
+    """Convert a digest to a path in the OCI layout."""
+    sha256 = digest.removeprefix("sha256:")
+    return "blobs/sha256/" + sha256
+
+def _digest_to_file(ctx, digest):
+    """Get a starlark File object for a digest."""
+    path = _digest_to_path(digest)
+    if not path in ctx.attr.files:
+        # this is a missing blob
+        return None
+    label = ctx.attr.files[path]
+    files = label[DefaultInfo].files.to_list()
+    if len(files) != 1:
+        fail("invalid number of files for digest: {}".format(digest))
+    return files[0]
+
+def _write_layer_info(ctx, manifest, config, layer_index, index_position = None):
+    """Write layer info to file and return LayerInfo provider."""
+    layers = manifest.get("layers", [])
+    if layer_index >= len(layers):
+        fail("layer index out of range for manifest: {}".format(layer_index))
+    layer = layers[layer_index]
+    media_type = layer.get("mediaType", "unknown")
+    digest = layer.get("digest", "unknown")
+    if not digest.startswith("sha256:"):
+        fail("invalid digest: {}".format(digest))
+    size = layer.get("size", 0)
+    if type(size) != type(0):
+        fail("invalid size: {}".format(size))
+
+    rootfs = config.get("rootfs", {})
+    diff_ids = rootfs.get("diff_ids", [])
+    if layer_index >= len(diff_ids):
+        fail("layer index out of range for config: {}".format(layer_index))
+    diff_id = diff_ids[layer_index]
+    if not diff_id.startswith("sha256:"):
+        fail("invalid diff_id: {}".format(diff_id))
+
+    metadata = dict(
+        diff_id = diff_id,
+        mediaType = media_type,
+        digest = digest,
+        size = size,
+    )
+    index_position_str = "" if index_position == None else str(index_position) + "_"
+    layer_metadata = ctx.actions.declare_file(ctx.attr.name + "_{}{}_layer_metadata.json".format(index_position_str, layer_index))
+    ctx.actions.write(layer_metadata, json.encode(metadata))
+    return LayerInfo(
+        blob = _digest_to_file(ctx, digest),
+        metadata = layer_metadata,
+        media_type = media_type,
+    )
+
+def _build_manifest_info(ctx, digest, index_position = None, platform = None):
+    path = _digest_to_path(digest)
+    if not path in ctx.attr.data:
+        fail("missing blob for digest: " + digest)
+    manifest = json.decode(ctx.attr.data[path])
+    if not manifest.get("mediaType") in [MEDIA_TYPE_MANIFEST, DOCKER_MANIFEST_V2]:
+        fail("invalid mediaType in manifest: {}".format(manifest.get("mediaType")))
+    config_digest = manifest.get("config", {}).get("digest", "missing config digest")
+    config_path = _digest_to_path(config_digest)
+    if not config_path in ctx.attr.data:
+        fail("missing blob for config digest: " + config_digest)
+    config = json.decode(ctx.attr.data[config_path])
+    missing_blobs = []
+    layers = []
+    for (layer_index, layer) in enumerate(manifest.get("layers", [])):
+        layer_info = _write_layer_info(ctx, manifest, config, layer_index, index_position)
+        if layer_info.blob == None:
+            missing_blobs.append(layer["digest"].removeprefix("sha256:"))
+        layers.append(layer_info)
+    return ImageManifestInfo(
+        base_image = None,
+        manifest = _digest_to_file(ctx, digest),
+        config = _digest_to_file(ctx, config_digest),
+        structured_config = config,
+        architecture = config.get("architecture", "unknown"),
+        os = config.get("os", "unknown"),
+        platform = platform,
+        layers = layers,
+        missing_blobs = missing_blobs,
+    )
+
+def _image_import_impl(ctx):
+    root_blob = json.decode(ctx.attr.data["blobs/sha256/" + ctx.attr.digest.removeprefix("sha256:")])
+    if not root_blob.get("mediaType") in [MEDIA_TYPE_MANIFEST, DOCKER_MANIFEST_V2, MEDIA_TYPE_INDEX, DOCKER_MANIFEST_LIST_V2]:
+        fail("invalid mediaType in root blob: {}".format(root_blob.get("mediaType")))
+
+    providers = [
+        DefaultInfo(files = depset([_digest_to_file(ctx, ctx.attr.digest)])),
+        PullInfo(
+            registries = ctx.attr.registries,
+            repository = ctx.attr.repository,
+            tag = ctx.attr.tag,
+            digest = ctx.attr.digest,
+        ),
+    ]
+    if root_blob.get("mediaType") in [MEDIA_TYPE_MANIFEST, DOCKER_MANIFEST_V2]:
+        # this is a single-platform manifest
+        providers.append(_build_manifest_info(ctx, ctx.attr.digest))
+    else:
+        # this is a multi-platform index
         manifests = [
-            ImageManifestInfo(**manifest_info)
-            for manifest_info in decoded
-        ],
-    )
+            _build_manifest_info(ctx, manifest["digest"], index_position = position, platform = manifest.get("platform"))
+            for (position, manifest) in enumerate(root_blob.get("manifests", []))
+        ]
+        providers.append(ImageIndexInfo(
+            index = _digest_to_file(ctx, ctx.attr.digest),
+            manifests = manifests,
+        ))
+    return providers
 
-image_index_import = rule(
-    implementation = _image_index_import_impl,
+image_import = rule(
+    implementation = _image_import_impl,
     attrs = {
-        "encoded": attr.string(),
-        "manifests": attr.label_list(
+        "digest": attr.string(),
+        "data": attr.string_dict(),
+        "files": attr.string_keyed_label_dict(
             allow_files = True,
         ),
-        "configs": attr.label_list(
-            allow_files = True,
+        "registries": attr.string_list(
+            doc = "List of registry mirrors used to pull the image.",
+        ),
+        "repository": attr.string(
+            doc = "Repository name of the image.",
+        ),
+        "tag": attr.string(
+            doc = "Tag of the image.",
         ),
     },
 )
 
-def _image_manifest_import_impl(ctx):
-    decoded = json.decode(ctx.attr.encoded)
-    decoded["manifest"] = ctx.file.manifest
-    decoded["config"] = ctx.file.config
-    return [ImageManifestInfo(**decoded)]
-
-image_manifest_import = rule(
-    implementation = _image_manifest_import_impl,
-    attrs = {
-        "encoded": attr.string(),
-        "manifest": attr.label(allow_single_file = True),
-        "config": attr.label(allow_single_file = True),
-    },
-)
-
-def import_from_json(name, encoded):
-    decoded = json.decode(encoded)
-    if type(decoded) == type([]):
-        # image index
-        image_index_import(
-            name = name,
-            encoded = encoded,
-            manifests = [manifest_info["manifest"] for manifest_info in decoded],
-            configs = [manifest_info["config"] for manifest_info in decoded],
-        )
-        return
-
-    # image manifest
-    image_manifest_import(
-        name = name,
-        encoded = encoded,
-        manifest = decoded["manifest"],
-        config = decoded["config"],
-    )
+MEDIA_TYPE_INDEX = "application/vnd.oci.image.index.v1+json"
+DOCKER_MANIFEST_LIST_V2 = "application/vnd.docker.distribution.manifest.list.v2+json"
+MEDIA_TYPE_MANIFEST = "application/vnd.oci.image.manifest.v1+json"
+DOCKER_MANIFEST_V2 = "application/vnd.docker.distribution.manifest.v2+json"
+MEDIA_TYPE_CONFIG = "application/vnd.oci.image.config.v1+json"

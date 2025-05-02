@@ -1,3 +1,7 @@
+"""Layer rule for building layers in a container image."""
+
+load("//bzl/img:providers.bzl", "LayerInfo")
+
 def _file_type(f):
     type = "f"  # regular file
     if f.is_directory:
@@ -32,7 +36,8 @@ def _symlink_tuple_to_arg(pair):
 
 def _layer_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".tgz")
-    args = ["layer"]
+    metadata_out = ctx.actions.declare_file(ctx.attr.name + "_metadata.json")
+    args = ["layer", "--metadata", metadata_out.path]
     files_args = ctx.actions.args()
     files_args.set_param_file_format("multiline")
     files_args.use_param_file("--add-from-file=%s", use_always = True)
@@ -78,20 +83,28 @@ def _layer_impl(ctx):
     args.append(out.path)
 
     ctx.actions.run(
-        outputs = [out],
+        outputs = [out, metadata_out],
         inputs = depset(transitive = inputs),
         executable = ctx.executable._tool,
         arguments = args,
         mnemonic = "LayerTar",
     )
-    return [DefaultInfo(files = depset([out]))]
+    return [
+        DefaultInfo(files = depset([out])),
+        OutputGroupInfo(
+            layer = depset([out]),
+            metadata = depset([metadata_out]),
+        ),
+        LayerInfo(
+            blob = out,
+            metadata = metadata_out,
+            media_type = "application/vnd.oci.image.layer.v1.tar+gzip",
+        ),
+    ]
 
 layer = rule(
     implementation = _layer_impl,
     attrs = {
-        "append_to": attr.label(
-            doc = "An optional layer chunk that this layer will be appended to",
-        ),
         "srcs": attr.string_keyed_label_dict(
             doc = "Files (including regular files, executables, and TreeArtifacts) that should be added to the layer.",
             allow_files = True,
@@ -110,4 +123,5 @@ Users are free to choose: adding a layer here adds an ordering constraint (refer
             default = Label("//cmd/img"),
         ),
     },
+    provides = [LayerInfo],
 )

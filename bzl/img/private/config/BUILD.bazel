@@ -1,0 +1,25 @@
+load(":defs.bzl", "os_cpu")
+
+os_cpu(
+    name = "target_os_cpu",
+    cpu = select({
+        "@platforms//cpu:arm64": "arm64",
+        "@platforms//cpu:mips64": "mips64",
+        "@platforms//cpu:ppc64le": "ppc64le",
+        "@platforms//cpu:riscv64": "riscv64",
+        "@platforms//cpu:x86_32": "386",
+        "@platforms//cpu:x86_64": "amd64",
+    }),
+    os = select({
+        "@platforms//os:android": "android",
+        "@platforms//os:freebsd": "freebsd",
+        "@platforms//os:ios": "ios",
+        "@platforms//os:linux": "linux",
+        "@platforms//os:macos": "darwin",
+        "@platforms//os:netbsd": "netbsd",
+        "@platforms//os:openbsd": "openbsd",
+        "@platforms//os:wasi": "wasip1",
+        "@platforms//os:windows": "windows",
+    }),
+    visibility = ["//visibility:public"],
+)

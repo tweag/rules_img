@@ -1,40 +1,48 @@
+load("//bzl/img/private:image.bzl", "image")
 load("//bzl/img/private:layer.bzl", "layer")
+load("//bzl/img/private:push.bzl", "push")
 
 filegroup(
     name = "log",
     srcs = glob(["*.txt"]),
 )
 
-cc_shared_library(
-    name = "foo_shared",
-    deps = [":foo_lib"],
-)
-
-cc_library(
-    name = "foo_lib",
-    srcs = ["foo.cc"],
-    hdrs = ["foo.h"],
-)
-
-cc_binary(
-    name = "hello_cc",
-    srcs = [
-        "foo.h",
-        "main.cc",
-    ],
-    dynamic_deps = ["foo_shared"],
-)
-
 layer(
     name = "my_layer",
     srcs = {
-        "bin/img": "//cmd/img",
-        "bin/hello_cc": ":hello_cc",
+        "usr/bin/img": "//cmd/img",
         "var/hello.txt": ":hello.txt",
         "var/log": ":log",
     },
     symlinks = {
-        "/bin": "/usr/bin",
         "a": "b",
     },
+)
+
+image(
+    name = "my_image",
+    architecture = "amd64",
+    base = "@ubuntu",
+    layers = [
+        ":my_layer",
+    ],
+    os = "linux",
+)
+
+image(
+    name = "my_second_image",
+    architecture = "amd64",
+    os = "linux",
+    base = "@cuda",
+    layers = [
+        ":my_layer",
+    ],
+)
+
+push(
+    name = "my_push",
+    image = ":my_second_image",
+    registry = "ghcr.io",
+    repository = "malt3/ubuntu",
+    tag = "latest",
 )

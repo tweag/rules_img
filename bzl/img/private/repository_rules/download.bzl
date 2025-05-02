@@ -20,7 +20,11 @@ def download_blob(rctx, *, digest, **kwargs):
         output = output,
         **kwargs
     )
-    return json.decode(rctx.read(output))
+    return struct(
+        digest = digest,
+        path = output,
+        data = rctx.read(output),
+    )
 
 def download_manifest(rctx, *, reference, **kwargs):
     registries = [r for r in rctx.attr.registries]
@@ -54,4 +58,8 @@ def download_manifest(rctx, *, reference, **kwargs):
             rctx.attr.repository + ":" + rctx.attr.tag,
             manifest_result.sha256,
         ))
-    return json.decode(rctx.read(kwargs["output"]))
+    return struct(
+        digest = reference,
+        path = kwargs["output"],
+        data = rctx.read(kwargs["output"]),
+    )

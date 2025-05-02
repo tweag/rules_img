@@ -29,8 +29,8 @@ pull(
 
 pull(
     name = "cuda",
-    digest = "sha256:3deb633094acb02ba490e4da21bb37337327860e884c5b2290042a6db7d6b572",
+    digest = "sha256:f353ffca86e0cd93ab2470fe274ecf766519c24c37ed58cc2f91d915f7ebe53c",
     registry = "index.docker.io",
-    repository = "pytorch/pytorch",
-    tag = "2.7.0-cuda12.6-cudnn9-devel",
+    repository = "nvidia/cuda",
+    tag = "12.8.1-cudnn-devel-ubuntu20.04",
 )

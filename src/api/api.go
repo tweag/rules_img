@@ -18,6 +18,13 @@ var (
 	Directory   = FileType{"d"}
 )
 
+type LayerMetadata struct {
+	DiffID    string `json:"diff_id"`
+	MediaType string `json:"mediaType"`
+	Digest    string `json:"digest"`
+	Size      int64  `json:"size"`
+}
+
 type AppenderState struct {
 	// Magic is an identifier for the format of the state.
 	Magic string `json:"magic"`
