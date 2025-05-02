@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "mediaType": "application/vnd.oci.image.manifest.v1+json",
+  "config": {
+    "mediaType": "application/vnd.oci.image.config.v1+json",
+    "digest": "sha256:5a71a5244bb433561f8bc908e1ed5c0ab81d28a63d1f50a489a619cd60d89733",
+    "size": 167
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.in-toto+json",
+      "digest": "sha256:a3db90536985f42cb33a0667b800236fe8165a7f8b169654896e1f5ca0bb78de",
+      "size": 1834451,
+      "annotations": {
+        "in-toto.io/predicate-type": "https://spdx.dev/Document"
+      }
+    }
+  ]
+}
