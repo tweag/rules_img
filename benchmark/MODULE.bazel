@@ -1,0 +1,38 @@
+bazel_dep(name = "rules_img")
+local_path_override(module_name = "rules_img", path = "../")
+
+bazel_dep(name = "rules_oci", version = "2.2.6", dev_dependency = True)
+oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
+oci.pull(
+    name = "cuda_rules_oci",
+    digest = "sha256:f353ffca86e0cd93ab2470fe274ecf766519c24c37ed58cc2f91d915f7ebe53c",
+    tag = "12.8.1-cudnn-devel-ubuntu20.04",
+    image = "index.docker.io/nvidia/cuda",
+    platforms = ["linux/amd64"],
+)
+oci.pull(
+    name = "ubuntu_rules_oci",
+    digest = "sha256:1e622c5f073b4f6bfad6632f2616c7f59ef256e96fe78bf6a595d1dc4376ac02",
+    tag = "24.04",
+    image = "index.docker.io/library/ubuntu",
+    platforms = ["linux/amd64"],
+)
+use_repo(oci, "cuda_rules_oci", "ubuntu_rules_oci")
+
+pull = use_repo_rule("@rules_img//bzl/img/private/repository_rules:pull.bzl", "pull")
+
+pull(
+    name = "ubuntu",
+    digest = "sha256:1e622c5f073b4f6bfad6632f2616c7f59ef256e96fe78bf6a595d1dc4376ac02",
+    registry = "index.docker.io",
+    repository = "library/ubuntu",
+    tag = "24.04",
+)
+
+pull(
+    name = "cuda",
+    digest = "sha256:f353ffca86e0cd93ab2470fe274ecf766519c24c37ed58cc2f91d915f7ebe53c",
+    registry = "index.docker.io",
+    repository = "nvidia/cuda",
+    tag = "12.8.1-cudnn-devel-ubuntu20.04",
+)

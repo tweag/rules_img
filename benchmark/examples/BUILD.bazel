@@ -1,0 +1,79 @@
+load("@rules_img//bzl/img/private:image.bzl", "image")
+load("@rules_img//bzl/img/private:layer.bzl", "layer")
+load("@rules_img//bzl/img/private:push.bzl", "push")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_push")
+
+
+filegroup(
+    name = "log",
+    srcs = glob(["*.txt"]),
+)
+
+oci_image(
+    name = "oci_ubuntu_no_op",
+    base = "@ubuntu_rules_oci",
+    entrypoint = ["/fail"],
+)
+
+image(
+    name = "ubuntu_no_op",
+    architecture = "amd64",
+    base = "@ubuntu",
+    layers = [],
+    os = "linux",
+)
+
+oci_image(
+    name = "oci_cuda_no_op",
+    base = "@cuda_rules_oci",
+    entrypoint = ["/fail"],
+)
+
+image(
+    name = "cuda_no_op",
+    architecture = "amd64",
+    base = "@cuda",
+    layers = [],
+    os = "linux",
+)
+
+
+layer(
+    name = "my_layer",
+    srcs = {
+        "usr/bin/img": "@rules_img//cmd/img",
+        "var/hello.txt": ":hello.txt",
+        "var/log": ":log",
+    },
+    symlinks = {
+        "a": "b",
+    },
+)
+
+image(
+    name = "my_image",
+    architecture = "amd64",
+    base = "@ubuntu",
+    layers = [
+        ":my_layer",
+    ],
+    os = "linux",
+)
+
+image(
+    name = "my_second_image",
+    architecture = "amd64",
+    os = "linux",
+    base = "@cuda",
+    layers = [
+        ":my_layer",
+    ],
+)
+
+push(
+    name = "my_push",
+    image = ":my_second_image",
+    registry = "ghcr.io",
+    repository = "malt3/ubuntu",
+    tag = "latest",
+)
