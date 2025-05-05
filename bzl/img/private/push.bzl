@@ -2,6 +2,21 @@
 
 load("//bzl/img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "PullInfo")
 
+def _transition_to_host_platform(_settings, _attr):
+    return {
+        "//command_line_option:platforms": ["@@bazel_tools//tools:host_platform"],
+        "//command_line_option:extra_execution_platforms": ["@@bazel_tools//tools:host_platform"],
+    }
+
+_transition_to_host = transition(
+    implementation = _transition_to_host_platform,
+    inputs = [],
+    outputs = [
+        "//command_line_option:platforms",
+        "//command_line_option:extra_execution_platforms",
+    ],
+)
+
 def _to_rlocation_path(ctx, file):
     if file.short_path.startswith("../"):
         return file.short_path[3:]
@@ -115,7 +130,7 @@ push = rule(
         ),
         "_tool": attr.label(
             executable = True,
-            cfg = "target",
+            cfg = _transition_to_host,
             default = Label("//cmd/img"),
         ),
     },
