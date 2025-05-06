@@ -6,6 +6,7 @@ go_library(
         "factory.go",
         "options.go",
         "tarcas.go",
+        "tarmetadata.go",
     ],
     importpath = "github.com/malt3/rules_img/src/tarcas",
     visibility = ["//visibility:public"],

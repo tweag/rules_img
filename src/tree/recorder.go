@@ -51,7 +51,7 @@ func (r Recorder) RegularFile(f io.Reader, info fs.FileInfo, target string) erro
 		Typeflag: tar.TypeReg,
 		Name:     target,
 		Size:     realHdr.Size,
-		Mode:     realHdr.Mode,
+		Mode:     0o555,
 		// leave out any extra metadata (for better reproducibility)
 	}
 	if err := r.tf.WriteHeader(hdr); err != nil {
@@ -75,7 +75,7 @@ func (r Recorder) TreeFromPath(dirPath, target string) error {
 // Tree records a directory tree (including all files and subdirectories).
 // It creates a symlink in the tar file that points to the root of the tree.
 func (r Recorder) Tree(fsys fs.FS, target string) error {
-	rootHash, err := r.tf.StoreTree(fsys)
+	linkPath, err := r.tf.StoreTree(fsys)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (r Recorder) Tree(fsys fs.FS, target string) error {
 	hdr := &tar.Header{
 		Typeflag: tar.TypeSymlink,
 		Name:     target,
-		Linkname: relativeSymlinkTarget(fmt.Sprintf(".cas/tree/%x", rootHash), target),
+		Linkname: relativeSymlinkTarget(linkPath, target),
 	}
 	return r.tf.WriteHeader(hdr)
 }

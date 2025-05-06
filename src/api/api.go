@@ -52,14 +52,24 @@ type Appender interface {
 type CAS interface {
 	Import(CASStateSupplier)
 	Export(CASStateExporter) error
-	Store(r io.Reader) ([]byte, int64, error)
-	StoreKnownHashAndSize(r io.Reader, hash []byte, size int64) error
-	StoreTree(fsys fs.FS) ([]byte, error)
-	StoreTreeKnownHash(fsys fs.FS, hash []byte) error
+	Store(r io.Reader) (linkPath string, blobHash []byte, blobSize int64, err error)
+	StoreKnownHashAndSize(r io.Reader, blobHash []byte, size int64) (linkPath string, err error)
+	StoreNode(r io.Reader, hdr *tar.Header) (linkPath string, blobHash []byte, size int64, err error)
+	StoreNodeKnownHash(r io.Reader, hdr *tar.Header, blobHash []byte) (linkPath string, err error)
+	StoreTree(fsys fs.FS) (linkPath string, err error)
+	StoreTreeKnownHash(fsys fs.FS, treeHash []byte) (linkPath string, err error)
 }
 
 type CASStateSupplier interface {
+	// Blobs are files without any metadata.
+	// The hash is the hash of the file contents.
 	BlobHashes() iter.Seq[[]byte]
+	// Nodes are inodes with metadata.
+	// The hash includes any metadata,
+	// as well as the file contents.
+	NodeHashes() iter.Seq[[]byte]
+	// Trees are made up of blobs
+	// with paths in the tree.
 	TreeHashes() iter.Seq[[]byte]
 }
 

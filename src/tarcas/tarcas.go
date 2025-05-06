@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"hash/maphash"
 	"io"
 	"io/fs"
 	"iter"
 	"path"
+	"strings"
 
 	"github.com/malt3/rules_img/src/api"
 	"github.com/malt3/rules_img/src/tree/merkle"
@@ -22,10 +22,11 @@ type CAS[HM hashHelper] struct {
 	deferredFiles []*tar.Header
 	tarFile       *tar.Writer
 	hashOrder     [][]byte
+	nodeOrder     [][]byte
 	treeOrder     [][]byte
-	storedHashes  map[uint64]struct{}
-	storedTrees   map[uint64]struct{}
-	seed          maphash.Seed
+	storedHashes  map[string]struct{}
+	storedNodes   map[string]struct{}
+	storedTrees   map[string]struct{}
 	closed        bool
 	options
 }
@@ -43,28 +44,31 @@ func New[HM hashHelper](w io.Writer, opts ...Option) *CAS[HM] {
 	return &CAS[HM]{
 		tarFile:      tar.NewWriter(w),
 		hashOrder:    [][]byte{},
+		nodeOrder:    [][]byte{},
 		treeOrder:    [][]byte{},
-		storedHashes: make(map[uint64]struct{}),
-		storedTrees:  make(map[uint64]struct{}),
-		seed:         maphash.MakeSeed(),
+		storedHashes: make(map[string]struct{}),
+		storedNodes:  make(map[string]struct{}),
+		storedTrees:  make(map[string]struct{}),
 		options:      options,
 	}
 }
 
 func (c *CAS[HM]) Import(from api.CASStateSupplier) {
 	for hash := range from.BlobHashes() {
-		mapKey := maphash.Bytes(c.seed, hash)
-		c.storedHashes[mapKey] = struct{}{}
+		c.storedHashes[string(hash)] = struct{}{}
+	}
+	for hash := range from.NodeHashes() {
+		c.storedNodes[string(hash)] = struct{}{}
 	}
 	for hash := range from.TreeHashes() {
-		mapKey := maphash.Bytes(c.seed, hash)
-		c.storedTrees[mapKey] = struct{}{}
+		c.storedTrees[string(hash)] = struct{}{}
 	}
 }
 
 func (c *CAS[HM]) Export(to api.CASStateExporter) error {
 	return to.Export(&exporterState{
 		hashOrder: c.hashOrder,
+		nodeOrder: c.nodeOrder,
 		treeOrder: c.treeOrder,
 	})
 }
@@ -133,33 +137,46 @@ func (c *CAS[HM]) Write(b []byte) (int, error) {
 
 	// Whole file is buffered.
 	// Commit the CAS object, followed by a hardlink.
-	size := c.currentFile.Size
-	name := c.currentFile.Name
+	th := c.currentFile
 	c.currentFile = nil
 	defer func() {
 		c.buf.Reset()
 	}()
 
-	hash, storeSize, err := c.Store(&c.buf)
-	if err != nil {
-		return n, err
+	var helper HM
+	blobHasher := helper.New()
+	blobHasher.Write(c.buf.Bytes())
+	blobHash := blobHasher.Sum(nil)
+
+	var linkPath string
+	if isBlobTarHeader(th) {
+		// Try to store a blob without special metadata.
+		// This only works for regular files
+		// with hardcoded rw-rw-rw- permissions.
+		var err error
+		linkPath, err = c.StoreKnownHashAndSize(&c.buf, blobHash, th.Size)
+		if err != nil {
+			return n, err
+		}
+	} else {
+		// This file has more complex requirements.
+		// Store it as a "node" instead, including metadata.
+		var err error
+		linkPath, err = c.StoreNodeKnownHash(&c.buf, th, blobHash)
+		if err != nil {
+			return n, err
+		}
 	}
-	if storeSize != size {
-		return n, fmt.Errorf("size mismatch when storing CAS object in tar: expected %d, wrote %d", c.currentFile.Size, storeSize)
-	}
-	contentName := fmt.Sprintf(".cas/blob/%x", hash)
-	if contentName == name {
+
+	if linkPath == th.Name {
 		// If we were writing to the CAS object itself,
 		// we don't need to write a hardlink.
 		return n, nil
 	}
-	header := &tar.Header{
-		Typeflag: tar.TypeLink,
-		Name:     name,
-		Linkname: contentName,
-		Mode:     0o555,
-	}
-	return n, c.writeHeaderOrDefer(header)
+	header := cloneTarHeader(th)
+	header.Typeflag = tar.TypeLink
+	header.Linkname = linkPath
+	return n, c.writeHeaderOrDefer(&header)
 }
 
 func (c *CAS[HM]) WriteHeader(hdr *tar.Header) error {
@@ -167,7 +184,7 @@ func (c *CAS[HM]) WriteHeader(hdr *tar.Header) error {
 		return errors.New("current file is not fully written")
 	}
 
-	if hdr.Typeflag == tar.TypeReg {
+	if hdr.Typeflag == tar.TypeReg && !strings.HasSuffix(hdr.Name, "/") {
 		// Regular file
 		// TODO: Check if the header contains any non-standard
 		// metadata. If so, we cannot use it as a CAS object.
@@ -186,9 +203,9 @@ func (c *CAS[HM]) WriteHeader(hdr *tar.Header) error {
 	return c.writeHeaderOrDefer(hdr)
 }
 
-func (c *CAS[HM]) Store(r io.Reader) ([]byte, int64, error) {
+func (c *CAS[HM]) Store(r io.Reader) (string, []byte, int64, error) {
 	if c.currentFile != nil && c.currentFile.Size != int64(c.buf.Len()) {
-		return nil, 0, fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
+		return "", nil, 0, fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
 	}
 
 	var helper HM
@@ -196,23 +213,24 @@ func (c *CAS[HM]) Store(r io.Reader) ([]byte, int64, error) {
 	h := helper.New()
 	n, err := io.Copy(io.MultiWriter(h, &buf), r)
 	if err != nil {
-		return nil, n, err
+		return "", nil, n, err
 	}
 	hash := h.Sum(nil)
-	return hash, n, c.StoreKnownHashAndSize(&buf, hash, n)
+	contentPath, err := c.StoreKnownHashAndSize(&buf, hash, n)
+	return contentPath, hash, n, err
 }
 
-func (c *CAS[HM]) StoreKnownHashAndSize(r io.Reader, hash []byte, size int64) error {
+func (c *CAS[HM]) StoreKnownHashAndSize(r io.Reader, hash []byte, size int64) (string, error) {
 	if c.currentFile != nil && c.currentFile.Size != int64(c.buf.Len()) {
-		return fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
+		return "", fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
 	}
 
-	mapKey := maphash.Bytes(c.seed, hash)
-	if _, exists := c.storedHashes[mapKey]; exists {
-		return nil
+	contentName := casPath("blob", hash)
+
+	if _, exists := c.storedHashes[string(hash)]; exists {
+		return contentName, nil
 	}
 
-	contentName := fmt.Sprintf(".cas/blob/%x", hash)
 	header := &tar.Header{
 		Typeflag: tar.TypeReg,
 		Name:     contentName,
@@ -220,55 +238,121 @@ func (c *CAS[HM]) StoreKnownHashAndSize(r io.Reader, hash []byte, size int64) er
 		Mode:     0o555,
 	}
 	if err := c.tarFile.WriteHeader(header); err != nil {
-		return err
+		return "", err
 	}
 
 	n, err := io.Copy(c.tarFile, r)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if n != size {
-		return fmt.Errorf("size mismatch when storing CAS object in tar: expected %d, wrote %d", size, n)
+		return "", fmt.Errorf("size mismatch when storing CAS object in tar: expected %d, wrote %d", size, n)
 	}
 
-	c.storedHashes[mapKey] = struct{}{}
+	c.storedHashes[string(hash)] = struct{}{}
 	c.hashOrder = append(c.hashOrder, hash)
 
-	return nil
+	return contentName, nil
 }
 
-func (c *CAS[HM]) StoreTree(fsys fs.FS) ([]byte, error) {
+func (c *CAS[HM]) StoreNode(r io.Reader, hdr *tar.Header) (linkPath string, blobHash []byte, size int64, err error) {
+	// TODO: cache content hashing in vfs
+	var helper HM
+	var buf bytes.Buffer
+	h := helper.New()
+	n, err := io.Copy(io.MultiWriter(h, &buf), r)
+	if err != nil {
+		return "", nil, n, err
+	}
+	blobHash = h.Sum(nil)
+	linkPath, err = c.StoreNodeKnownHash(&buf, hdr, blobHash)
+	return linkPath, blobHash, size, err
+}
+
+func (c *CAS[HM]) StoreNodeKnownHash(r io.Reader, hdr *tar.Header, blobHash []byte) (linkPath string, err error) {
+	var helper HM
+	if c.currentFile != nil && c.currentFile.Size != int64(c.buf.Len()) {
+		return "", fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
+	}
+
+	// nodes are like blobs (regular files with content),
+	// but they also have metadata (like permissions, owner, group, mtime, xattrs, etc.)
+	// we need to account for that in the hash
+
+	if hdr.Typeflag != tar.TypeReg || strings.HasSuffix(hdr.Name, "/") {
+		// only regular files can be stored as nodes
+		// other kinds cannot be targets of hardlinks
+		return "", fmt.Errorf("invalid node header: %s", hdr.Name)
+	}
+
+	// create a normalized version of the header
+	recordedTarHeader := cloneTarHeader(hdr)
+	// we explicitly leave the name empty for hashing
+	// so that files in different locations can hardlink the same
+	// CAS entry.
+	recordedTarHeader.Name = ""
+	normalizeTarHeader(&recordedTarHeader)
+
+	hasher := helper.New()
+	hashTarHeader(hasher, recordedTarHeader)
+	hasher.Write(blobHash)
+	nodeHash := hasher.Sum(nil)
+
+	linkPath = casPath("node", nodeHash)
+
+	if _, exists := c.storedNodes[string(nodeHash)]; exists {
+		return linkPath, nil
+	}
+
+	recordedTarHeader.Name = linkPath
+	if err := c.tarFile.WriteHeader(&recordedTarHeader); err != nil {
+		return linkPath, err
+	}
+
+	n, err := io.Copy(c.tarFile, r)
+	if err != nil {
+		return linkPath, err
+	}
+	if n != recordedTarHeader.Size {
+		return linkPath, fmt.Errorf("size mismatch when storing CAS object in tar: expected %d, wrote %d", recordedTarHeader.Size, n)
+	}
+
+	c.storedNodes[string(nodeHash)] = struct{}{}
+	c.nodeOrder = append(c.nodeOrder, nodeHash)
+	return linkPath, nil
+}
+
+func (c *CAS[HM]) StoreTree(fsys fs.FS) (linkPath string, err error) {
 	var hashMaker HM
 	treeHasher := merkle.NewTreeHasher(fsys, hashMaker.New)
 	rootHash, err := treeHasher.Build()
 	if err != nil {
-		return nil, fmt.Errorf("calculating tree hash before storing tree artifact in tar: %w", err)
+		return "", fmt.Errorf("calculating tree hash before storing tree artifact in tar: %w", err)
 	}
-	return rootHash, c.StoreTreeKnownHash(fsys, rootHash)
+	return c.StoreTreeKnownHash(fsys, rootHash)
 }
 
-func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, hash []byte) error {
+func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, treeHash []byte) (linkPath string, err error) {
 	// Every regular file in the tree is a CAS object, so we need to store it,
 	// along with a hardlink to the CAS object.
 	// For now, we don't support any special metadata for tree artifacts and disallow empty directories,
 	// so we can get away with storing a single directory entry (for the root directory of the tree).
 	if c.currentFile != nil && c.currentFile.Size != int64(c.buf.Len()) {
-		return fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
+		return "", fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
 	}
 
-	mapKey := maphash.Bytes(c.seed, hash)
-	if _, exists := c.storedTrees[mapKey]; exists {
-		return nil
+	treeBase := casPath("tree", treeHash)
+	if _, exists := c.storedTrees[string(treeHash)]; exists {
+		return treeBase, nil
 	}
 
-	treeBase := fmt.Sprintf(".cas/tree/%x", hash)
 	header := &tar.Header{
 		Typeflag: tar.TypeDir,
 		Name:     treeBase,
 		Mode:     0o555,
 	}
 	if err := c.tarFile.WriteHeader(header); err != nil {
-		return err
+		return treeBase, err
 	}
 
 	// Store the tree children in the tar file.
@@ -285,7 +369,7 @@ func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, hash []byte) error {
 			return fmt.Errorf("opening file %s: %w", p, err)
 		}
 		defer f.Close()
-		blobHash, _, err := c.Store(f)
+		linkName, _, _, err := c.Store(f)
 		if err != nil {
 			return fmt.Errorf("storing file %s: %w", p, err)
 		}
@@ -293,7 +377,7 @@ func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, hash []byte) error {
 		header := &tar.Header{
 			Typeflag: tar.TypeLink,
 			Name:     path.Join(treeBase, p),
-			Linkname: fmt.Sprintf(".cas/blob/%x", blobHash),
+			Linkname: linkName,
 			Mode:     0o555,
 		}
 		if err := c.tarFile.WriteHeader(header); err != nil {
@@ -301,12 +385,12 @@ func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, hash []byte) error {
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("storing tree artifact %x in tar: %w", hash, err)
+		return treeBase, fmt.Errorf("storing tree artifact %x in tar: %w", treeHash, err)
 	}
 
-	c.storedTrees[mapKey] = struct{}{}
-	c.treeOrder = append(c.treeOrder, hash)
-	return nil
+	c.storedTrees[string(treeHash)] = struct{}{}
+	c.treeOrder = append(c.treeOrder, treeHash)
+	return treeBase, nil
 }
 
 func (c *CAS[HM]) writeHeaderOrDefer(hdr *tar.Header) error {
@@ -335,6 +419,10 @@ func (c *CAS[HM]) writeHeaderOrDefer(hdr *tar.Header) error {
 	return c.tarFile.WriteHeader(hdr)
 }
 
+func casPath(blobKind string, hash []byte) string {
+	return fmt.Sprintf(".cas/%s/%x", blobKind, hash)
+}
+
 func callbackModeFromTarType(hdr *tar.Header) WriteHeaderCallbackFilter {
 	switch hdr.Typeflag {
 	case tar.TypeReg:
@@ -355,12 +443,23 @@ type hashHelper interface {
 
 type exporterState struct {
 	hashOrder [][]byte
+	nodeOrder [][]byte
 	treeOrder [][]byte
 }
 
 func (e *exporterState) BlobHashes() iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
 		for _, hash := range e.hashOrder {
+			if !yield(hash) {
+				return
+			}
+		}
+	}
+}
+
+func (e *exporterState) NodeHashes() iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		for _, hash := range e.nodeOrder {
 			if !yield(hash) {
 				return
 			}
