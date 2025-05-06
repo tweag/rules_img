@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/malt3/rules_img/src/api"
+	"github.com/malt3/rules_img/src/fileopener"
 	"github.com/malt3/rules_img/src/tree/runfiles"
 )
 
@@ -23,6 +24,40 @@ func NewRecorder(tf api.TarCAS) Recorder {
 	return Recorder{
 		tf: tf,
 	}
+}
+
+func (r Recorder) ImportTar(tarFile string) error {
+	file, err := os.Open(tarFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	input, err := fileopener.CompressionReader(file)
+	if err != nil {
+		return err
+	}
+
+	tr := tar.NewReader(input)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if err := r.tf.WriteHeader(hdr); err != nil {
+			return err
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			if _, err := io.Copy(r.tf, tr); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (r Recorder) RegularFileFromPath(filePath, target string) error {

@@ -34,6 +34,36 @@ func (GZipMaker) Name() string {
 	return "gzip"
 }
 
+type nopCompressor struct {
+	underlying io.Writer
+}
+
+func (n nopCompressor) Close() error {
+	return nil
+}
+
+func (n nopCompressor) Flush() error {
+	return nil
+}
+
+func (n nopCompressor) Write(p []byte) (int, error) {
+	return n.underlying.Write(p)
+}
+
+type UncompressedMaker struct{}
+
+func (UncompressedMaker) NewWriter(w io.Writer) nopCompressor {
+	return nopCompressor{underlying: w}
+}
+
+func (UncompressedMaker) NewWriterLevel(w io.Writer, level int) (nopCompressor, error) {
+	return nopCompressor{underlying: w}, nil
+}
+
+func (UncompressedMaker) Name() string {
+	return "uncompressed"
+}
+
 func NewSHA256GzipAppender(w io.Writer, options ...Option) (Appender[*gzip.Writer], error) {
 	return New[*gzip.Writer, SHA256Maker, GZipMaker](w, options...)
 }
@@ -46,6 +76,8 @@ func AppenderFactory(hashAlgorithm, compressionAlgorithm string, w io.Writer, op
 	switch {
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "gzip":
 		return NewSHA256GzipAppender(w, options...)
+	case hashAlgorithm == "sha256" && compressionAlgorithm == "uncompressed":
+		return New[nopCompressor, SHA256Maker, UncompressedMaker](w, options...)
 	}
 	return nil, errors.New("unsupported hash or compression algorithm")
 }
@@ -54,6 +86,8 @@ func ResumeFactory(hashAlgorithm, compressionAlgorithm string, state api.Appende
 	switch {
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "gzip":
 		return ResumeSHA256GzipAppender(state, w, options...)
+	case hashAlgorithm == "sha256" && compressionAlgorithm == "uncompressed":
+		return Resume[nopCompressor, SHA256Maker, UncompressedMaker](state, w, options...)
 	}
 	return nil, errors.New("unsupported hash or compression algorithm")
 }

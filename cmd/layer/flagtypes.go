@@ -92,6 +92,20 @@ func (a *addFromFileArgs) Set(value string) error {
 	return nil
 }
 
+type importTars []string
+
+func (i *importTars) String() string {
+	return strings.Join(*i, ", ")
+}
+
+func (i *importTars) Set(value string) error {
+	if _, err := os.Stat(value); err != nil {
+		return fmt.Errorf("file %s does not exist: %w", value, err)
+	}
+	*i = append(*i, value)
+	return nil
+}
+
 type runfilesForExecutable struct {
 	Executable       string
 	RunfilesFromFile string

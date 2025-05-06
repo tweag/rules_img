@@ -19,16 +19,18 @@ import (
 func LayerProcess(ctx context.Context, args []string) {
 	var addFiles addFiles
 	var addFromFile addFromFileArgs
+	var importTarFlags importTars
 	var runfilesFlags runfilesForExecutables
 	var executableFlags executables
 	var symlinkFlags symlinks
 	var symlinksFromFiles symlinksFromFileArgs
+	var formatFlag string
 	var metadataOutputFlag string
 
 	flagSet := flag.NewFlagSet("layer", flag.ExitOnError)
 	flagSet.Usage = func() {
-		fmt.Fprintf(flagSet.Output(), "Creates or appends a compressed tar file which can be used as a container image layer while deduplicating the contents.\n\n")
-		fmt.Fprintf(flagSet.Output(), "Usage: img layer [--add-from-file param_file] [--executable path_in_image=executable_file] [--runfiles executable_file=param_file] [output]\n")
+		fmt.Fprintf(flagSet.Output(), "Creates a compressed tar file which can be used as a container image layer while deduplicating the contents.\n\n")
+		fmt.Fprintf(flagSet.Output(), "Usage: img layer [--add path_in_image=target] [--add-from-file param_file] [--import-tar tar_file] [--executable path_in_image=executable_file] [--runfiles executable_file=param_file] [--symlink path_in_image=target] [--symlinks-from-file=param_file] [--metadata=metadata_output_file] [output]\n")
 		flagSet.PrintDefaults()
 		examples := []string{
 			"img layer --add /etc/passwd=./passwd --executable /bin/myapp=./myapp layer.tgz",
@@ -45,10 +47,12 @@ func LayerProcess(ctx context.Context, args []string) {
 	flagSet.Var(&addFromFile, "add-from-file", `Add all files listed in the parameter file to the image layer. The parameter file is usually written by Bazel.
 The file contains one line per file, where each line contains a path in the image and a path in the host filesystem, separated by a a null byte and a single character indicating the type of the file.
 The type is either 'f' for regular files, 'd' for directories. The parameter file is usually written by Bazel.`)
+	flagSet.Var(&importTarFlags, "import-tar", `Import all files from the given tar file into the image layer while deduplicating the contents.`)
 	flagSet.Var(&executableFlags, "executable", `Add the executable file at the specified path in the image. This should be combined with the --runfiles flag to include the runfiles of the executable.`)
 	flagSet.Var(&runfilesFlags, "runfiles", `Add the runfiles of an executable file. The runfiles are read from the specified parameter file with the same encoding used by --add-from-file. The parameter file is usually written by Bazel.`)
 	flagSet.Var(&symlinkFlags, "symlink", `Add a symlink to the image layer. The parameter is a string of the form <path_in_image>=<target> where <path_in_image> is the path in the image and <target> is the target of the symlink.`)
 	flagSet.Var(&symlinksFromFiles, "symlinks-from-file", `Add all symlinks listed in the parameter file to the image layer. The parameter file is usually written by Bazel.`)
+	flagSet.StringVar(&formatFlag, "format", "", `The compression format of the output layer. Can be "gzip" or "none". Default is to guess the algorithm based on the filename, but fall back to "gzip".`)
 	flagSet.StringVar(&metadataOutputFlag, "metadata", "", `Write the metadata to the specified file. The metadata is a JSON file containing info needed to use the layer as part of an OCI image.`)
 
 	if err := flagSet.Parse(args); err != nil {
@@ -62,6 +66,26 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 	}
 
 	outputFilePath := flagSet.Arg(0)
+
+	var compressionAlgorithm api.CompressionAlgorithm
+	switch formatFlag {
+	case "":
+		if filepath.Ext(outputFilePath) == ".tar" {
+			compressionAlgorithm = api.Uncompressed
+		} else if filepath.Ext(outputFilePath) == ".tgz" || filepath.Ext(outputFilePath) == ".gz" {
+			compressionAlgorithm = api.Gzip
+		} else {
+			compressionAlgorithm = api.Gzip
+		}
+	case "gzip":
+		compressionAlgorithm = api.Gzip
+	case "none", "uncompressed", "tar":
+		compressionAlgorithm = api.Uncompressed
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown format %s. Supported formats are gzip and uncompressed.\n", formatFlag)
+		os.Exit(1)
+	}
+
 	outputFile, err := os.OpenFile(outputFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening output file: %v\n", err)
@@ -120,7 +144,7 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 		}
 	}
 
-	compressorState, err := handleLayerState(addFiles, executableFlags, symlinkFlags, outputFile)
+	compressorState, err := handleLayerState(compressionAlgorithm, addFiles, importTarFlags, executableFlags, symlinkFlags, outputFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Writing layer: %v\n", err)
 		os.Exit(1)
@@ -134,15 +158,15 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 		}
 		defer metadataOutputFile.Close()
 
-		if err := writeMetadata(compressorState, metadataOutputFile); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing metadata: %v\n", err)
+		if err := writeMetadata(compressionAlgorithm, compressorState, metadataOutputFile); err != nil {
+			fmt.Fprintf(os.Stderr, "Writing metadata: %v\n", err)
 			os.Exit(1)
 		}
 	}
 }
 
-func handleLayerState(addFiles addFiles, addExecutables executables, addSymlinks symlinks, outputFile io.Writer) (compressorState api.AppenderState, err error) {
-	compressor, err := compress.AppenderFactory("sha256", "gzip", outputFile)
+func handleLayerState(compressionAlgorithm api.CompressionAlgorithm, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks, outputFile io.Writer) (compressorState api.AppenderState, err error) {
+	compressor, err := compress.AppenderFactory("sha256", string(compressionAlgorithm), outputFile)
 	if err != nil {
 		return compressorState, fmt.Errorf("creating compressor: %w", err)
 	}
@@ -151,6 +175,7 @@ func handleLayerState(addFiles addFiles, addExecutables executables, addSymlinks
 		compressorState, compressorCloseErr = compressor.Finalize()
 		if compressorCloseErr != nil {
 			fmt.Fprintf(os.Stderr, "Error closing compressor: %v\n", compressorCloseErr)
+			os.Exit(1)
 		}
 	}()
 
@@ -165,14 +190,20 @@ func handleLayerState(addFiles addFiles, addExecutables executables, addSymlinks
 	}()
 
 	recorder := tree.NewRecorder(tw)
-	if err := writeLayer(recorder, addFiles, addExecutables, addSymlinks); err != nil {
+	if err := writeLayer(recorder, addFiles, importTars, addExecutables, addSymlinks); err != nil {
 		return compressorState, err
 	}
 
 	return compressorState, nil
 }
 
-func writeLayer(recorder tree.Recorder, addFiles addFiles, addExecutables executables, addSymlinks symlinks) error {
+func writeLayer(recorder tree.Recorder, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks) error {
+	for _, tarFile := range importTars {
+		if err := recorder.ImportTar(tarFile); err != nil {
+			return fmt.Errorf("importing tar file: %w", err)
+		}
+	}
+
 	for _, op := range addFiles {
 		switch op.FileType {
 		case api.RegularFile:
@@ -211,10 +242,20 @@ func writeLayer(recorder tree.Recorder, addFiles addFiles, addExecutables execut
 	return nil
 }
 
-func writeMetadata(compressorState api.AppenderState, outputFile io.Writer) error {
+func writeMetadata(compressionAlgorithm api.CompressionAlgorithm, compressorState api.AppenderState, outputFile io.Writer) error {
+	var mediaType string
+	switch compressionAlgorithm {
+	case api.Uncompressed:
+		mediaType = "application/vnd.oci.image.layer.v1.tar"
+	case api.Gzip:
+		mediaType = "application/vnd.oci.image.layer.v1.tar+gzip"
+	default:
+		return fmt.Errorf("unsupported compression algorithm: %s", compressionAlgorithm)
+	}
+
 	metadata := api.LayerMetadata{
 		DiffID:    fmt.Sprintf("sha256:%x", compressorState.ContentHash),
-		MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
+		MediaType: mediaType,
 		Digest:    fmt.Sprintf("sha256:%x", compressorState.OuterHash),
 		Size:      compressorState.CompressedSize,
 	}

@@ -6,7 +6,9 @@ import (
 	"os"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
+	"github.com/malt3/rules_img/cmd/compress"
 	"github.com/malt3/rules_img/cmd/layer"
+	"github.com/malt3/rules_img/cmd/layermeta"
 	"github.com/malt3/rules_img/cmd/manifest"
 	"github.com/malt3/rules_img/cmd/push"
 )
@@ -14,9 +16,11 @@ import (
 const usage = `Usage: img [COMMAND] [ARGS...]
 
 Commands:
-  layer     creates a layer from files
-  manifest  creates an image manifest and config from layers
-  push      pushes an image to a registry`
+  compress        (re-)compresses a layer
+  layer           creates a layer from files
+  layer-metadata  creates a layer metadata file from a layer
+  manifest        creates an image manifest and config from layers
+  push            pushes an image to a registry`
 
 func Run(ctx context.Context, args []string) {
 	if runfilesDispatch(ctx) {
@@ -37,10 +41,14 @@ func Run(ctx context.Context, args []string) {
 	switch command {
 	case "layer":
 		layer.LayerProcess(ctx, args[2:])
+	case "layer-metadata":
+		layermeta.LayerMetadataProcess(ctx, args[2:])
 	case "manifest":
 		manifest.ManifestProcess(ctx, args[2:])
 	case "push":
 		push.PushProcess(ctx, args[2:])
+	case "compress":
+		compress.CompressProcess(ctx, args[2:])
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)

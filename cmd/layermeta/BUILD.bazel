@@ -1,13 +1,12 @@
 load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
-    name = "tree",
-    srcs = ["recorder.go"],
-    importpath = "github.com/malt3/rules_img/src/tree",
+    name = "layermeta",
+    srcs = ["layermeta.go"],
+    importpath = "github.com/malt3/rules_img/cmd/layermeta",
     visibility = ["//visibility:public"],
     deps = [
         "//src/api",
         "//src/fileopener",
-        "//src/tree/runfiles",
     ],
 )

@@ -7,6 +7,40 @@ import (
 	"iter"
 )
 
+type (
+	CompressionAlgorithm string
+	HashAlgorithm        string
+	LayerFormat          string
+)
+
+const (
+	// Compression algorithms
+	Uncompressed CompressionAlgorithm = "uncompressed"
+	Gzip         CompressionAlgorithm = "gzip"
+	// TODO: Zstd CompressionAlgorithm = "zstd"
+
+	// Hash algorithms
+	SHA256 HashAlgorithm = "sha256"
+
+	// Layer formats
+	TarLayer     = "application/vnd.oci.image.layer.v1.tar"
+	TarGzipLayer = "application/vnd.oci.image.layer.v1.tar+gzip"
+	// TarZstdLayer = "application/vnd.oci.image.layer.v1.tar+zstd"
+)
+
+func (c LayerFormat) CompressionAlgorithm() CompressionAlgorithm {
+	switch c {
+	case TarLayer:
+		return Uncompressed
+	case TarGzipLayer:
+		return Gzip
+	// case TarZstdLayer:
+	// 	return Zstd
+	default:
+		return ""
+	}
+}
+
 type FileType struct{ inner string }
 
 func (f FileType) String() string {
