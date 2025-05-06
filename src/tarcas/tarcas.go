@@ -152,7 +152,7 @@ func (c *CAS[HM]) Write(b []byte) (int, error) {
 	if isBlobTarHeader(th) {
 		// Try to store a blob without special metadata.
 		// This only works for regular files
-		// with hardcoded rw-rw-rw- permissions.
+		// with hardcoded rwxr-xr-x permissions.
 		var err error
 		linkPath, err = c.StoreKnownHashAndSize(&c.buf, blobHash, th.Size)
 		if err != nil {
@@ -235,7 +235,7 @@ func (c *CAS[HM]) StoreKnownHashAndSize(r io.Reader, hash []byte, size int64) (s
 		Typeflag: tar.TypeReg,
 		Name:     contentName,
 		Size:     size,
-		Mode:     0o555,
+		Mode:     0o755,
 	}
 	if err := c.tarFile.WriteHeader(header); err != nil {
 		return "", err
@@ -349,7 +349,7 @@ func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, treeHash []byte) (linkPath stri
 	header := &tar.Header{
 		Typeflag: tar.TypeDir,
 		Name:     treeBase,
-		Mode:     0o555,
+		Mode:     0o755,
 	}
 	if err := c.tarFile.WriteHeader(header); err != nil {
 		return treeBase, err
@@ -378,7 +378,7 @@ func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, treeHash []byte) (linkPath stri
 			Typeflag: tar.TypeLink,
 			Name:     path.Join(treeBase, p),
 			Linkname: linkName,
-			Mode:     0o555,
+			Mode:     0o755,
 		}
 		if err := c.tarFile.WriteHeader(header); err != nil {
 			return fmt.Errorf("writing link for %s: %w", p, err)

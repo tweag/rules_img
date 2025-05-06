@@ -22,7 +22,7 @@ func DefaultFileNode(contentHash []byte, info fs.FileInfo) FileNode {
 		Name:        metadataString(info.Name()),
 		Size:        metadataSize(info.Size()),
 		ContentHash: contentHash,
-		Mode:        0o555,
+		Mode:        0o755,
 	}
 }
 

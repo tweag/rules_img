@@ -51,7 +51,7 @@ func (r Recorder) RegularFile(f io.Reader, info fs.FileInfo, target string) erro
 		Typeflag: tar.TypeReg,
 		Name:     target,
 		Size:     realHdr.Size,
-		Mode:     0o555,
+		Mode:     0o755,
 		// leave out any extra metadata (for better reproducibility)
 	}
 	if err := r.tf.WriteHeader(hdr); err != nil {
@@ -97,7 +97,7 @@ func (r Recorder) Executable(binaryPath, target string, accessor runfilesSupplie
 	if err := r.tf.WriteHeader(&tar.Header{
 		Typeflag: tar.TypeDir,
 		Name:     target + ".runfiles/",
-		Mode:     0o555,
+		Mode:     0o755,
 	}); err != nil {
 		return err
 	}

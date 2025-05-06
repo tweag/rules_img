@@ -129,8 +129,8 @@ func isBlobTarHeader(hdr *tar.Header) bool {
 	}
 	// Ignore linkname, it doesn't matter for TypeReg
 	// which we already checked for.
-	if hdr.Mode != 0o555 {
-		// if mode is not (rw-rw-rw-)
+	if hdr.Mode != 0o755 {
+		// if mode is not (rwxr-xr-x)
 		// we cannot store this node as a blob.
 		return false
 	}
