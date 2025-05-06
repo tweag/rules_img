@@ -1,5 +1,6 @@
 load("@rules_img//bzl/img/private:image.bzl", "image")
 load("@rules_img//bzl/img/private:layer.bzl", "layer")
+load("@rules_img//bzl/img/private:layer_from_tar.bzl", "layer_from_tar")
 load("@rules_img//bzl/img/private:push.bzl", "push")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_push")
 load("//:build_tree.bzl", "build_tree")
@@ -7,8 +8,16 @@ load("//:build_tree.bzl", "build_tree")
 build_tree(
     name = "tree",
     size = 512,
-    dirs = ["a/b/c", "x/y"],
-    names = ["foo", "bar", "a/b/c/leaf", "x/leaf"],
+    dirs = [
+        "a/b/c",
+        "x/y",
+    ],
+    names = [
+        "foo",
+        "bar",
+        "a/b/c/leaf",
+        "x/leaf",
+    ],
 )
 
 build_tree(
@@ -16,7 +25,6 @@ build_tree(
     size = 512 * 128,
     names = ["large_file_%s" % i for i in range(256)],
 )
-
 
 filegroup(
     name = "log",
@@ -51,7 +59,6 @@ image(
     os = "linux",
 )
 
-
 layer(
     name = "my_layer",
     srcs = {
@@ -67,6 +74,13 @@ layer(
     },
 )
 
+layer_from_tar(
+    name = "my_layer_from_tar",
+    src = "@test_archive//file",
+    compress = "gzip",
+    optimize = True,
+)
+
 image(
     name = "my_image",
     architecture = "amd64",
@@ -80,11 +94,11 @@ image(
 image(
     name = "my_second_image",
     architecture = "amd64",
-    os = "linux",
     base = "@cuda",
     layers = [
         ":my_layer",
     ],
+    os = "linux",
 )
 
 push(

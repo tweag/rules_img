@@ -1,21 +1,25 @@
 bazel_dep(name = "rules_img")
-local_path_override(module_name = "rules_img", path = "../")
+local_path_override(
+    module_name = "rules_img",
+    path = "../",
+)
 
 bazel_dep(name = "rules_oci", version = "2.2.6", dev_dependency = True)
+
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci.pull(
     name = "cuda_rules_oci",
     digest = "sha256:f353ffca86e0cd93ab2470fe274ecf766519c24c37ed58cc2f91d915f7ebe53c",
-    tag = "12.8.1-cudnn-devel-ubuntu20.04",
     image = "index.docker.io/nvidia/cuda",
     platforms = ["linux/amd64"],
+    tag = "12.8.1-cudnn-devel-ubuntu20.04",
 )
 oci.pull(
     name = "ubuntu_rules_oci",
     digest = "sha256:1e622c5f073b4f6bfad6632f2616c7f59ef256e96fe78bf6a595d1dc4376ac02",
-    tag = "24.04",
     image = "index.docker.io/library/ubuntu",
     platforms = ["linux/amd64"],
+    tag = "24.04",
 )
 use_repo(oci, "cuda_rules_oci", "ubuntu_rules_oci")
 
@@ -35,4 +39,13 @@ pull(
     registry = "index.docker.io",
     repository = "nvidia/cuda",
     tag = "12.8.1-cudnn-devel-ubuntu20.04",
+)
+
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+    name = "test_archive",
+    downloaded_file_path = "tweag-credential-helper-v0.0.5.tar.gz",
+    integrity = "sha256-ekDKxcANT8AHddCNetpem3iI28vpBM8kT3ls/8kRzpw=",
+    url = "https://github.com/tweag/credential-helper/releases/download/v0.0.5/tweag-credential-helper-v0.0.5.tar.gz",
 )
