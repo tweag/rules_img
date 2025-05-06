@@ -2,6 +2,20 @@ load("@rules_img//bzl/img/private:image.bzl", "image")
 load("@rules_img//bzl/img/private:layer.bzl", "layer")
 load("@rules_img//bzl/img/private:push.bzl", "push")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_push")
+load("//:build_tree.bzl", "build_tree")
+
+build_tree(
+    name = "tree",
+    size = 512,
+    dirs = ["a/b/c", "x/y"],
+    names = ["foo", "bar", "a/b/c/leaf", "x/leaf"],
+)
+
+build_tree(
+    name = "large_tree",
+    size = 512 * 128,
+    names = ["large_file_%s" % i for i in range(256)],
+)
 
 
 filegroup(
@@ -44,6 +58,9 @@ layer(
         "usr/bin/img": "@rules_img//cmd/img",
         "var/hello.txt": ":hello.txt",
         "var/log": ":log",
+        "var/tree_a": ":tree",
+        "var/tree_b": ":tree",
+        "var/large_tree": ":large_tree",
     },
     symlinks = {
         "a": "b",
