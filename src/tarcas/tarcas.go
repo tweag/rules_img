@@ -53,16 +53,26 @@ func New[HM hashHelper](w io.Writer, opts ...Option) *CAS[HM] {
 	}
 }
 
-func (c *CAS[HM]) Import(from api.CASStateSupplier) {
-	for hash := range from.BlobHashes() {
+func (c *CAS[HM]) Import(from api.CASStateSupplier) error {
+	for hash, err := range from.BlobHashes() {
+		if err != nil {
+			return err
+		}
 		c.storedHashes[string(hash)] = struct{}{}
 	}
-	for hash := range from.NodeHashes() {
+	for hash, err := range from.NodeHashes() {
+		if err != nil {
+			return err
+		}
 		c.storedNodes[string(hash)] = struct{}{}
 	}
-	for hash := range from.TreeHashes() {
+	for hash, err := range from.TreeHashes() {
+		if err != nil {
+			return err
+		}
 		c.storedTrees[string(hash)] = struct{}{}
 	}
+	return nil
 }
 
 func (c *CAS[HM]) Export(to api.CASStateExporter) error {

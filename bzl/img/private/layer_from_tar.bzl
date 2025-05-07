@@ -1,7 +1,7 @@
 """Layer rule for converting existing tar files to usable layers."""
 
 load("//bzl/img:providers.bzl", "LayerInfo")
-load(":tarfiles_helper.bzl", "allow_tar_files", "calculate_layer_info", "extension_to_compression", "optimize_layer", "recompress_layer")
+load(":layer_helper.bzl", "allow_tar_files", "calculate_layer_info", "extension_to_compression", "optimize_layer", "recompress_layer")
 
 def _layer_from_tar_impl(ctx):
     optimize = ctx.attr.optimize or len(ctx.attr.deduplicate) > 0
@@ -85,9 +85,10 @@ This is useful for reducing the size of the image, but will take extra time and 
 Rewriting is also enabled by passing other layers to the `deduplicate` attribute.""",
         ),
         "deduplicate": attr.label_list(
-            doc = """Optional layers or images that are known to be below this layer.
+            doc = """Optional layers that are known to be below this layer.
 Any files included in referenced layers will not be written again.
 Users are free to choose: adding a layer here adds an ordering constraint (referenced layers have to be built first), but doing so can reduce image size.""",
+            providers = [LayerInfo],
         ),
         "_tool": attr.label(
             executable = True,

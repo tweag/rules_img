@@ -4,6 +4,7 @@ go_library(
     name = "contentmanifest",
     srcs = [
         "contentmanifest.go",
+        "multiimporter.go",
         "nopexporter.go",
     ],
     importpath = "github.com/malt3/rules_img/src/contentmanifest",

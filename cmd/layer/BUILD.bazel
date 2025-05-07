@@ -16,5 +16,6 @@ go_library(
         "//src/tarcas",
         "//src/tree",
         "//src/tree/runfiles",
+        "//src/tree/treeartifact",
     ],
 )

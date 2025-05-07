@@ -11,6 +11,18 @@ extension_to_compression = {
     "tgz": "gzip",
 }
 
+def collect_content_manifests(ctx, direct = []):
+    """Collects deduplicated files."""
+    if not hasattr(ctx.attr, "deduplicate") or ctx.attr.deduplicate == None:
+        return depset(direct)
+    transitive = []
+    for collection in ctx.attr.deduplicate:
+        layer_info = collection[LayerInfo]
+        if layer_info.content_manifests == None:
+            continue
+        transitive.append(layer_info.content_manifests)
+    return depset(direct, transitive=transitive)
+
 def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file):
     """Calculates the layer info for a tar file."""
     args = ctx.actions.args()
@@ -55,15 +67,28 @@ def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target
 
 def optimize_layer(*, ctx, media_type, tar_file, metadata_file, content_manifest, output, target_compression):
     """Optimizes a tar file."""
+    inputs = [tar_file]
+    transitive_content_manifests = []
     args = ctx.actions.args()
     args.add("layer")
     args.add("--format", target_compression)
     args.add("--metadata", metadata_file.path)
     args.add("--content-manifest", content_manifest.path)
     args.add("--import-tar", tar_file.path)
+    if hasattr(ctx.attr, "deduplicate") and ctx.attr.deduplicate != None:
+        collections = ctx.actions.args()
+        collections.set_param_file_format("multiline")
+        collections.use_param_file("--deduplicate-collection=%s", use_always = True)
+        content_manifests = collect_content_manifests(ctx)
+        collections.add_all(content_manifests)
+        collections_param_file = ctx.actions.declare_file(ctx.label.name + ".deduplicate-collection")
+        ctx.actions.write(collections_param_file, collections)
+        inputs.append(collections_param_file)
+        transitive_content_manifests.append(content_manifests)
+        args.add("--deduplicate-collection", collections_param_file)
     args.add(output)
     ctx.actions.run(
-        inputs = [tar_file],
+        inputs = inputs,
         outputs = [output, metadata_file, content_manifest],
         executable = ctx.executable._tool,
         arguments = [args],
@@ -72,7 +97,6 @@ def optimize_layer(*, ctx, media_type, tar_file, metadata_file, content_manifest
     return LayerInfo(
         blob = output,
         metadata = metadata_file,
-        # TODO: add transitive content_manifests
-        content_manifests = depset([content_manifest]),
+        content_manifests = depset([content_manifest], transitive = transitive_content_manifests),
         media_type = media_type,
     )

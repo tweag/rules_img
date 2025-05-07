@@ -14,6 +14,7 @@ import (
 	"github.com/malt3/rules_img/src/api"
 	"github.com/malt3/rules_img/src/fileopener"
 	"github.com/malt3/rules_img/src/tree/runfiles"
+	"github.com/malt3/rules_img/src/tree/treeartifact"
 )
 
 type Recorder struct {
@@ -103,7 +104,7 @@ func (r Recorder) RegularFile(f io.Reader, info fs.FileInfo, target string) erro
 }
 
 func (r Recorder) TreeFromPath(dirPath, target string) error {
-	fsys := os.DirFS(dirPath)
+	fsys := treeartifact.TreeArtifactFS(dirPath)
 	return r.Tree(fsys, target)
 }
 

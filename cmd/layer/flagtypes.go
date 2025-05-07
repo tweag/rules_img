@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/malt3/rules_img/src/api"
+	"github.com/malt3/rules_img/src/tree/treeartifact"
 )
 
 type addFile struct {
@@ -30,7 +31,7 @@ func (a addFile) Tree() (fs.FS, error) {
 	// TODO: consider using a special
 	// file system for tree artifacts
 	// that filters out non-regular files.
-	return os.DirFS(a.File), nil
+	return treeartifact.TreeArtifactFS(a.File), nil
 }
 
 type addFiles []addFile
@@ -234,5 +235,19 @@ func (s *symlinks) Set(value string) error {
 		LinkName: parts[0],
 		Target:   parts[1],
 	})
+	return nil
+}
+
+type contentManifests []string
+
+func (m *contentManifests) String() string {
+	return strings.Join(*m, ", ")
+}
+
+func (m *contentManifests) Set(value string) error {
+	if _, err := os.Stat(value); err != nil {
+		return fmt.Errorf("file %s does not exist: %w", value, err)
+	}
+	*m = append(*m, value)
 	return nil
 }

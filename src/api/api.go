@@ -93,7 +93,7 @@ type Appender interface {
 }
 
 type CAS interface {
-	Import(CASStateSupplier)
+	Import(CASStateSupplier) error
 	Export(CASStateExporter) error
 	Store(r io.Reader) (linkPath string, blobHash []byte, blobSize int64, err error)
 	StoreKnownHashAndSize(r io.Reader, blobHash []byte, size int64) (linkPath string, err error)

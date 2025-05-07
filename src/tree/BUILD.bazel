@@ -9,5 +9,6 @@ go_library(
         "//src/api",
         "//src/fileopener",
         "//src/tree/runfiles",
+        "//src/tree/treeartifact",
     ],
 )

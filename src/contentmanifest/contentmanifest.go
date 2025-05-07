@@ -22,8 +22,8 @@ type fileManifest struct {
 
 func New(manifestPath string, algorithm api.HashAlgorithm) *fileManifest {
 	return &fileManifest{
-		algorithm:    algorithm,
 		manifestPath: manifestPath,
+		algorithm:    algorithm,
 		fs:           osFS{},
 	}
 }
@@ -37,7 +37,6 @@ func (f *fileManifest) BlobHashes() iter.Seq2[[]byte, error] {
 			return
 		}
 	}
-	defer r.Close()
 
 	// read the magic and TOC
 	rawHeader := make([]byte, maxHeaderSize)
@@ -81,7 +80,8 @@ func (f *fileManifest) BlobHashes() iter.Seq2[[]byte, error] {
 			return
 		}
 	}
-	return f.readHashes(io.LimitReader(blobReader, header.sizeBlobs))
+
+	return f.readHashes(newHashReader(blobReader, header.sizeBlobs))
 }
 
 func (f *fileManifest) NodeHashes() iter.Seq2[[]byte, error] {
@@ -93,7 +93,6 @@ func (f *fileManifest) NodeHashes() iter.Seq2[[]byte, error] {
 			return
 		}
 	}
-	defer r.Close()
 
 	// read the magic and TOC
 	rawHeader := make([]byte, maxHeaderSize)
@@ -137,7 +136,7 @@ func (f *fileManifest) NodeHashes() iter.Seq2[[]byte, error] {
 			return
 		}
 	}
-	return f.readHashes(io.LimitReader(nodeReader, header.sizeNodes))
+	return f.readHashes(newHashReader(nodeReader, header.sizeNodes))
 }
 
 func (f *fileManifest) TreeHashes() iter.Seq2[[]byte, error] {
@@ -149,7 +148,6 @@ func (f *fileManifest) TreeHashes() iter.Seq2[[]byte, error] {
 			return
 		}
 	}
-	defer r.Close()
 
 	// read the magic and TOC
 	rawHeader := make([]byte, maxHeaderSize)
@@ -193,7 +191,7 @@ func (f *fileManifest) TreeHashes() iter.Seq2[[]byte, error] {
 			return
 		}
 	}
-	return f.readHashes(io.LimitReader(treeReader, header.sizeTrees))
+	return f.readHashes(newHashReader(treeReader, header.sizeTrees))
 }
 
 func (f *fileManifest) Export(state api.CASStateSupplier) error {
@@ -297,8 +295,9 @@ func (f *fileManifest) exportHashes(w io.Writer, hashes iter.Seq2[[]byte, error]
 	return written, bufferedWriter.Flush()
 }
 
-func (f *fileManifest) readHashes(r io.Reader) iter.Seq2[[]byte, error] {
+func (f *fileManifest) readHashes(r io.ReadCloser) iter.Seq2[[]byte, error] {
 	return func(yield func([]byte, error) bool) {
+		defer r.Close()
 		hashSize := f.algorithm.Len()
 		bufferedReader := bufio.NewReader(r)
 		// Let's allocate a fresh byte slice for each hash.
@@ -344,9 +343,6 @@ func parseHeader(header [maxHeaderSize]byte) (manifestHeader, error) {
 	}
 	offsetTrees := int64(binary.BigEndian.Uint64(toc[35:43]))
 	sizeTrees := int64(binary.BigEndian.Uint64(toc[43:51]))
-	if sizeBlobs != offsetNodes {
-		return manifestHeader{}, errors.New("invalid TOC: blobs and nodes do not match")
-	}
 
 	return manifestHeader{
 		magic,
@@ -411,6 +407,27 @@ type randomAccessReader interface {
 	io.Reader
 	io.Seeker
 	io.ReaderAt
+}
+
+type hashReader struct {
+	r      io.Reader
+	closer io.Closer
+}
+
+func (h *hashReader) Read(p []byte) (int, error) {
+	return h.r.Read(p)
+}
+
+func (h *hashReader) Close() error {
+	return h.closer.Close()
+}
+
+func newHashReader(r io.Reader, hashSize int64) io.ReadCloser {
+	closer := r.(io.Closer)
+	return &hashReader{
+		r:      io.LimitReader(r, hashSize),
+		closer: closer,
+	}
 }
 
 const (
