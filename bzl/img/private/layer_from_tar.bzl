@@ -21,6 +21,7 @@ def _layer_from_tar_impl(ctx):
     else:
         fail("Unsupported compression algorithm: {}".format(target_compression))
 
+    extra_output_groups = {}
     if not needs_rewrite:
         # here, we can simply calculate the layer info (size, digest, etc.) and return
         layer_info = calculate_layer_info(
@@ -47,9 +48,11 @@ def _layer_from_tar_impl(ctx):
             media_type = media_type,
             tar_file = ctx.file.src,
             metadata_file = metadata_file,
+            content_manifest = ctx.actions.declare_file(ctx.attr.name + ".content_manifest"),
             output = ctx.actions.declare_file(ctx.attr.name + output_name_extension),
             target_compression = target_compression,
         )
+        extra_output_groups["content_manifest"] = layer_info.content_manifests
 
     return [
         DefaultInfo(
@@ -58,6 +61,7 @@ def _layer_from_tar_impl(ctx):
         OutputGroupInfo(
             layer = depset([layer_info.blob]),
             metadata = depset([layer_info.metadata]),
+            **extra_output_groups
         ),
         layer_info,
     ]

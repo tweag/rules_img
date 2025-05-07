@@ -28,6 +28,15 @@ const (
 	// TarZstdLayer = "application/vnd.oci.image.layer.v1.tar+zstd"
 )
 
+func (h HashAlgorithm) Len() int {
+	switch h {
+	case SHA256:
+		return 32
+	default:
+		return 0
+	}
+}
+
 func (c LayerFormat) CompressionAlgorithm() CompressionAlgorithm {
 	switch c {
 	case TarLayer:
@@ -97,14 +106,14 @@ type CAS interface {
 type CASStateSupplier interface {
 	// Blobs are files without any metadata.
 	// The hash is the hash of the file contents.
-	BlobHashes() iter.Seq[[]byte]
+	BlobHashes() iter.Seq2[[]byte, error]
 	// Nodes are inodes with metadata.
 	// The hash includes any metadata,
 	// as well as the file contents.
-	NodeHashes() iter.Seq[[]byte]
+	NodeHashes() iter.Seq2[[]byte, error]
 	// Trees are made up of blobs
 	// with paths in the tree.
-	TreeHashes() iter.Seq[[]byte]
+	TreeHashes() iter.Seq2[[]byte, error]
 }
 
 type CASStateExporter interface {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/malt3/rules_img/src/api"
 	"github.com/malt3/rules_img/src/compress"
+	"github.com/malt3/rules_img/src/contentmanifest"
 	"github.com/malt3/rules_img/src/tarcas"
 	"github.com/malt3/rules_img/src/tree"
 	"github.com/malt3/rules_img/src/tree/runfiles"
@@ -26,11 +27,12 @@ func LayerProcess(ctx context.Context, args []string) {
 	var symlinksFromFiles symlinksFromFileArgs
 	var formatFlag string
 	var metadataOutputFlag string
+	var contentManifestOutputFlag string
 
 	flagSet := flag.NewFlagSet("layer", flag.ExitOnError)
 	flagSet.Usage = func() {
 		fmt.Fprintf(flagSet.Output(), "Creates a compressed tar file which can be used as a container image layer while deduplicating the contents.\n\n")
-		fmt.Fprintf(flagSet.Output(), "Usage: img layer [--add path_in_image=target] [--add-from-file param_file] [--import-tar tar_file] [--executable path_in_image=executable_file] [--runfiles executable_file=param_file] [--symlink path_in_image=target] [--symlinks-from-file=param_file] [--metadata=metadata_output_file] [output]\n")
+		fmt.Fprintf(flagSet.Output(), "Usage: img layer [--add path_in_image=target] [--add-from-file param_file] [--import-tar tar_file] [--executable path_in_image=executable_file] [--runfiles executable_file=param_file] [--symlink path_in_image=target] [--symlinks-from-file=param_file] [--metadata=metadata_output_file] [--content-manifest=manifest_output_file] [output]\n")
 		flagSet.PrintDefaults()
 		examples := []string{
 			"img layer --add /etc/passwd=./passwd --executable /bin/myapp=./myapp layer.tgz",
@@ -54,6 +56,7 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 	flagSet.Var(&symlinksFromFiles, "symlinks-from-file", `Add all symlinks listed in the parameter file to the image layer. The parameter file is usually written by Bazel.`)
 	flagSet.StringVar(&formatFlag, "format", "", `The compression format of the output layer. Can be "gzip" or "none". Default is to guess the algorithm based on the filename, but fall back to "gzip".`)
 	flagSet.StringVar(&metadataOutputFlag, "metadata", "", `Write the metadata to the specified file. The metadata is a JSON file containing info needed to use the layer as part of an OCI image.`)
+	flagSet.StringVar(&contentManifestOutputFlag, "content-manifest", "", `Write a manifest of the contents of the layer to the specified file. The manifest uses a custom binary format listing all blobs, nodes, and trees in the layer after deduplication.`)
 
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
@@ -144,7 +147,14 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 		}
 	}
 
-	compressorState, err := handleLayerState(compressionAlgorithm, addFiles, importTarFlags, executableFlags, symlinkFlags, outputFile)
+	var casExporter api.CASStateExporter
+	if len(contentManifestOutputFlag) > 0 {
+		casExporter = contentmanifest.New(contentManifestOutputFlag, api.SHA256)
+	} else {
+		casExporter = contentmanifest.NopExporter()
+	}
+
+	compressorState, err := handleLayerState(compressionAlgorithm, addFiles, importTarFlags, executableFlags, symlinkFlags, outputFile, casExporter)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Writing layer: %v\n", err)
 		os.Exit(1)
@@ -165,7 +175,7 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 	}
 }
 
-func handleLayerState(compressionAlgorithm api.CompressionAlgorithm, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks, outputFile io.Writer) (compressorState api.AppenderState, err error) {
+func handleLayerState(compressionAlgorithm api.CompressionAlgorithm, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks, outputFile io.Writer, casExporter api.CASStateExporter) (compressorState api.AppenderState, err error) {
 	compressor, err := compress.AppenderFactory("sha256", string(compressionAlgorithm), outputFile)
 	if err != nil {
 		return compressorState, fmt.Errorf("creating compressor: %w", err)
@@ -194,7 +204,7 @@ func handleLayerState(compressionAlgorithm api.CompressionAlgorithm, addFiles ad
 		return compressorState, err
 	}
 
-	return compressorState, nil
+	return compressorState, tw.Export(casExporter)
 }
 
 func writeLayer(recorder tree.Recorder, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks) error {

@@ -37,7 +37,8 @@ def _symlink_tuple_to_arg(pair):
 def _layer_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".tgz")
     metadata_out = ctx.actions.declare_file(ctx.attr.name + "_metadata.json")
-    args = ["layer", "--metadata", metadata_out.path]
+    content_manifest_out = ctx.actions.declare_file(ctx.attr.name + ".content_manifest")
+    args = ["layer", "--metadata", metadata_out.path, "--content-manifest", content_manifest_out.path]
     files_args = ctx.actions.args()
     files_args.set_param_file_format("multiline")
     files_args.use_param_file("--add-from-file=%s", use_always = True)
@@ -83,7 +84,7 @@ def _layer_impl(ctx):
     args.append(out.path)
 
     ctx.actions.run(
-        outputs = [out, metadata_out],
+        outputs = [out, metadata_out, content_manifest_out],
         inputs = depset(transitive = inputs),
         executable = ctx.executable._tool,
         arguments = args,
@@ -94,10 +95,13 @@ def _layer_impl(ctx):
         OutputGroupInfo(
             layer = depset([out]),
             metadata = depset([metadata_out]),
+            content_manifest = depset([content_manifest_out]),
         ),
         LayerInfo(
             blob = out,
             metadata = metadata_out,
+            # TODO: add transitive content_manifests
+            content_manifests = depset([content_manifest_out]),
             media_type = "application/vnd.oci.image.layer.v1.tar+gzip",
         ),
     ]

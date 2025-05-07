@@ -27,6 +27,7 @@ def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file):
     return LayerInfo(
         blob = tar_file,
         metadata = metadata_file,
+        content_manifests = None,
         media_type = media_type,
     )
 
@@ -48,20 +49,22 @@ def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target
     return LayerInfo(
         blob = output,
         metadata = metadata_file,
+        content_manifests = None,
         media_type = media_type,
     )
 
-def optimize_layer(*, ctx, media_type, tar_file, metadata_file, output, target_compression):
+def optimize_layer(*, ctx, media_type, tar_file, metadata_file, content_manifest, output, target_compression):
     """Optimizes a tar file."""
     args = ctx.actions.args()
     args.add("layer")
     args.add("--format", target_compression)
     args.add("--metadata", metadata_file.path)
+    args.add("--content-manifest", content_manifest.path)
     args.add("--import-tar", tar_file.path)
     args.add(output)
     ctx.actions.run(
         inputs = [tar_file],
-        outputs = [output, metadata_file],
+        outputs = [output, metadata_file, content_manifest],
         executable = ctx.executable._tool,
         arguments = [args],
         mnemonic = "LayerOptimize",
@@ -69,5 +72,7 @@ def optimize_layer(*, ctx, media_type, tar_file, metadata_file, output, target_c
     return LayerInfo(
         blob = output,
         metadata = metadata_file,
+        # TODO: add transitive content_manifests
+        content_manifests = depset([content_manifest]),
         media_type = media_type,
     )

@@ -12,6 +12,7 @@ go_library(
     deps = [
         "//src/api",
         "//src/compress",
+        "//src/contentmanifest",
         "//src/tarcas",
         "//src/tree",
         "//src/tree/runfiles",

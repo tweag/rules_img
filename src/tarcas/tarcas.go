@@ -447,30 +447,30 @@ type exporterState struct {
 	treeOrder [][]byte
 }
 
-func (e *exporterState) BlobHashes() iter.Seq[[]byte] {
-	return func(yield func([]byte) bool) {
+func (e *exporterState) BlobHashes() iter.Seq2[[]byte, error] {
+	return func(yield func([]byte, error) bool) {
 		for _, hash := range e.hashOrder {
-			if !yield(hash) {
+			if !yield(hash, nil) {
 				return
 			}
 		}
 	}
 }
 
-func (e *exporterState) NodeHashes() iter.Seq[[]byte] {
-	return func(yield func([]byte) bool) {
+func (e *exporterState) NodeHashes() iter.Seq2[[]byte, error] {
+	return func(yield func([]byte, error) bool) {
 		for _, hash := range e.nodeOrder {
-			if !yield(hash) {
+			if !yield(hash, nil) {
 				return
 			}
 		}
 	}
 }
 
-func (e *exporterState) TreeHashes() iter.Seq[[]byte] {
-	return func(yield func([]byte) bool) {
+func (e *exporterState) TreeHashes() iter.Seq2[[]byte, error] {
+	return func(yield func([]byte, error) bool) {
 		for _, hash := range e.treeOrder {
-			if !yield(hash) {
+			if !yield(hash, nil) {
 				return
 			}
 		}
