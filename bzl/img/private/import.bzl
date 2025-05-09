@@ -41,7 +41,18 @@ def _write_layer_info(ctx, manifest, config, layer_index, index_position = None)
     if not diff_id.startswith("sha256:"):
         fail("invalid diff_id: {}".format(diff_id))
 
+    if index_position == None:
+        name = """{} :: layer[{}]""".format(ctx.label, layer_index)
+    else:
+        name = """{} :: manifest[{}] < os = {}, architecture = {} > :: layer[{}]""".format(
+            ctx.label,
+            index_position,
+            config.get("os", "unknown"),
+            config.get("architecture", "unknown"),
+            layer_index,
+        )
     metadata = dict(
+        name = name,
         diff_id = diff_id,
         mediaType = media_type,
         digest = digest,
@@ -54,6 +65,7 @@ def _write_layer_info(ctx, manifest, config, layer_index, index_position = None)
         blob = _digest_to_file(ctx, digest),
         metadata = layer_metadata,
         content_manifests = None,
+        required_layers = None,
         media_type = media_type,
     )
 

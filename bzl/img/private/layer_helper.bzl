@@ -31,7 +31,7 @@ def collect_required_layers(ctx, direct = []):
     transitive = []
     for collection in ctx.attr.deduplicate:
         layer_info = collection[LayerInfo]
-        direct.append(layer_info)
+        direct.append(layer_info.metadata)
         if layer_info.required_layers == None:
             continue
         transitive.append(layer_info.required_layers)
@@ -41,6 +41,7 @@ def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file):
     """Calculates the layer info for a tar file."""
     args = ctx.actions.args()
     args.add("layer-metadata")
+    args.add("--name", ctx.attr.label)
     args.add(tar_file.path)
     args.add(metadata_file.path)
     ctx.actions.run(
@@ -62,6 +63,7 @@ def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target
     """Recompresses a tar file."""
     args = ctx.actions.args()
     args.add("compress")
+    args.add("--name", ctx.label)
     args.add("--format", target_compression)
     args.add("--metadata", metadata_file.path)
     args.add(tar_file.path)
@@ -88,6 +90,7 @@ def optimize_layer(*, ctx, media_type, tar_file, metadata_file, content_manifest
     required_layers = None
     args = ctx.actions.args()
     args.add("layer")
+    args.add("--name", ctx.attr.name)
     args.add("--format", target_compression)
     args.add("--metadata", metadata_file.path)
     args.add("--content-manifest", content_manifest.path)
@@ -106,7 +109,7 @@ def optimize_layer(*, ctx, media_type, tar_file, metadata_file, content_manifest
         args.add("--deduplicate-collection", collections_param_file)
     args.add(output)
     ctx.actions.run(
-        inputs = inputs,
+        inputs = depset(inputs, transitive = transitive_content_manifests),
         outputs = [output, metadata_file, content_manifest],
         executable = ctx.executable._tool,
         arguments = [args],

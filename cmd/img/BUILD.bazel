@@ -11,6 +11,7 @@ go_library(
         "//cmd/layermeta",
         "//cmd/manifest",
         "//cmd/push",
+        "//cmd/validate",
         "@rules_go//go/runfiles",
     ],
 )

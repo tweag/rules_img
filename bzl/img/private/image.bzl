@@ -74,6 +74,29 @@ def select_base(ctx):
             return manifest
     fail("no matching base image found for architecture {} and os {}".format(ctx.attr.architecture, ctx.attr.os))
 
+def _layer_presence_validation(ctx, layers):
+    layer_args = ctx.actions.args()
+    required_layer_param_file = ctx.actions.args()
+    required_layer_param_file.set_param_file_format("multiline")
+    required_layer_param_file.use_param_file("@%s", use_always = True)
+    transitive_inputs = []
+    for (i, layer) in enumerate(layers):
+        layer_args.add("--layer-metadata", layer.metadata.path, format = "{}=%s".format(i))
+        if layer.required_layers == None:
+            continue
+        required_layer_param_file.add_all(layer.required_layers, format_each = "{}\0%s".format(i))
+        transitive_inputs.append(layer.required_layers)
+    presence_validation_output = ctx.actions.declare_file(ctx.attr.name + ".layer_presence")
+    ctx.actions.run(
+        outputs = [presence_validation_output],
+        inputs = depset([layer.metadata for layer in layers], transitive = transitive_inputs),
+        executable = ctx.executable._tool,
+        arguments = ["validate", "layer-presence", "--file", presence_validation_output.path, layer_args, required_layer_param_file],
+        mnemonic = "ImageIntegrity",
+        progress_message = "Checking presence of layers used for deduplication in %{label}",
+    )
+    return presence_validation_output
+
 def _image_impl(ctx):
     inputs = []
     providers = []
@@ -138,10 +161,13 @@ def _image_impl(ctx):
         arguments = [args],
         mnemonic = "ImageManifest",
     )
+    presence_validation_output = _layer_presence_validation(ctx, layers)
+
     providers.extend([
         DefaultInfo(
             files = depset([manifest_out, config_out]),
         ),
+        OutputGroupInfo(_validation = depset([presence_validation_output])),
         ImageManifestInfo(
             base_image = base,
             manifest = manifest_out,

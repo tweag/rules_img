@@ -39,7 +39,7 @@ def _layer_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".tgz")
     metadata_out = ctx.actions.declare_file(ctx.attr.name + "_metadata.json")
     content_manifest_out = ctx.actions.declare_file(ctx.attr.name + ".content_manifest")
-    args = ["layer", "--metadata", metadata_out.path, "--content-manifest", content_manifest_out.path]
+    args = ["layer", "--name", str(ctx.label), "--metadata", metadata_out.path, "--content-manifest", content_manifest_out.path]
     files_args = ctx.actions.args()
     files_args.set_param_file_format("multiline")
     files_args.use_param_file("--add-from-file=%s", use_always = True)

@@ -5,13 +5,14 @@ LayerInfo = provider(
     fields = {
         "blob": "File containing the raw layer or None (for shallow base images).",
         "metadata": """File containing metadata of the layer as JSON object with the keys
- - diff_id: The diff ID of the layer as a string. Example: sha256:1234567890abcdef.
+- name: A human readable name for this layer. This includes the label of the layer or another descriptor (for anonymous layers, including those coming from pulled images).
+- diff_id: The diff ID of the layer as a string. Example: sha256:1234567890abcdef.
  - mediaType: The media type of the layer as a string. Example: application/vnd.oci.image.layer.v1.tar+gzip.
  - digest: The sha256 hash of the layer as a string. Example: sha256:1234567890abcdef.
  - size: The size of the layer in bytes as an int.
 """,
         "content_manifests": "Depset of File containing binary content manifest or None. This is used by downstream layers to deduplicate contents.",
-        "required_layers": "Depset of LayerInfo of layers providing deduplicated content.",
+        "required_layers": "Depset of File with metadata of layers providing deduplicated content or None.",
         "media_type": "The media type of the layer as a string. Example: application/vnd.oci.image.layer.v1.tar+gzip.",
     },
 )

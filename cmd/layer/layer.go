@@ -18,6 +18,7 @@ import (
 )
 
 func LayerProcess(ctx context.Context, args []string) {
+	var layerName string
 	var addFiles addFiles
 	var addFromFile addFromFileArgs
 	var importTarFlags importTars
@@ -47,6 +48,7 @@ func LayerProcess(ctx context.Context, args []string) {
 		}
 		os.Exit(1)
 	}
+	flagSet.StringVar(&layerName, "name", "", `Optional name of the layer. Defaults to digest.`)
 	flagSet.Var(&addFiles, "add", `Add a file to the image layer. The parameter is a string of the form <path_in_image>=<file> where <path_in_image> is the path in the image and <file> is the path in the host filesystem.`)
 	flagSet.Var(&addFromFile, "add-from-file", `Add all files listed in the parameter file to the image layer. The parameter file is usually written by Bazel.
 The file contains one line per file, where each line contains a path in the image and a path in the host filesystem, separated by a a null byte and a single character indicating the type of the file.
@@ -180,7 +182,7 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 		}
 		defer metadataOutputFile.Close()
 
-		if err := writeMetadata(compressionAlgorithm, compressorState, metadataOutputFile); err != nil {
+		if err := writeMetadata(layerName, compressionAlgorithm, compressorState, metadataOutputFile); err != nil {
 			fmt.Fprintf(os.Stderr, "Writing metadata: %v\n", err)
 			os.Exit(1)
 		}
@@ -270,7 +272,10 @@ func writeLayer(recorder tree.Recorder, addFiles addFiles, importTars importTars
 	return nil
 }
 
-func writeMetadata(compressionAlgorithm api.CompressionAlgorithm, compressorState api.AppenderState, outputFile io.Writer) error {
+func writeMetadata(name string, compressionAlgorithm api.CompressionAlgorithm, compressorState api.AppenderState, outputFile io.Writer) error {
+	if len(name) == 0 {
+		name = fmt.Sprintf("sha256:%x", compressorState.OuterHash)
+	}
 	var mediaType string
 	switch compressionAlgorithm {
 	case api.Uncompressed:
@@ -282,6 +287,7 @@ func writeMetadata(compressionAlgorithm api.CompressionAlgorithm, compressorStat
 	}
 
 	metadata := api.LayerMetadata{
+		Name:      name,
 		DiffID:    fmt.Sprintf("sha256:%x", compressorState.ContentHash),
 		MediaType: mediaType,
 		Digest:    fmt.Sprintf("sha256:%x", compressorState.OuterHash),

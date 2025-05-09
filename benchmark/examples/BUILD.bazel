@@ -118,6 +118,7 @@ image(
     architecture = "amd64",
     base = "@ubuntu",
     layers = [
+        ":img_layer",
         ":my_layer",
     ],
     os = "linux",
@@ -128,7 +129,21 @@ image(
     architecture = "amd64",
     base = "@cuda",
     layers = [
+        ":img_layer",
         ":my_layer",
+    ],
+    os = "linux",
+)
+
+image(
+    name = "missing_deduplicated_layer",
+    architecture = "amd64",
+    base = "@ubuntu",
+    layers = [
+        ":img_layer",
+        ":my_layer",
+        ":empty_layer",
+        ":my_dedup_layer",
     ],
     os = "linux",
 )

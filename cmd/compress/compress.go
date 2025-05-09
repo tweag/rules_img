@@ -15,6 +15,7 @@ import (
 )
 
 var (
+	layerName          string
 	sourceFormat       string
 	format             string
 	metadataOutputFile string
@@ -24,7 +25,7 @@ func CompressProcess(ctx context.Context, args []string) {
 	flagSet := flag.NewFlagSet("compress", flag.ExitOnError)
 	flagSet.Usage = func() {
 		fmt.Fprintf(flagSet.Output(), "(Re-)compresses a layer to the chosen format.\n\n")
-		fmt.Fprintf(flagSet.Output(), "Usage: img layer-metadata [--source-format] [--format format] [--metadata=metadata_output_file] [input] [output]\n")
+		fmt.Fprintf(flagSet.Output(), "Usage: img layer-metadata [--name name] [--source-format format] [--format format] [--metadata=metadata_output_file] [input] [output]\n")
 		flagSet.PrintDefaults()
 		examples := []string{
 			"img compress --format gzip layer.tar layer.tgz",
@@ -36,6 +37,7 @@ func CompressProcess(ctx context.Context, args []string) {
 		}
 		os.Exit(1)
 	}
+	flagSet.StringVar(&layerName, "name", "", `Optional name of the layer. Defaults to digest.`)
 	flagSet.StringVar(&sourceFormat, "source-format", "", `The format of the source layer. Can be "tar" or "gzip".`)
 	flagSet.StringVar(&format, "format", "", `The format of the output layer. Can be "tar" or "gzip".`)
 	flagSet.StringVar(&metadataOutputFile, "metadata", "", `Write the metadata to the specified file. The metadata is a JSON file containing info needed to use the layer as part of an OCI image.`)
@@ -141,6 +143,9 @@ func recompress(input io.Reader, output io.Writer, format api.LayerFormat) (comp
 }
 
 func writeMetadata(compressorState api.AppenderState, outputFile io.Writer) error {
+	if len(layerName) == 0 {
+		layerName = fmt.Sprintf("sha256:%x", compressorState.OuterHash)
+	}
 	metadata := api.LayerMetadata{
 		DiffID:    fmt.Sprintf("sha256:%x", compressorState.ContentHash),
 		MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",

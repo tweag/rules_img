@@ -11,6 +11,7 @@ import (
 	"github.com/malt3/rules_img/cmd/layermeta"
 	"github.com/malt3/rules_img/cmd/manifest"
 	"github.com/malt3/rules_img/cmd/push"
+	"github.com/malt3/rules_img/cmd/validate"
 )
 
 const usage = `Usage: img [COMMAND] [ARGS...]
@@ -20,6 +21,7 @@ Commands:
   layer           creates a layer from files
   layer-metadata  creates a layer metadata file from a layer
   manifest        creates an image manifest and config from layers
+  validate        validates layers and images
   push            pushes an image to a registry`
 
 func Run(ctx context.Context, args []string) {
@@ -45,6 +47,8 @@ func Run(ctx context.Context, args []string) {
 		layermeta.LayerMetadataProcess(ctx, args[2:])
 	case "manifest":
 		manifest.ManifestProcess(ctx, args[2:])
+	case "validate":
+		validate.ValidationProcess(ctx, args[2:])
 	case "push":
 		push.PushProcess(ctx, args[2:])
 	case "compress":

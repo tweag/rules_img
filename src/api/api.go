@@ -62,6 +62,7 @@ var (
 )
 
 type LayerMetadata struct {
+	Name      string `json:"name"`
 	DiffID    string `json:"diff_id"`
 	MediaType string `json:"mediaType"`
 	Digest    string `json:"digest"`
