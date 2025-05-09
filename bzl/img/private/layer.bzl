@@ -1,7 +1,7 @@
 """Layer rule for building layers in a container image."""
 
 load("//bzl/img:providers.bzl", "LayerInfo")
-load(":layer_helper.bzl", "collect_content_manifests")
+load(":layer_helper.bzl", "collect_content_manifests", "collect_required_layers")
 
 def _file_type(f):
     type = "f"  # regular file
@@ -46,6 +46,8 @@ def _layer_impl(ctx):
 
     inputs = []
     transitive_content_manifests = []
+    required_layers = None
+
     for (pathInImage, files) in ctx.attr.srcs.items():
         default_info = files[DefaultInfo]
         files_to_run = default_info.files_to_run
@@ -83,6 +85,7 @@ def _layer_impl(ctx):
         symlink_args.add_all(ctx.attr.symlinks.items(), map_each = _symlink_tuple_to_arg)
         args.append(symlink_args)
     if hasattr(ctx.attr, "deduplicate") and ctx.attr.deduplicate != None:
+        required_layers = collect_required_layers(ctx)
         collections = ctx.actions.args()
         collections.set_param_file_format("multiline")
         collections.use_param_file("--deduplicate-collection=%s", use_always = True)
@@ -112,6 +115,7 @@ def _layer_impl(ctx):
             blob = out,
             metadata = metadata_out,
             content_manifests = depset([content_manifest_out], transitive = transitive_content_manifests),
+            required_layers = required_layers,
             media_type = "application/vnd.oci.image.layer.v1.tar+gzip",
         ),
     ]

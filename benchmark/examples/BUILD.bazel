@@ -74,12 +74,12 @@ layer(
         "var/tree_b": ":tree",
         "var/large_tree": ":large_tree",
     },
-    symlinks = {
-        "a": "b",
-    },
     deduplicate = [
         ":img_layer",
     ],
+    symlinks = {
+        "a": "b",
+    },
 )
 
 layer(

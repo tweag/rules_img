@@ -11,6 +11,7 @@ LayerInfo = provider(
  - size: The size of the layer in bytes as an int.
 """,
         "content_manifests": "Depset of File containing binary content manifest or None. This is used by downstream layers to deduplicate contents.",
+        "required_layers": "Depset of LayerInfo of layers providing deduplicated content.",
         "media_type": "The media type of the layer as a string. Example: application/vnd.oci.image.layer.v1.tar+gzip.",
     },
 )
