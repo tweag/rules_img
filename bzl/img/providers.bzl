@@ -21,6 +21,7 @@ ImageManifestInfo = provider(
     doc = "Information corresponding to a single image manifest for one platform.",
     fields = {
         "base_image": "ImageManifestInfo of the base image (or None).",
+        "descriptor": "File containing the descriptor of the manifest.",
         "manifest": "File containing the raw image manifest (application/vnd.oci.image.index.v1+json).",
         "config": "File containing the raw image config (application/vnd.oci.image.config.v1+json).",
         "structured_config": "(Partial) image config with values known in the analysis phase.",

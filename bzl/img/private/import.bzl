@@ -69,7 +69,22 @@ def _write_layer_info(ctx, manifest, config, layer_index, index_position = None)
         media_type = media_type,
     )
 
-def _build_manifest_info(ctx, digest, index_position = None, platform = None):
+def _write_manifest_descriptor(ctx, digest, manifest, platform, descriptor = None, index_position = None):
+    filename_suffix = "_descriptor.json" if index_position == None else "_{}_descriptor.json".format(index_position)
+    out = ctx.actions.declare_file(ctx.attr.name + filename_suffix)
+    if descriptor == None:
+        # we don't have a prebuilt descriptor from an image index.
+        # let's build our own.
+        descriptor = dict(
+            mediaType = manifest["mediaType"],
+            size = len(ctx.attr.data[_digest_to_path(digest)]),
+            digest = digest,
+            platform = platform,
+        )
+    ctx.actions.write(out, json.encode(descriptor))
+    return out
+
+def _build_manifest_info(ctx, digest, descriptor = None, index_position = None, platform = None):
     path = _digest_to_path(digest)
     if not path in ctx.attr.data:
         fail("missing blob for digest: " + digest)
@@ -81,6 +96,11 @@ def _build_manifest_info(ctx, digest, index_position = None, platform = None):
     if not config_path in ctx.attr.data:
         fail("missing blob for config digest: " + config_digest)
     config = json.decode(ctx.attr.data[config_path])
+    if platform == None:
+        platform = dict(
+            architecture = config.get("architecture", "unknown"),
+            os = config.get("os", "unknown"),
+        )
     missing_blobs = []
     layers = []
     for (layer_index, layer) in enumerate(manifest.get("layers", [])):
@@ -90,6 +110,7 @@ def _build_manifest_info(ctx, digest, index_position = None, platform = None):
         layers.append(layer_info)
     return ImageManifestInfo(
         base_image = None,
+        descriptor = _write_manifest_descriptor(ctx, digest, manifest, platform, descriptor, index_position),
         manifest = _digest_to_file(ctx, digest),
         config = _digest_to_file(ctx, config_digest),
         structured_config = config,
@@ -120,7 +141,7 @@ def _image_import_impl(ctx):
     else:
         # this is a multi-platform index
         manifests = [
-            _build_manifest_info(ctx, manifest["digest"], index_position = position, platform = manifest.get("platform"))
+            _build_manifest_info(ctx, manifest["digest"], descriptor = manifest, index_position = position, platform = manifest.get("platform"))
             for (position, manifest) in enumerate(root_blob.get("manifests", []))
         ]
         providers.append(ImageIndexInfo(

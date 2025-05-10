@@ -14,7 +14,7 @@ import (
 	"github.com/malt3/rules_img/src/api"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
-	configv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	specv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var (
@@ -26,6 +26,7 @@ var (
 	baseConfig            string
 	manifestOutput        string
 	configOutput          string
+	descriptorOutput      string
 )
 
 func ManifestProcess(_ context.Context, args []string) {
@@ -51,6 +52,7 @@ func ManifestProcess(_ context.Context, args []string) {
 	flagSet.StringVar(&baseConfig, "base-config", "", `A JSON file containing a base config to be merged into the final config. This is useful for adding custom labels or other metadata to the image.`)
 	flagSet.StringVar(&manifestOutput, "manifest", "", `The output file for the final manifest.`)
 	flagSet.StringVar(&configOutput, "config", "", `The output file for the final config.`)
+	flagSet.StringVar(&descriptorOutput, "descriptor", "", `The output file for the descriptor of the manifest.`)
 
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
@@ -85,22 +87,22 @@ func ManifestProcess(_ context.Context, args []string) {
 	}
 	sha256Hash := sha256.Sum256(configRaw)
 
-	layerDescriptors := make([]configv1.Descriptor, len(layers))
+	layerDescriptors := make([]specv1.Descriptor, len(layers))
 	for i, layer := range layers {
-		layerDescriptors[i] = configv1.Descriptor{
+		layerDescriptors[i] = specv1.Descriptor{
 			MediaType: layer.MediaType,
 			Digest:    digest.Digest(layer.Digest),
 			Size:      layer.Size,
 		}
 	}
 
-	manifest := configv1.Manifest{
+	manifest := specv1.Manifest{
 		Versioned: specs.Versioned{
 			SchemaVersion: 2,
 		},
-		MediaType: configv1.MediaTypeImageManifest,
-		Config: configv1.Descriptor{
-			MediaType: configv1.MediaTypeImageConfig,
+		MediaType: specv1.MediaTypeImageManifest,
+		Config: specv1.Descriptor{
+			MediaType: specv1.MediaTypeImageConfig,
 			Digest:    digest.NewDigestFromBytes(digest.SHA256, sha256Hash[:]),
 			Size:      int64(len(configRaw)),
 		},
@@ -110,6 +112,22 @@ func ManifestProcess(_ context.Context, args []string) {
 	manifestRaw, err := json.Marshal(manifest)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to marshal manifest: %v\n", err)
+		os.Exit(1)
+	}
+
+	manifestSHA256 := sha256.Sum256(manifestRaw)
+	descriptor := specv1.Descriptor{
+		MediaType: specv1.MediaTypeImageManifest,
+		Digest:    digest.NewDigestFromBytes(digest.SHA256, manifestSHA256[:]),
+		Size:      int64(len(manifestRaw)),
+		Platform: &specv1.Platform{
+			Architecture: architecture,
+			OS:           operatingSystem,
+		},
+	}
+	descriptorRaw, err := json.Marshal(descriptor)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to marshal manifest descriptor: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -125,14 +143,20 @@ func ManifestProcess(_ context.Context, args []string) {
 			os.Exit(1)
 		}
 	}
+	if descriptorOutput != "" {
+		if err := os.WriteFile(descriptorOutput, descriptorRaw, 0o644); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to write manifest descriptor to %s: %v\n", descriptorOutput, err)
+			os.Exit(1)
+		}
+	}
 }
 
-func prepareConfig(layers []api.LayerMetadata) (configv1.Image, error) {
+func prepareConfig(layers []api.LayerMetadata) (specv1.Image, error) {
 	// first, read the base config
 	// then, layer the config fragment on top of it
 	// finally, add our own stuff
 
-	var config configv1.Image
+	var config specv1.Image
 	if baseConfig != "" {
 		if err := overlayConfigFromFile(&config, baseConfig, true); err != nil {
 			return config, fmt.Errorf("reading base config: %w", err)
@@ -167,14 +191,14 @@ func readLayerMetadata(filePath string) (api.LayerMetadata, error) {
 	return layer, nil
 }
 
-func overlayConfigFromFile(config *configv1.Image, filePath string, isBase bool) error {
+func overlayConfigFromFile(config *specv1.Image, filePath string, isBase bool) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("opening config file: %w", err)
 	}
 	defer file.Close()
 
-	var configFragment configv1.Image
+	var configFragment specv1.Image
 	if err := json.NewDecoder(file).Decode(&configFragment); err != nil {
 		return fmt.Errorf("decoding config file: %w", err)
 	}
@@ -283,7 +307,7 @@ func overlayConfigFromFile(config *configv1.Image, filePath string, isBase bool)
 	return nil
 }
 
-func overlayNewConfigValues(config *configv1.Image, layers []api.LayerMetadata) error {
+func overlayNewConfigValues(config *specv1.Image, layers []api.LayerMetadata) error {
 	if config.OS == "" && operatingSystem != "" && config.OS != operatingSystem {
 		return fmt.Errorf("OS mismatch: %s != %s", config.OS, operatingSystem)
 	}

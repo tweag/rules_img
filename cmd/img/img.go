@@ -7,6 +7,7 @@ import (
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
 	"github.com/malt3/rules_img/cmd/compress"
+	"github.com/malt3/rules_img/cmd/index"
 	"github.com/malt3/rules_img/cmd/layer"
 	"github.com/malt3/rules_img/cmd/layermeta"
 	"github.com/malt3/rules_img/cmd/manifest"
@@ -47,6 +48,8 @@ func Run(ctx context.Context, args []string) {
 		layermeta.LayerMetadataProcess(ctx, args[2:])
 	case "manifest":
 		manifest.ManifestProcess(ctx, args[2:])
+	case "index":
+		index.IndexProcess(ctx, args[2:])
 	case "validate":
 		validate.ValidationProcess(ctx, args[2:])
 	case "push":

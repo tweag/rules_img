@@ -151,12 +151,14 @@ def _image_impl(ctx):
 
     manifest_out = ctx.actions.declare_file(ctx.label.name + "_manifest.json")
     config_out = ctx.actions.declare_file(ctx.label.name + "_config.json")
+    descriptor_out = ctx.actions.declare_file(ctx.label.name + "_descriptor.json")
     args.add("--manifest", manifest_out.path)
     args.add("--config", config_out.path)
+    args.add("--descriptor", descriptor_out.path)
 
     ctx.actions.run(
         inputs = inputs,
-        outputs = [manifest_out, config_out],
+        outputs = [manifest_out, config_out, descriptor_out],
         executable = ctx.executable._tool,
         arguments = [args],
         mnemonic = "ImageManifest",
@@ -167,9 +169,13 @@ def _image_impl(ctx):
         DefaultInfo(
             files = depset([manifest_out, config_out]),
         ),
-        OutputGroupInfo(_validation = depset([presence_validation_output])),
+        OutputGroupInfo(
+            descriptor = depset([descriptor_out]),
+            _validation = depset([presence_validation_output]),
+        ),
         ImageManifestInfo(
             base_image = base,
+            descriptor = descriptor_out,
             manifest = manifest_out,
             config = config_out,
             structured_config = structured_config,

@@ -1,4 +1,5 @@
 load("@rules_img//bzl/img/private:image.bzl", "image")
+load("@rules_img//bzl/img/private:index.bzl", "index")
 load("@rules_img//bzl/img/private:layer.bzl", "layer")
 load("@rules_img//bzl/img/private:layer_from_tar.bzl", "layer_from_tar")
 load("@rules_img//bzl/img/private:push.bzl", "push")
@@ -146,6 +147,12 @@ image(
         ":my_dedup_layer",
     ],
     os = "linux",
+)
+
+index(
+    name = "my_index",
+    annotations = {"foo": "bar"},
+    manifests = [":my_image"],
 )
 
 push(
