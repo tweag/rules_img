@@ -11,8 +11,6 @@ LayerInfo = provider(
  - digest: The sha256 hash of the layer as a string. Example: sha256:1234567890abcdef.
  - size: The size of the layer in bytes as an int.
 """,
-        "content_manifests": "Depset of File containing binary content manifest or None. This is used by downstream layers to deduplicate contents.",
-        "required_layers": "Depset of File with metadata of layers providing deduplicated content or None.",
         "media_type": "The media type of the layer as a string. Example: application/vnd.oci.image.layer.v1.tar+gzip.",
     },
 )

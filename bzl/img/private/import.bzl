@@ -64,8 +64,6 @@ def _write_layer_info(ctx, manifest, config, layer_index, index_position = None)
     return LayerInfo(
         blob = _digest_to_file(ctx, digest),
         metadata = layer_metadata,
-        content_manifests = None,
-        required_layers = None,
         media_type = media_type,
     )
 

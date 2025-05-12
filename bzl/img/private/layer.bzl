@@ -1,7 +1,6 @@
 """Layer rule for building layers in a container image."""
 
 load("//bzl/img:providers.bzl", "LayerInfo")
-load(":layer_helper.bzl", "collect_content_manifests", "collect_required_layers")
 
 def _file_type(f):
     type = "f"  # regular file
@@ -38,15 +37,12 @@ def _symlink_tuple_to_arg(pair):
 def _layer_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".tgz")
     metadata_out = ctx.actions.declare_file(ctx.attr.name + "_metadata.json")
-    content_manifest_out = ctx.actions.declare_file(ctx.attr.name + ".content_manifest")
-    args = ["layer", "--name", str(ctx.label), "--metadata", metadata_out.path, "--content-manifest", content_manifest_out.path]
+    args = ["layer", "--name", str(ctx.label), "--metadata", metadata_out.path]
     files_args = ctx.actions.args()
     files_args.set_param_file_format("multiline")
     files_args.use_param_file("--add-from-file=%s", use_always = True)
 
     inputs = []
-    transitive_content_manifests = []
-    required_layers = None
 
     for (pathInImage, files) in ctx.attr.srcs.items():
         default_info = files[DefaultInfo]
@@ -84,21 +80,11 @@ def _layer_impl(ctx):
         symlink_args.use_param_file("--symlinks-from-file=%s", use_always = True)
         symlink_args.add_all(ctx.attr.symlinks.items(), map_each = _symlink_tuple_to_arg)
         args.append(symlink_args)
-    if hasattr(ctx.attr, "deduplicate") and ctx.attr.deduplicate != None:
-        required_layers = collect_required_layers(ctx)
-        collections = ctx.actions.args()
-        collections.set_param_file_format("multiline")
-        collections.use_param_file("--deduplicate-collection=%s", use_always = True)
-        content_manifests = collect_content_manifests(ctx)
-        collections.add_all(content_manifests)
-        inputs.append(content_manifests)
-        transitive_content_manifests.append(content_manifests)
-        args.append(collections)
     args.append(files_args)
     args.append(out.path)
 
     ctx.actions.run(
-        outputs = [out, metadata_out, content_manifest_out],
+        outputs = [out, metadata_out],
         inputs = depset(transitive = inputs),
         executable = ctx.executable._tool,
         arguments = args,
@@ -109,13 +95,10 @@ def _layer_impl(ctx):
         OutputGroupInfo(
             layer = depset([out]),
             metadata = depset([metadata_out]),
-            content_manifest = depset([content_manifest_out]),
         ),
         LayerInfo(
             blob = out,
             metadata = metadata_out,
-            content_manifests = depset([content_manifest_out], transitive = transitive_content_manifests),
-            required_layers = required_layers,
             media_type = "application/vnd.oci.image.layer.v1.tar+gzip",
         ),
     ]
@@ -129,12 +112,6 @@ layer = rule(
         ),
         "symlinks": attr.string_dict(
             doc = "Symlinks that should be added to the layer.",
-        ),
-        "deduplicate": attr.label_list(
-            doc = """Optional layers that are known to be below this layer.
-Any files included in referenced layers will not be written again.
-Users are free to choose: adding a layer here adds an ordering constraint (referenced layers have to be built first), but doing so can reduce image size.""",
-            providers = [LayerInfo],
         ),
         "_tool": attr.label(
             executable = True,

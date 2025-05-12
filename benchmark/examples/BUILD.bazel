@@ -36,6 +36,7 @@ oci_image(
     name = "oci_ubuntu_no_op",
     base = "@ubuntu_rules_oci",
     entrypoint = ["/fail"],
+    tags = ["manual"],
 )
 
 image(
@@ -50,6 +51,7 @@ oci_image(
     name = "oci_cuda_no_op",
     base = "@cuda_rules_oci",
     entrypoint = ["/fail"],
+    tags = ["manual"],
 )
 
 image(
@@ -75,43 +77,15 @@ layer(
         "var/tree_b": ":tree",
         "var/large_tree": ":large_tree",
     },
-    deduplicate = [
-        ":img_layer",
-    ],
     symlinks = {
         "a": "b",
     },
-)
-
-layer(
-    name = "empty_layer",
-    deduplicate = [
-        ":my_layer",
-    ],
-)
-
-layer(
-    name = "my_dedup_layer",
-    srcs = {
-        "usr/bin/img": "@rules_img//cmd/img",
-        "var/hello.txt": ":hello.txt",
-        "var/log": ":log",
-        "var/tree_a": ":tree",
-        "var/tree_b": ":tree",
-        "var/large_tree": ":large_tree",
-    },
-    deduplicate = [
-        ":empty_layer",
-    ],
 )
 
 layer_from_tar(
     name = "my_layer_from_tar",
     src = "@test_archive//file",
     compress = "gzip",
-    deduplicate = [
-        ":my_layer",
-    ],
 )
 
 image(
@@ -136,19 +110,6 @@ image(
     os = "linux",
 )
 
-image(
-    name = "missing_deduplicated_layer",
-    architecture = "amd64",
-    base = "@ubuntu",
-    layers = [
-        ":img_layer",
-        ":my_layer",
-        ":empty_layer",
-        ":my_dedup_layer",
-    ],
-    os = "linux",
-)
-
 index(
     name = "my_index",
     annotations = {"foo": "bar"},
@@ -157,7 +118,7 @@ index(
 
 push(
     name = "my_push",
-    image = ":my_second_image",
+    image = ":my_image",
     registry = "ghcr.io",
     repository = "malt3/ubuntu",
     tag = "latest",
