@@ -1,0 +1,11 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "api",
+    srcs = [
+        "api.go",
+        "binary.go",
+    ],
+    importpath = "github.com/malt3/rules_img/pkg/api",
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,23 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "push",
+    srcs = [
+        "index.go",
+        "layer.go",
+        "manifest.go",
+        "push.go",
+        "remotelayer.go",
+    ],
+    importpath = "github.com/malt3/rules_img/pkg/push",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api",
+        "@com_github_google_go_containerregistry//pkg/authn",
+        "@com_github_google_go_containerregistry//pkg/name",
+        "@com_github_google_go_containerregistry//pkg/v1:pkg",
+        "@com_github_google_go_containerregistry//pkg/v1/remote",
+        "@com_github_google_go_containerregistry//pkg/v1/types",
+        "@rules_go//go/runfiles",
+    ],
+)

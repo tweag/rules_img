@@ -9,7 +9,7 @@ go_library(
     importpath = "github.com/malt3/rules_img/cmd/manifest",
     visibility = ["//visibility:public"],
     deps = [
-        "//src/api",
+        "//pkg/api",
         "@com_github_opencontainers_go_digest//:go-digest",
         "@com_github_opencontainers_image_spec//specs-go",
         "@com_github_opencontainers_image_spec//specs-go/v1:specs-go",

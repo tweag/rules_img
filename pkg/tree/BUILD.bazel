@@ -1,13 +1,14 @@
 load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
-    name = "compress",
-    srcs = ["compress.go"],
-    importpath = "github.com/malt3/rules_img/cmd/compress",
+    name = "tree",
+    srcs = ["recorder.go"],
+    importpath = "github.com/malt3/rules_img/pkg/tree",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",
-        "//pkg/compress",
         "//pkg/fileopener",
+        "//pkg/tree/runfiles",
+        "//pkg/tree/treeartifact",
     ],
 )

@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "merkle",
+    srcs = [
+        "merkle.go",
+        "treehasher.go",
+        "types.go",
+    ],
+    importpath = "github.com/malt3/rules_img/pkg/tree/merkle",
+    visibility = ["//visibility:public"],
+)

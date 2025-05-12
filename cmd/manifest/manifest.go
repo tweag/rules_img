@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/malt3/rules_img/src/api"
+	"github.com/malt3/rules_img/pkg/api"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	specv1 "github.com/opencontainers/image-spec/specs-go/v1"

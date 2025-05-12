@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/malt3/rules_img/src/api"
+	"github.com/malt3/rules_img/pkg/api"
 )
 
 func readParamFile(paramFile string) (addFiles, error) {

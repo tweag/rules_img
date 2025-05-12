@@ -8,5 +8,5 @@ go_library(
     ],
     importpath = "github.com/malt3/rules_img/cmd/validate/layer-presence",
     visibility = ["//visibility:public"],
-    deps = ["//src/api"],
+    deps = ["//pkg/api"],
 )
