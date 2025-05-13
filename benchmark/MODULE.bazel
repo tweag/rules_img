@@ -5,6 +5,14 @@ local_path_override(
 )
 
 bazel_dep(name = "rules_oci", version = "2.2.6", dev_dependency = True)
+bazel_dep(name = "rules_pkg", version = "1.1.0", dev_dependency = True)
+bazel_dep(name = "rules_cc", version = "0.1.1", dev_dependency = True)
+bazel_dep(name = "toolchains_llvm", version = "1.2.0", dev_dependency = True)
+single_version_override(
+    module_name = "toolchains_llvm",
+    patch_strip = 1,
+    patches = ["//:toolchains_llvm.patch"],
+)
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci.pull(
@@ -21,7 +29,7 @@ oci.pull(
     platforms = ["linux/amd64"],
     tag = "24.04",
 )
-use_repo(oci, "cuda_rules_oci", "ubuntu_rules_oci")
+use_repo(oci, "cuda_rules_oci", "cuda_rules_oci_linux_amd64", "ubuntu_rules_oci", "ubuntu_rules_oci_linux_amd64")
 
 pull = use_repo_rule("@rules_img//bzl/img/private/repository_rules:pull.bzl", "pull")
 
@@ -48,4 +56,59 @@ http_file(
     downloaded_file_path = "tweag-credential-helper-v0.0.5.tar.gz",
     integrity = "sha256-ekDKxcANT8AHddCNetpem3iI28vpBM8kT3ls/8kRzpw=",
     url = "https://github.com/tweag/credential-helper/releases/download/v0.0.5/tweag-credential-helper-v0.0.5.tar.gz",
+)
+
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+llvm.toolchain(
+    libclang_rt = {
+        "@llvm_sysroot_linux_amd64//:usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-x86_64.a": "x86_64-unknown-linux-gnu/libclang_rt.builtins.a",
+    },
+    llvm_versions = {"linux-x86_64": "20.1.1"},
+    sha256 = {"linux-x86_64": "58d7a1a8fa22a001794e82a8e9ca441e12fb6d62fd8b7d47040df58a459dec8e"},
+    urls = {
+        "linux-x86_64": ["https://github.com/dzbarsky/static-clang/releases/download/v20.1.1/linux_amd64.tar.xz"],
+    },
+)
+llvm.sysroot(
+    name = "llvm_toolchain",
+    label = "@llvm_sysroot_linux_amd64//:sysroot",
+    targets = ["linux-x86_64"],
+)
+use_repo(llvm, "llvm_toolchain")
+
+register_toolchains(
+    "@llvm_toolchain//:all",
+    dev_dependency = True,
+)
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+sysroot_digest = "a52519bee01417ceee8ef51f7e7bbd68b1d5868cdbd7ff0138a25b5306b28225"
+
+http_archive(
+    name = "llvm_sysroot_linux_amd64",
+    build_file_content = """
+filegroup(
+  name = "sysroot",
+  srcs = glob(["*/**"]),
+  visibility = ["//visibility:public"],
+)
+""",
+    sha256 = sysroot_digest,
+    type = "tzst",
+    urls = ["https://ghcr.io/v2/malt3/sysroots/llvm/blobs/sha256:" + sysroot_digest],
+)
+
+http_archive(
+    name = "libclang_rt_linux_amd64",
+    build_file_content = """
+exports_files(["usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-x86_64.a"])
+alias(
+    name = "libclang_rt_linux_amd64",
+    actual = "usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-x86_64.a",
+    visibility = ["//visibility:public"],
+)
+""",
+    integrity = "sha256-kscwT0mGM2IHXXTC4GmWg4kq5tOcxoayov5L2g16mlk=",
+    url = "https://snapshot.debian.org/archive/debian/20250501T203212Z/pool/main/l/llvm-toolchain-19/libclang-rt-19-dev_19.1.4-1~deb12u1_amd64.deb",
 )
