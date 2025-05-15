@@ -4,6 +4,7 @@ local_path_override(
     path = "../",
 )
 
+bazel_dep(name = "platforms", version = "0.0.11")
 bazel_dep(name = "rules_oci", version = "2.2.6", dev_dependency = True)
 bazel_dep(name = "rules_pkg", version = "1.1.0", dev_dependency = True)
 bazel_dep(name = "rules_cc", version = "0.1.1", dev_dependency = True)
@@ -11,7 +12,7 @@ bazel_dep(name = "toolchains_llvm", version = "1.2.0", dev_dependency = True)
 single_version_override(
     module_name = "toolchains_llvm",
     patch_strip = 1,
-    patches = ["//:toolchains_llvm.patch"],
+    patches = ["//:toolchains_llvm.patch", "//:toolchains_llvm_libc++.patch"],
 )
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
@@ -62,17 +63,32 @@ llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
 llvm.toolchain(
     libclang_rt = {
         "@llvm_sysroot_linux_amd64//:usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-x86_64.a": "x86_64-unknown-linux-gnu/libclang_rt.builtins.a",
+        "@llvm_sysroot_linux_arm64//:usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-aarch64.a": "aarch64-unknown-linux-gnu/libclang_rt.builtins.a",
     },
-    llvm_versions = {"linux-x86_64": "20.1.1"},
+    llvm_versions = {
+        "linux-x86_64": "20.1.1",
+        "linux-aarch64": "20.1.1",
+    },
     sha256 = {"linux-x86_64": "58d7a1a8fa22a001794e82a8e9ca441e12fb6d62fd8b7d47040df58a459dec8e"},
     urls = {
         "linux-x86_64": ["https://github.com/dzbarsky/static-clang/releases/download/v20.1.1/linux_amd64.tar.xz"],
+        "linux-aarch64": ["https://github.com/dzbarsky/static-clang/releases/download/v20.1.1/linux_arm64.tar.xz"],
+
+    },
+    stdlib = {
+        "linux-aarch64": "libc++",
+        "linux-x86_64": "libc++",
     },
 )
 llvm.sysroot(
     name = "llvm_toolchain",
     label = "@llvm_sysroot_linux_amd64//:sysroot",
     targets = ["linux-x86_64"],
+)
+llvm.sysroot(
+    name = "llvm_toolchain",
+    label = "@llvm_sysroot_linux_arm64//:sysroot",
+    targets = ["linux-aarch64"],
 )
 use_repo(llvm, "llvm_toolchain")
 
@@ -83,7 +99,7 @@ register_toolchains(
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-sysroot_digest = "a52519bee01417ceee8ef51f7e7bbd68b1d5868cdbd7ff0138a25b5306b28225"
+sysroot_digest_amd64 = "a52519bee01417ceee8ef51f7e7bbd68b1d5868cdbd7ff0138a25b5306b28225"
 
 http_archive(
     name = "llvm_sysroot_linux_amd64",
@@ -94,21 +110,24 @@ filegroup(
   visibility = ["//visibility:public"],
 )
 """,
-    sha256 = sysroot_digest,
+    sha256 = sysroot_digest_amd64,
     type = "tzst",
-    urls = ["https://ghcr.io/v2/malt3/sysroots/llvm/blobs/sha256:" + sysroot_digest],
+    urls = ["https://ghcr.io/v2/malt3/sysroots/llvm/blobs/sha256:" + sysroot_digest_amd64],
 )
 
+sysroot_digest_arm64 = "7af34f88fa16ccc8194c0d0cfc2a42b7d6cd73187156a49baddd74677f5959b5"
+
 http_archive(
-    name = "libclang_rt_linux_amd64",
+    name = "llvm_sysroot_linux_arm64",
     build_file_content = """
-exports_files(["usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-x86_64.a"])
-alias(
-    name = "libclang_rt_linux_amd64",
-    actual = "usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-x86_64.a",
-    visibility = ["//visibility:public"],
+filegroup(
+  name = "sysroot",
+  srcs = glob(["*/**"]),
+  visibility = ["//visibility:public"],
 )
 """,
-    integrity = "sha256-kscwT0mGM2IHXXTC4GmWg4kq5tOcxoayov5L2g16mlk=",
-    url = "https://snapshot.debian.org/archive/debian/20250501T203212Z/pool/main/l/llvm-toolchain-19/libclang-rt-19-dev_19.1.4-1~deb12u1_amd64.deb",
+    sha256 = sysroot_digest_arm64,
+    type = "tzst",
+    urls = ["https://ghcr.io/v2/malt3/sysroots/llvm/blobs/sha256:" + sysroot_digest_arm64],
 )
+
