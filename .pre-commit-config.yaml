@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+    -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+  # Check formatting and lint for starlark code
+  - repo: https://github.com/keith/pre-commit-buildifier
+    rev: 8.0.3
+    hooks:
+      - id: buildifier
+      - id: buildifier-lint
+  # Enforce that commit messages allow for later changelog generation
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.7.1
+    hooks:
+      # Requires that commitizen is already installed
+      - id: commitizen
+        stages: [commit-msg]
+  # Check validity of the renovate bot configuration
+  - repo: https://github.com/renovatebot/pre-commit-hooks
+    rev: 40.13.0
+    hooks:
+      - id: renovate-config-validator
+  # Check validity of GitHub actions configuration
+  - repo: https://github.com/mpalmer/action-validator
+    rev: v0.6.0
+    hooks:
+      - id: action-validator
+
