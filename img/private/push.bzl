@@ -1,22 +1,10 @@
 """Push rule for uploading images to a registry."""
 
-load("//img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "PullInfo")
-load("//img/private:write_index_json.bzl", "write_index_json")
-
-def _transition_to_host_platform(_settings, _attr):
-    return {
-        "//command_line_option:platforms": ["@@bazel_tools//tools:host_platform"],
-        "//command_line_option:extra_execution_platforms": ["@@bazel_tools//tools:host_platform"],
-    }
-
-_transition_to_host = transition(
-    implementation = _transition_to_host_platform,
-    inputs = [],
-    outputs = [
-        "//command_line_option:platforms",
-        "//command_line_option:extra_execution_platforms",
-    ],
-)
+load("//img/private/common:transitions.bzl", "host_platform_transition")
+load("//img/private/common:write_index_json.bzl", "write_index_json")
+load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
+load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
+load("//img/private/providers:pull_info.bzl", "PullInfo")
 
 def _encode_manifest(ctx, manifest_info, path_prefix = ""):
     layers = []
@@ -66,7 +54,7 @@ def _root_symlinks_for_manifest(manifest_info, index = None):
     root_symlinks.update(_metadata_symlinks_for_manifest(manifest_info, index))
     return root_symlinks
 
-def _push_impl(ctx):
+def _image_push_impl(ctx):
     """Implementation of the push rule."""
 
     pusher = ctx.actions.declare_file(ctx.label.name + ".exe")
@@ -133,8 +121,8 @@ def _push_impl(ctx):
         ),
     ]
 
-push = rule(
-    implementation = _push_impl,
+image_push = rule(
+    implementation = _image_push_impl,
     attrs = {
         "registry": attr.string(
             doc = "Registry to push the image to.",
@@ -151,7 +139,7 @@ push = rule(
         ),
         "_tool": attr.label(
             executable = True,
-            cfg = _transition_to_host,
+            cfg = host_platform_transition,
             default = Label("//cmd/img"),
         ),
     },

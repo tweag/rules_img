@@ -69,3 +69,18 @@ normalize_layer_transition = transition(
     inputs = [],
     outputs = [_original_platforms_setting],
 )
+
+def _host_platform_transition_impl(_settings, _attr):
+    return {
+        "//command_line_option:platforms": ["@@bazel_tools//tools:host_platform"],
+        "//command_line_option:extra_execution_platforms": ["@@bazel_tools//tools:host_platform"],
+    }
+
+host_platform_transition = transition(
+    implementation = _host_platform_transition_impl,
+    inputs = [],
+    outputs = [
+        "//command_line_option:platforms",
+        "//command_line_option:extra_execution_platforms",
+    ],
+)

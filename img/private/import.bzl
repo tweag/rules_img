@@ -1,7 +1,10 @@
 """rule to import OCI images from a local directory."""
 
-load("//img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "LayerInfo", "PullInfo")
-load("//img/private:transitions.bzl", "reset_platform_transition")
+load("//img/private/common:transitions.bzl", "reset_platform_transition")
+load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
+load("//img/private/providers:layer_info.bzl", "LayerInfo")
+load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
+load("//img/private/providers:pull_info.bzl", "PullInfo")
 
 def _digest_to_path(digest):
     """Convert a digest to a path in the OCI layout."""

@@ -1,6 +1,6 @@
 """Layer rule for building layers in a container image."""
 
-load("//img:providers.bzl", "LayerInfo")
+load("//img/private/providers:layer_info.bzl", "LayerInfo")
 
 def _file_type(f):
     type = "f"  # regular file
@@ -34,7 +34,7 @@ def _symlink_tuple_to_arg(pair):
         source = source[1:]
     return "{}\0{}".format(source, dest)
 
-def _layer_impl(ctx):
+def _image_layer_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".tgz")
     metadata_out = ctx.actions.declare_file(ctx.attr.name + "_metadata.json")
     args = ["layer", "--name", str(ctx.label), "--metadata", metadata_out.path]
@@ -103,8 +103,8 @@ def _layer_impl(ctx):
         ),
     ]
 
-layer = rule(
-    implementation = _layer_impl,
+image_layer = rule(
+    implementation = _image_layer_impl,
     attrs = {
         "srcs": attr.string_keyed_label_dict(
             doc = "Files (including regular files, executables, and TreeArtifacts) that should be added to the layer.",

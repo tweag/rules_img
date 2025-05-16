@@ -1,10 +1,12 @@
 """Image index rule for composing multi-layer OCI images."""
 
-load("//img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "PullInfo")
-load("//img/private:transitions.bzl", "multi_platform_image_transition", "reset_platform_transition")
-load("//img/private:write_index_json.bzl", "write_index_json")
+load("//img/private/common:transitions.bzl", "multi_platform_image_transition", "reset_platform_transition")
+load("//img/private/common:write_index_json.bzl", "write_index_json")
+load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
+load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
+load("//img/private/providers:pull_info.bzl", "PullInfo")
 
-def _index_impl(ctx):
+def _image_index_impl(ctx):
     pull_infos = [manifest[PullInfo] for manifest in ctx.attr.manifests if PullInfo in manifest]
     pull_info = pull_infos[0] if len(pull_infos) > 0 else None
     for other in pull_infos:
@@ -28,8 +30,8 @@ def _index_impl(ctx):
         providers.append(pull_info)
     return providers
 
-index = rule(
-    implementation = _index_impl,
+image_index = rule(
+    implementation = _image_index_impl,
     attrs = {
         "manifests": attr.label_list(
             providers = [ImageManifestInfo],

@@ -1,7 +1,7 @@
 """Layer rule for converting existing tar files to usable layers."""
 
-load("//img:providers.bzl", "LayerInfo")
-load(":layer_helper.bzl", "allow_tar_files", "calculate_layer_info", "extension_to_compression", "optimize_layer", "recompress_layer")
+load("//img/private/common:layer_helper.bzl", "allow_tar_files", "calculate_layer_info", "extension_to_compression", "optimize_layer", "recompress_layer")
+load("//img/private/providers:layer_info.bzl", "LayerInfo")
 
 def _layer_from_tar_impl(ctx):
     optimize = ctx.attr.optimize

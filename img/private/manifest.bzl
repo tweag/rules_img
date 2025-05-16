@@ -1,8 +1,11 @@
 """Image rule for assembling OCI images based on a set of layers."""
 
-load("//img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "LayerInfo", "PullInfo")
-load("//img/private:transitions.bzl", "normalize_layer_transition")
+load("//img/private/common:transitions.bzl", "normalize_layer_transition")
 load("//img/private/config:defs.bzl", "TargetPlatformInfo")
+load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
+load("//img/private/providers:layer_info.bzl", "LayerInfo")
+load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
+load("//img/private/providers:pull_info.bzl", "PullInfo")
 
 _GOOS = [
     "android",
@@ -75,7 +78,7 @@ def select_base(ctx):
             return manifest
     fail("no matching base image found for architecture {} and os {}".format(constraints_wanted["architecture"], constraints_wanted["os"]))
 
-def _image_impl(ctx):
+def _image_manifest_impl(ctx):
     inputs = []
     providers = []
     args = ctx.actions.args()
@@ -164,8 +167,8 @@ def _image_impl(ctx):
     ])
     return providers
 
-image = rule(
-    implementation = _image_impl,
+image_manifest = rule(
+    implementation = _image_manifest_impl,
     attrs = {
         "base": attr.label(
             doc = "Base image to inherit layers from. Should provide ImageManifestInfo or ImageIndexInfo.",

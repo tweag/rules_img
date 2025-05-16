@@ -1,51 +1,14 @@
 """Provider definitions"""
 
-LayerInfo = provider(
-    doc = "Information corresponding to a single layer.",
-    fields = {
-        "blob": "File containing the raw layer or None (for shallow base images).",
-        "metadata": """File containing metadata of the layer as JSON object with the keys
-- name: A human readable name for this layer. This includes the label of the layer or another descriptor (for anonymous layers, including those coming from pulled images).
-- diff_id: The diff ID of the layer as a string. Example: sha256:1234567890abcdef.
- - mediaType: The media type of the layer as a string. Example: application/vnd.oci.image.layer.v1.tar+gzip.
- - digest: The sha256 hash of the layer as a string. Example: sha256:1234567890abcdef.
- - size: The size of the layer in bytes as an int.
-""",
-        "media_type": "The media type of the layer as a string. Example: application/vnd.oci.image.layer.v1.tar+gzip.",
-    },
-)
+load("//img/private/providers:index_info.bzl", _ImageIndexInfo = "ImageIndexInfo")
+load("//img/private/providers:layer_info.bzl", _LayerInfo = "LayerInfo")
+load("//img/private/providers:manifest_info.bzl", _ImageManifestInfo = "ImageManifestInfo")
+load("//img/private/providers:pull_info.bzl", _PullInfo = "PullInfo")
 
-ImageManifestInfo = provider(
-    doc = "Information corresponding to a single image manifest for one platform.",
-    fields = {
-        "base_image": "ImageManifestInfo of the base image (or None).",
-        "descriptor": "File containing the descriptor of the manifest.",
-        "manifest": "File containing the raw image manifest (application/vnd.oci.image.index.v1+json).",
-        "config": "File containing the raw image config (application/vnd.oci.image.config.v1+json).",
-        "structured_config": "(Partial) image config with values known in the analysis phase.",
-        "architecture": "The CPU architecture this image runs on.",
-        "os": "The operating system this image runs on.",
-        "platform": "Dict containing additional runtime requirements of the image.",
-        "layers": "Layers of the image as list of LayerInfo.",
-        "missing_blobs": """List of hex-encoded sha256 hashes.
-Used to convey information lost during shallow image pulling, where the base image layers are referenced, but never materialized.""",
-    },
-)
+# providers describing images and their components
+LayerInfo = _LayerInfo
+ImageManifestInfo = _ImageManifestInfo
+ImageIndexInfo = _ImageIndexInfo
 
-ImageIndexInfo = provider(
-    doc = "Information corresponding to a (multi-platform) image index.",
-    fields = {
-        "index": "File containing the raw image index (application/vnd.oci.image.index.v1+json).",
-        "manifests": "ImageManifestInfo of the images.",
-    },
-)
-
-PullInfo = provider(
-    doc = "Information corresponding to a pulled image.",
-    fields = {
-        "registries": "List of registry mirrors used to pull the image.",
-        "repository": "Repository name of the image.",
-        "tag": "Tag of the image.",
-        "digest": "Digest of the image.",
-    },
-)
+# providers with metadata about pulled base images
+PullInfo = _PullInfo

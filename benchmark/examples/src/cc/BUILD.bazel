@@ -1,7 +1,7 @@
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
-load("@rules_img//img/private:layer.bzl", "layer")
+load("@rules_img//img:layer.bzl", "image_layer")
 
 cc_shared_library(
     name = "foo_shared",
@@ -23,7 +23,7 @@ cc_binary(
     dynamic_deps = ["foo_shared"],
 )
 
-layer(
+image_layer(
     name = "cc",
     srcs = {"usr/bin/hello_cc": ":hello_cc"},
     visibility = ["//visibility:public"],
