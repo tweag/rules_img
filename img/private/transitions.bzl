@@ -1,5 +1,5 @@
 _platforms_setting = "//command_line_option:platforms"
-_original_platforms_setting = str(Label("//bzl/img/private/settings:original_platforms"))
+_original_platforms_setting = str(Label("//img/private/settings:original_platforms"))
 
 def _encode_platforms(platforms):
     return ",".join([str(platform) for platform in platforms])

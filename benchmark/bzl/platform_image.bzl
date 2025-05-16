@@ -1,4 +1,4 @@
-load("@rules_img//bzl/img/private:image.bzl", "image")
+load("@rules_img//img/private:image.bzl", "image")
 load("@with_cfg.bzl", "with_cfg")
 
 def platform_image(platform):

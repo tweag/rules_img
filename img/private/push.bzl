@@ -1,7 +1,7 @@
 """Push rule for uploading images to a registry."""
 
-load("//bzl/img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "PullInfo")
-load("//bzl/img/private:write_index_json.bzl", "write_index_json")
+load("//img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "PullInfo")
+load("//img/private:write_index_json.bzl", "write_index_json")
 
 def _transition_to_host_platform(_settings, _attr):
     return {

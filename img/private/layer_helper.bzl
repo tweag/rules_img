@@ -1,6 +1,6 @@
 """Helper functions for working with tar files."""
 
-load("//bzl/img:providers.bzl", "LayerInfo")
+load("//img:providers.bzl", "LayerInfo")
 
 allow_tar_files = [".tar", ".tar.gz", ".tgz"]
 

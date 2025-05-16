@@ -1,4 +1,4 @@
-load("//bzl/img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "PullInfo")
+load("//img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "PullInfo")
 
 def _annotation_arg(tup):
     return "{}={}".format(tup[0], tup[1])

@@ -1,8 +1,8 @@
-load("@rules_img//bzl/img/private:image.bzl", "image")
-load("@rules_img//bzl/img/private:index.bzl", "index")
-load("@rules_img//bzl/img/private:layer.bzl", "layer")
-load("@rules_img//bzl/img/private:layer_from_tar.bzl", "layer_from_tar")
-load("@rules_img//bzl/img/private:push.bzl", "push")
+load("@rules_img//img/private:image.bzl", "image")
+load("@rules_img//img/private:index.bzl", "index")
+load("@rules_img//img/private:layer.bzl", "layer")
+load("@rules_img//img/private:layer_from_tar.bzl", "layer_from_tar")
+load("@rules_img//img/private:push.bzl", "push")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_push")
 load("//:build_tree.bzl", "build_tree")
 

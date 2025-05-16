@@ -1,6 +1,6 @@
 """Layer rule for building layers in a container image."""
 
-load("//bzl/img:providers.bzl", "LayerInfo")
+load("//img:providers.bzl", "LayerInfo")
 
 def _file_type(f):
     type = "f"  # regular file

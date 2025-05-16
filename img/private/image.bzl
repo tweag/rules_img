@@ -1,8 +1,8 @@
 """Image rule for assembling OCI images based on a set of layers."""
 
-load("//bzl/img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "LayerInfo", "PullInfo")
-load("//bzl/img/private:transitions.bzl", "normalize_layer_transition")
-load("//bzl/img/private/config:defs.bzl", "TargetPlatformInfo")
+load("//img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "LayerInfo", "PullInfo")
+load("//img/private:transitions.bzl", "normalize_layer_transition")
+load("//img/private/config:defs.bzl", "TargetPlatformInfo")
 
 _GOOS = [
     "android",
@@ -192,7 +192,7 @@ image = rule(
             allow_single_file = True,
         ),
         "_os_cpu": attr.label(
-            default = Label("//bzl/img/private/config:target_os_cpu"),
+            default = Label("//img/private/config:target_os_cpu"),
             providers = [TargetPlatformInfo],
         ),
         "_tool": attr.label(
