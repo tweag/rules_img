@@ -5,6 +5,7 @@ local_path_override(
 )
 
 bazel_dep(name = "platforms", version = "0.0.11")
+
 bazel_dep(name = "rules_oci", version = "2.2.6", dev_dependency = True)
 bazel_dep(name = "rules_pkg", version = "1.1.0", dev_dependency = True)
 bazel_dep(name = "rules_cc", version = "0.1.1", dev_dependency = True)
@@ -12,7 +13,10 @@ bazel_dep(name = "toolchains_llvm", version = "1.2.0", dev_dependency = True)
 single_version_override(
     module_name = "toolchains_llvm",
     patch_strip = 1,
-    patches = ["//:toolchains_llvm.patch", "//:toolchains_llvm_libc++.patch"],
+    patches = [
+        "//:toolchains_llvm.patch",
+        "//:toolchains_llvm_libc++.patch",
+    ],
 )
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
@@ -70,14 +74,13 @@ llvm.toolchain(
         "linux-aarch64": "20.1.1",
     },
     sha256 = {"linux-x86_64": "58d7a1a8fa22a001794e82a8e9ca441e12fb6d62fd8b7d47040df58a459dec8e"},
-    urls = {
-        "linux-x86_64": ["https://github.com/dzbarsky/static-clang/releases/download/v20.1.1/linux_amd64.tar.xz"],
-        "linux-aarch64": ["https://github.com/dzbarsky/static-clang/releases/download/v20.1.1/linux_arm64.tar.xz"],
-
-    },
     stdlib = {
         "linux-aarch64": "libc++",
         "linux-x86_64": "libc++",
+    },
+    urls = {
+        "linux-x86_64": ["https://github.com/dzbarsky/static-clang/releases/download/v20.1.1/linux_amd64.tar.xz"],
+        "linux-aarch64": ["https://github.com/dzbarsky/static-clang/releases/download/v20.1.1/linux_arm64.tar.xz"],
     },
 )
 llvm.sysroot(
@@ -130,4 +133,3 @@ filegroup(
     type = "tzst",
     urls = ["https://ghcr.io/v2/malt3/sysroots/llvm/blobs/sha256:" + sysroot_digest_arm64],
 )
-

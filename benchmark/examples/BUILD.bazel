@@ -90,7 +90,6 @@ layer_from_tar(
 
 image(
     name = "my_image",
-    architecture = "amd64",
     base = "@ubuntu",
     layers = [
         ":img_layer",
@@ -114,11 +113,44 @@ index(
     name = "my_index",
     annotations = {"foo": "bar"},
     manifests = [":my_image"],
+    platforms = [
+        "//:linux_amd64",
+        "//:linux_arm64",
+    ],
+)
+
+image(
+    name = "cc_image",
+    base = ":my_index",
+    layers = ["//examples/src/cc"],
+)
+
+index(
+    name = "cc_index",
+    manifests = [":cc_image"],
+    platforms = [
+        "//:linux_amd64",
+        "//:linux_arm64",
+    ],
+)
+
+image(
+    name = "some_extra_image",
+    base = "cc_index",
+)
+
+index(
+    name = "some_extra_index",
+    manifests = [":some_extra_image"],
+    platforms = [
+        "//:linux_amd64",
+        "//:linux_arm64",
+    ],
 )
 
 push(
     name = "my_push",
-    image = ":my_image",
+    image = ":some_extra_index",
     registry = "ghcr.io",
     repository = "malt3/ubuntu",
     tag = "latest",

@@ -1,6 +1,7 @@
 """rule to import OCI images from a local directory."""
 
 load("//bzl/img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "LayerInfo", "PullInfo")
+load("//bzl/img/private:transitions.bzl", "reset_platform_transition")
 
 def _digest_to_path(digest):
     """Convert a digest to a path in the OCI layout."""
@@ -166,6 +167,7 @@ image_import = rule(
             doc = "Tag of the image.",
         ),
     },
+    cfg = reset_platform_transition,
 )
 
 MEDIA_TYPE_INDEX = "application/vnd.oci.image.index.v1+json"

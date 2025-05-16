@@ -1,6 +1,7 @@
 """Push rule for uploading images to a registry."""
 
 load("//bzl/img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "PullInfo")
+load("//bzl/img/private:write_index_json.bzl", "write_index_json")
 
 def _transition_to_host_platform(_settings, _attr):
     return {
@@ -17,35 +18,53 @@ _transition_to_host = transition(
     ],
 )
 
-def _to_rlocation_path(ctx, file):
-    if file.short_path.startswith("../"):
-        return file.short_path[3:]
-    return ctx.workspace_name + "/" + file.short_path
-
-def _encode_manifest(ctx, manifest_info):
+def _encode_manifest(ctx, manifest_info, path_prefix = ""):
     layers = []
-    for layer in manifest_info.layers:
-        blob_path = _to_rlocation_path(ctx, layer.blob) if layer.blob != None else ""
+    for i, layer in enumerate(manifest_info.layers):
+        blob_path = "{path_prefix}/layer/{i}".format(path_prefix = path_prefix, i = i) if layer.blob != None else ""
+        blob_path = blob_path.removeprefix("/")
+        metadata = "{path_prefix}/metadata/{i}".format(path_prefix = path_prefix, i = i)
+        metadata = metadata.removeprefix("/")
         layers.append(dict(
-            metadata = _to_rlocation_path(ctx, layer.metadata),
+            metadata = metadata,
             blob_path = blob_path,
         ))
+    manifest = "{}/manifest.json".format(path_prefix)
+    manifest = manifest.removeprefix("/")
+    config = "{}/config.json".format(path_prefix)
+    config = config.removeprefix("/")
     return dict(
-        manifest = _to_rlocation_path(ctx, manifest_info.manifest),
-        config = _to_rlocation_path(ctx, manifest_info.config),
+        manifest = manifest,
+        config = config,
         layers = layers,
         missing_blobs = manifest_info.missing_blobs,
     )
 
-def _layer_runfiles_for_manifest(manifest_info):
-    """Returns the runfiles for a manifest."""
-    runfiles = []
-    for layer in manifest_info.layers:
-        if layer.blob != None:
-            runfiles.append(layer.blob)
-        if layer.metadata != None:
-            runfiles.append(layer.metadata)
-    return runfiles
+def _layer_root_symlinks_for_manifest(manifest_info, index = None):
+    base_path = "layer" if index == None else "manifest/{}/layer".format(index)
+    return {
+        "{base}/{layer_index}".format(base = base_path, layer_index = layer_index): layer.blob
+        for (layer_index, layer) in enumerate(manifest_info.layers)
+        if layer.blob != None
+    }
+
+def _metadata_symlinks_for_manifest(manifest_info, index = None):
+    base_path = "metadata" if index == None else "manifest/{}/metadata".format(index)
+    return {
+        "{base}/{layer_index}".format(base = base_path, layer_index = layer_index): layer.metadata
+        for (layer_index, layer) in enumerate(manifest_info.layers)
+        if layer.metadata != None
+    }
+
+def _root_symlinks_for_manifest(manifest_info, index = None):
+    base_path = "" if index == None else "manifest/{}/".format(index)
+    root_symlinks = {
+        "{base}manifest.json".format(base = base_path): manifest_info.manifest,
+        "{base}config.json".format(base = base_path): manifest_info.config,
+    }
+    root_symlinks.update(_layer_root_symlinks_for_manifest(manifest_info, index))
+    root_symlinks.update(_metadata_symlinks_for_manifest(manifest_info, index))
+    return root_symlinks
 
 def _push_impl(ctx):
     """Implementation of the push rule."""
@@ -64,7 +83,7 @@ def _push_impl(ctx):
     if manifest_info != None and index_info != None:
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
 
-    direct_runfiles = []
+    root_symlinks = {}
     push_request = dict(
         registry = ctx.attr.registry,
         repository = ctx.attr.repository,
@@ -76,38 +95,40 @@ def _push_impl(ctx):
         push_request["original_tag"] = pull_info.tag
         push_request["original_digest"] = pull_info.digest
     if manifest_info != None:
+        index_json = ctx.attr.declare_file(ctx.attr.name + "_index.json")
+        write_index_json(
+            ctx,
+            output = index_json,
+            manifests = [manifest_info],
+            annotations = {},
+        )
+        root_symlinks["index.json"] = index_json
+        root_symlinks.update(_root_symlinks_for_manifest(manifest_info))
         push_request["manifest"] = _encode_manifest(ctx, manifest_info)
-        direct_runfiles.append(manifest_info.manifest)
-        direct_runfiles.append(manifest_info.config)
-        direct_runfiles.extend(_layer_runfiles_for_manifest(manifest_info))
     if index_info != None:
-        direct_runfiles.append(index_info.index)
+        root_symlinks["index.json"] = index_info.index
         push_request["index"] = dict(
-            index = _to_rlocation_path(ctx, index_info.index),
+            index = "index.json",
             manifests = [
-                _encode_manifest(ctx, manifest)
-                for manifest in index_info.manifests
+                _encode_manifest(ctx, manifest, "manifest/{}".format(i))
+                for i, manifest in enumerate(index_info.manifests)
             ],
         )
-        for manifest in index_info.manifests:
-            direct_runfiles.append(manifest.manifest)
-            direct_runfiles.append(manifest.config)
-            direct_runfiles.extend(_layer_runfiles_for_manifest(manifest))
+        for i, manifest in enumerate(index_info.manifests):
+            root_symlinks.update(_root_symlinks_for_manifest(manifest, index = i))
 
     request_json = ctx.actions.declare_file(ctx.label.name + ".json")
     ctx.actions.write(
         request_json,
         json.encode(push_request),
     )
+    root_symlinks["push_request.json"] = request_json
     return [
         DefaultInfo(
             files = depset([request_json]),
             executable = pusher,
             runfiles = ctx.runfiles(
-                files = direct_runfiles,
-                root_symlinks = {
-                    "push_request.json": request_json,
-                },
+                root_symlinks = root_symlinks,
             ),
         ),
     ]

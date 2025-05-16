@@ -1,6 +1,7 @@
 """Image rule for assembling OCI images based on a set of layers."""
 
 load("//bzl/img:providers.bzl", "ImageIndexInfo", "ImageManifestInfo", "LayerInfo", "PullInfo")
+load("//bzl/img/private:transitions.bzl", "normalize_layer_transition")
 load("//bzl/img/private/config:defs.bzl", "TargetPlatformInfo")
 
 _GOOS = [
@@ -61,8 +62,8 @@ def select_base(ctx):
     if ImageIndexInfo not in ctx.attr.base:
         fail("base image must be an ImageManifestInfo or ImageIndexInfo")
 
-    os_wanted = ctx.attr.os if ctx.attr.os != None else "linux"
-    arch_wanted = ctx.attr.architecture if ctx.attr.architecture != None else ctx.attr._os_cpu[TargetPlatformInfo].cpu
+    os_wanted = ctx.attr.os if ctx.attr.os != "" else "linux"
+    arch_wanted = ctx.attr.architecture if ctx.attr.architecture != "" else ctx.attr._os_cpu[TargetPlatformInfo].cpu
     constraints_wanted = dict(
         os = os_wanted,
         architecture = arch_wanted,
@@ -72,7 +73,7 @@ def select_base(ctx):
     for manifest in ctx.attr.base[ImageIndexInfo].manifests:
         if _platform_matches(constraints_wanted, manifest):
             return manifest
-    fail("no matching base image found for architecture {} and os {}".format(ctx.attr.architecture, ctx.attr.os))
+    fail("no matching base image found for architecture {} and os {}".format(constraints_wanted["architecture"], constraints_wanted["os"]))
 
 def _image_impl(ctx):
     inputs = []
@@ -172,6 +173,7 @@ image = rule(
         "layers": attr.label_list(
             providers = [LayerInfo],
             doc = "Layers to include in the image.",
+            cfg = normalize_layer_transition,
         ),
         "os": attr.string(
             values = _GOOS,

@@ -1,0 +1,7 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_setting")
+
+string_setting(
+    name = "original_platforms",
+    build_setting_default = "",
+    visibility = ["//visibility:private"],
+)
