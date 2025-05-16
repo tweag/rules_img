@@ -107,7 +107,7 @@ index 98a812f6..d2139a90 100644
 @@ -156,6 +156,41 @@ llvm_toolchain(
      urls = {"": ["https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/clang+llvm-17.0.6-x86_64-linux-gnu-ubuntu-22.04.tar.xz"]},
  )
- 
+
 +# Toolchain example for WebAssembly.
 +llvm_toolchain(
 +    name = "llvm_toolchain_wasm",
@@ -144,7 +144,7 @@ index 98a812f6..d2139a90 100644
 +wasi_sdk_sysroots(name = "wasi_sdk_sysroots")
 +
  ## Test dependencies.
- 
+
  # Well known repos; present here only for testing.
 diff --git a/tests/scripts/debian_test.sh b/tests/scripts/debian_test.sh
 index 3391bfc2..02806cd3 100755
@@ -158,7 +158,7 @@ index 3391bfc2..02806cd3 100755
 +apt-get -qq -y install curl libtinfo5 libxml2 zlib1g-dev >/dev/null
  # The above command gives some verbose output that can not be silenced easily.
  # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=288778
- 
+
 diff --git a/tests/scripts/linux_sysroot_test.sh b/tests/scripts/linux_sysroot_test.sh
 index 238e45a8..a2935c24 100755
 --- a/tests/scripts/linux_sysroot_test.sh
@@ -171,7 +171,7 @@ index 238e45a8..a2935c24 100755
 +apt-get -qq -y install curl libtinfo5 libxml2 zlib1g-dev >/dev/null
  # The above command gives some verbose output that can not be silenced easily.
  # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=288778
- 
+
 diff --git a/tests/scripts/run_docker_exec_test.sh b/tests/scripts/run_docker_exec_test.sh
 index eeaaa32a..fe582aad 100755
 --- a/tests/scripts/run_docker_exec_test.sh
@@ -183,7 +183,7 @@ index eeaaa32a..fe582aad 100755
 -		apt-get -qq -y install libtinfo5 zlib1g-dev libxml2
 +		apt-get -qq -y install libtinfo5 libxml2 zlib1g-dev libxml2
  EOF
- 
+
  build_args=(
 diff --git a/tests/scripts/run_tests.sh b/tests/scripts/run_tests.sh
 index c50a346a..64652b98 100755
@@ -191,10 +191,10 @@ index c50a346a..64652b98 100755
 +++ b/tests/scripts/run_tests.sh
 @@ -16,8 +16,9 @@
  set -euo pipefail
- 
+
  toolchain_name=""
 +disable_wasm_tests=""
- 
+
 -while getopts "t:h" opt; do
 +while getopts "t:hW" opt; do
    case "${opt}" in
@@ -247,7 +247,7 @@ index f43ed8c5..38e6d20e 100755
 +apt-get -qq -y install apt-utils curl libtinfo5 libxml2 pkg-config zlib1g-dev >/dev/null
  # The above command gives some verbose output that can not be silenced easily.
  # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=288778
- 
+
 +# The WebAssembly tests use an LLVM version that is too new for the GNU libc
 +# distributed in Ubuntu 20.04.
 +disable_wasm_tests='-W'
@@ -270,7 +270,7 @@ index 95c6105a..f5341fd8 100755
 +apt-get -qq -y install curl libtinfo5 libxml2 zlib1g-dev >/dev/null
  # The above command gives some verbose output that can not be silenced easily.
  # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=288778
- 
+
 diff --git a/tests/transitions.bzl b/tests/transitions.bzl
 index ac7316ed..0bffa076 100644
 --- a/tests/transitions.bzl
@@ -278,11 +278,11 @@ index ac7316ed..0bffa076 100644
 @@ -97,11 +97,11 @@ dwp_file = rule(
      },
  )
- 
+
 -def _transition_library_to_platform_transition_impl(_, attr):
 +def _transition_to_platform_transition_impl(_, attr):
      return {"//command_line_option:platforms": str(attr.platform)}
- 
+
 -_transition_library_to_platform_transition = transition(
 -    implementation = _transition_library_to_platform_transition_impl,
 +_transition_to_platform_transition = transition(
@@ -474,16 +474,16 @@ index 7e6a38e6..7bb55f35 100644
 +            "unknown",
 +        ),
      }[target_os_arch_key]
- 
+
      # Unfiltered compiler flags; these are placed at the end of the command
 @@ -134,10 +150,15 @@ def cc_toolchain_config(
- 
+
      link_flags = [
          "--target=" + target_system_name,
 -        "-lm",
          "-no-canonical-prefixes",
      ]
- 
+
 +    stdlib = compiler_configuration["stdlib"]
 +    if stdlib != "none":
 +        link_flags.extend([
@@ -535,7 +535,7 @@ index ff94bfb2..fe56b6a8 100644
 @@ -12,7 +12,14 @@
  # See the License for the specific language governing permissions and
  # limitations under the License.
- 
+
 -SUPPORTED_TARGETS = [("linux", "x86_64"), ("linux", "aarch64"), ("darwin", "x86_64"), ("darwin", "aarch64")]
 +SUPPORTED_TARGETS = [
 +    ("linux", "x86_64"),
@@ -545,22 +545,22 @@ index ff94bfb2..fe56b6a8 100644
 +    ("none", "wasm32"),
 +    ("none", "wasm64"),
 +]
- 
+
  # Map of tool name to its symlinked name in the tools directory.
  # See tool_paths in toolchain/cc_toolchain_config.bzl.
 @@ -120,7 +127,7 @@ def os(rctx):
- 
+
  def os_bzl(os):
      # Return the OS string as used in bazel platform constraints.
 -    return {"darwin": "osx", "linux": "linux"}[os]
 +    return {"darwin": "osx", "linux": "linux", "none": "none"}[os]
- 
+
  def arch(rctx):
      arch = rctx.attr.exec_arch
 @@ -139,7 +146,12 @@ def arch(rctx):
          return "x86_64"
      return arch
- 
+
 +def is_standalone_arch(os, arch):
 +    return os == "none" and arch in ["wasm32", "wasm64"]
 +
@@ -568,7 +568,7 @@ index ff94bfb2..fe56b6a8 100644
 +    if is_standalone_arch(os, arch):
 +        return arch
      return "{}-{}".format(os, arch)
- 
+
  _supported_os_arch = [os_arch_pair(os, arch) for (os, arch) in SUPPORTED_TARGETS]
 diff --git a/toolchain/internal/configure.bzl b/toolchain/internal/configure.bzl
 index 8731af75..37a0ab61 100644
@@ -614,7 +614,7 @@ index 8731af75..37a0ab61 100644
 +            ])
      else:
          fail("Unreachable")
- 
+
 diff --git a/toolchain/internal/llvm_distributions.bzl b/toolchain/internal/llvm_distributions.bzl
 index 8d383988..73dc56d1 100644
 --- a/toolchain/internal/llvm_distributions.bzl
@@ -622,7 +622,7 @@ index 8d383988..73dc56d1 100644
 @@ -623,6 +623,14 @@ def download_llvm(rctx):
          auth = _get_auth(rctx, urls),
      )
- 
+
 +    if rctx.attr.libclang_rt:
 +        clang_versions = rctx.path("lib/clang").readdir()
 +        for libclang_rt, lib_name in rctx.attr.libclang_rt.items():

@@ -28,7 +28,7 @@ index 7e6a38e..b3d692c 100644
 +++ b/toolchain/cc_toolchain_config.bzl
 @@ -241,8 +241,8 @@ def cc_toolchain_config(
          ]
- 
+
          link_flags.extend([
 -            "-l:c++.a",
 -            "-l:c++abi.a",
@@ -37,6 +37,5 @@ index 7e6a38e..b3d692c 100644
          ])
      elif stdlib == "stdc++":
          cxx_flags = [
--- 
+--
 2.47.2
-

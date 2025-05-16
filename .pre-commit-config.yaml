@@ -4,6 +4,7 @@ repos:
     hooks:
     -   id: check-yaml
     -   id: end-of-file-fixer
+        exclude: ^testdata/
     -   id: trailing-whitespace
   # Check formatting and lint for starlark code
   - repo: https://github.com/keith/pre-commit-buildifier
@@ -28,4 +29,3 @@ repos:
     rev: v0.6.0
     hooks:
       - id: action-validator
-

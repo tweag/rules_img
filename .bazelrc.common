@@ -14,4 +14,3 @@ build --sandbox_default_allow_network=false
 test --test_output=errors
 # docs: https://bazel.build/reference/command-line-reference#flag--test_verbose_timeout_warnings
 test --test_verbose_timeout_warnings
-
