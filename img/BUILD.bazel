@@ -4,4 +4,37 @@ bzl_library(
     name = "providers",
     srcs = ["providers.bzl"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//img/private/providers:index_info",
+        "//img/private/providers:layer_info",
+        "//img/private/providers:manifest_info",
+        "//img/private/providers:pull_info",
+    ],
+)
+
+bzl_library(
+    name = "image",
+    srcs = ["image.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//img/private:index",
+        "//img/private:manifest",
+    ],
+)
+
+bzl_library(
+    name = "layer",
+    srcs = ["layer.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//img/private:layer",
+        "//img/private:layer_from_tar",
+    ],
+)
+
+bzl_library(
+    name = "push",
+    srcs = ["push.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["//img/private:push"],
 )
