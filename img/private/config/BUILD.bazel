@@ -1,3 +1,4 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load(":defs.bzl", "os_cpu")
 
 os_cpu(
@@ -22,4 +23,10 @@ os_cpu(
         "@platforms//os:windows": "windows",
     }),
     visibility = ["//visibility:public"],
+)
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    visibility = ["//img:__subpackages__"],
 )
