@@ -1,0 +1,17 @@
+# avoid writing a lockfile in this repo.
+# docs: https://bazel.build/reference/command-line-reference#flag--lockfile_mode
+common --lockfile_mod=off
+
+# normalize environment variables for hermeticity and reproducibility
+# docs: https://bazel.build/reference/command-line-reference#flag--incompatible_strict_action_env
+build --incompatible_strict_action_env
+
+# prevent actions from accidentaly depending on the network
+# docs: https://bazel.build/reference/command-line-reference#flag--sandbox_default_allow_network
+build --sandbox_default_allow_network=false
+
+# docs: https://bazel.build/reference/command-line-reference#flag--test_output
+test --test_output=errors
+# docs: https://bazel.build/reference/command-line-reference#flag--test_verbose_timeout_warnings
+test --test_verbose_timeout_warnings
+
