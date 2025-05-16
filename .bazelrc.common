@@ -1,6 +1,6 @@
 # avoid writing a lockfile in this repo.
 # docs: https://bazel.build/reference/command-line-reference#flag--lockfile_mode
-common --lockfile_mod=off
+common --lockfile_mode=off
 
 # normalize environment variables for hermeticity and reproducibility
 # docs: https://bazel.build/reference/command-line-reference#flag--incompatible_strict_action_env

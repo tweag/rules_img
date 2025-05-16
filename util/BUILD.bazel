@@ -1,0 +1,33 @@
+load("@buildifier_prebuilt//:rules.bzl", "buildifier", "buildifier_test")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
+
+buildifier(
+    name = "buildifier.fix",
+    diff_command = "diff",
+    lint_mode = "fix",
+    mode = "fix",
+)
+
+buildifier_test(
+    name = "buildifier.check",
+    size = "small",
+    diff_command = "diff",
+    lint_mode = "warn",
+    mode = "diff",
+    no_sandbox = True,
+    tags = ["no-remote-exec"],
+    workspace = "//:MODULE.bazel",
+)
+
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = [
+        "@gazelle//language/go",
+        "@bazel_skylib_gazelle_plugin//bzl",
+    ],
+)
+
+gazelle(
+    name = "gazelle",
+    gazelle = "gazelle_bin",
+)

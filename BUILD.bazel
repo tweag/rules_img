@@ -1,3 +1,2 @@
-load("@gazelle//:def.bzl", "gazelle")
+exports_files(["MODULE.bazel"])
 
-gazelle(name = "gazelle")
