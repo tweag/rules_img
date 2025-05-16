@@ -133,3 +133,8 @@ filegroup(
     type = "tzst",
     urls = ["https://ghcr.io/v2/malt3/sysroots/llvm/blobs/sha256:" + sysroot_digest_arm64],
 )
+
+# register a source-built toolchain of the img tool.
+register_toolchains(
+    "@rules_img//img/source_toolchain:all",
+)

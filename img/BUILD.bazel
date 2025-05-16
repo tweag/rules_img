@@ -1,4 +1,16 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("//img/private:resolved_toolchain.bzl", "resolved_toolchain")
+
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
+resolved_toolchain(
+    name = "resolved_toolchain",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+)
 
 bzl_library(
     name = "providers",

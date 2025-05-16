@@ -77,3 +77,20 @@ bzl_library(
         "//img/private/providers:pull_info",
     ],
 )
+
+bzl_library(
+    name = "image_toolchain",
+    srcs = ["image_toolchain.bzl"],
+    visibility = ["//img:__subpackages__"],
+    deps = [
+        "//img/private/common:transitions",
+        "//img/private/providers:image_toolchain_info",
+    ],
+)
+
+bzl_library(
+    name = "resolved_toolchain",
+    srcs = ["resolved_toolchain.bzl"],
+    visibility = ["//img:__subpackages__"],
+    deps = [":image_toolchain"],
+)

@@ -1,0 +1,19 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load(":platforms.bzl", "PLATFORMS")
+
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+[
+    platform(
+        name = name,
+        constraint_values = info.constraints,
+    )
+    for name, info in PLATFORMS.items()
+]
+
+bzl_library(
+    name = "platforms",
+    srcs = ["platforms.bzl"],
+)

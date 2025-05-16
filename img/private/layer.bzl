@@ -1,5 +1,6 @@
 """Layer rule for building layers in a container image."""
 
+load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/providers:layer_info.bzl", "LayerInfo")
 
 def _file_type(f):
@@ -83,10 +84,11 @@ def _image_layer_impl(ctx):
     args.append(files_args)
     args.append(out.path)
 
+    img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
     ctx.actions.run(
         outputs = [out, metadata_out],
         inputs = depset(transitive = inputs),
-        executable = ctx.executable._tool,
+        executable = img_toolchain_info.tool_exe,
         arguments = args,
         mnemonic = "LayerTar",
     )
@@ -113,11 +115,7 @@ image_layer = rule(
         "symlinks": attr.string_dict(
             doc = "Symlinks that should be added to the layer.",
         ),
-        "_tool": attr.label(
-            executable = True,
-            cfg = "exec",
-            default = Label("//cmd/img"),
-        ),
     },
+    toolchains = TOOLCHAINS,
     provides = [LayerInfo],
 )

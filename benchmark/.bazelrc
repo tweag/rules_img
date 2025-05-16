@@ -1,1 +1,3 @@
+build --experimental_output_paths=strip
+
 try-import %workspace%/.bazelrc.user

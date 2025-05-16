@@ -1,7 +1,8 @@
 """Push rule for uploading images to a registry."""
 
-load("//img/private/common:transitions.bzl", "host_platform_transition")
+load("//img/private/common:transitions.bzl", "host_platform_transition", "reset_platform_transition")
 load("//img/private/common:write_index_json.bzl", "write_index_json")
+load("//img/private/providers:image_toolchain_info.bzl", "ImageToolchainInfo")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
@@ -58,9 +59,10 @@ def _image_push_impl(ctx):
     """Implementation of the push rule."""
 
     pusher = ctx.actions.declare_file(ctx.label.name + ".exe")
+    img_toolchain_info = ctx.attr._tool[0][ImageToolchainInfo]
     ctx.actions.symlink(
         output = pusher,
-        target_file = ctx.executable._tool,
+        target_file = img_toolchain_info.tool_exe,
         is_executable = True,
     )
     pull_info = ctx.attr.image[PullInfo] if PullInfo in ctx.attr.image else None
@@ -138,10 +140,10 @@ image_push = rule(
             mandatory = True,
         ),
         "_tool": attr.label(
-            executable = True,
             cfg = host_platform_transition,
-            default = Label("//cmd/img"),
+            default = Label("//img:resolved_toolchain"),
         ),
     },
     executable = True,
+    cfg = reset_platform_transition,
 )

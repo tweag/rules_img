@@ -1,5 +1,6 @@
 """Image rule for assembling OCI images based on a set of layers."""
 
+load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/common:transitions.bzl", "normalize_layer_transition")
 load("//img/private/config:defs.bzl", "TargetPlatformInfo")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
@@ -137,10 +138,11 @@ def _image_manifest_impl(ctx):
     args.add("--config", config_out.path)
     args.add("--descriptor", descriptor_out.path)
 
+    img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
     ctx.actions.run(
         inputs = inputs,
         outputs = [manifest_out, config_out, descriptor_out],
-        executable = ctx.executable._tool,
+        executable = img_toolchain_info.tool_exe,
         arguments = [args],
         mnemonic = "ImageManifest",
     )
@@ -198,11 +200,7 @@ image_manifest = rule(
             default = Label("//img/private/config:target_os_cpu"),
             providers = [TargetPlatformInfo],
         ),
-        "_tool": attr.label(
-            executable = True,
-            cfg = "exec",
-            default = Label("//cmd/img"),
-        ),
     },
     provides = [ImageManifestInfo],
+    toolchains = TOOLCHAINS,
 )

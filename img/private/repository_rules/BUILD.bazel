@@ -12,3 +12,9 @@ bzl_library(
     visibility = ["//img:__subpackages__"],
     deps = [":download"],
 )
+
+bzl_library(
+    name = "toolchains_repo",
+    srcs = ["toolchains_repo.bzl"],
+    visibility = ["//img:__subpackages__"],
+)

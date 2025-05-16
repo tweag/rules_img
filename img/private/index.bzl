@@ -1,5 +1,6 @@
 """Image index rule for composing multi-layer OCI images."""
 
+load("//img/private/common:build.bzl", "TOOLCHAINS")
 load("//img/private/common:transitions.bzl", "multi_platform_image_transition", "reset_platform_transition")
 load("//img/private/common:write_index_json.bzl", "write_index_json")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
@@ -44,11 +45,7 @@ image_index = rule(
         "annotations": attr.string_dict(
             doc = "Arbitrary metadata for the image index.",
         ),
-        "_tool": attr.label(
-            executable = True,
-            cfg = "exec",
-            default = Label("//cmd/img"),
-        ),
     },
+    toolchains = TOOLCHAINS,
     cfg = reset_platform_transition,
 )

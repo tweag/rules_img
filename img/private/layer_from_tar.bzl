@@ -1,5 +1,6 @@
 """Layer rule for converting existing tar files to usable layers."""
 
+load("//img/private/common:build.bzl", "TOOLCHAINS")
 load("//img/private/common:layer_helper.bzl", "allow_tar_files", "calculate_layer_info", "extension_to_compression", "optimize_layer", "recompress_layer")
 load("//img/private/providers:layer_info.bzl", "LayerInfo")
 
@@ -79,11 +80,7 @@ If the file extension is `.tar` or the compression is none, no compression will 
             doc = """If set, rewrites the tar file to deduplicate it's contents.
 This is useful for reducing the size of the image, but will take extra time and space to store the optimized layer.""",
         ),
-        "_tool": attr.label(
-            executable = True,
-            cfg = "exec",
-            default = Label("//cmd/img"),
-        ),
     },
+    toolchains = TOOLCHAINS,
     provides = [LayerInfo],
 )

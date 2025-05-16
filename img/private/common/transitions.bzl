@@ -70,17 +70,30 @@ normalize_layer_transition = transition(
     outputs = [_original_platforms_setting],
 )
 
-def _host_platform_transition_impl(_settings, _attr):
+def _host_platform_transition_impl(settings, _attr):
     return {
-        "//command_line_option:platforms": ["@@bazel_tools//tools:host_platform"],
-        "//command_line_option:extra_execution_platforms": ["@@bazel_tools//tools:host_platform"],
+        "//command_line_option:extra_execution_platforms": [str(platform) for platform in settings[_platforms_setting]],
     }
 
 host_platform_transition = transition(
     implementation = _host_platform_transition_impl,
-    inputs = [],
+    inputs = [_platforms_setting],
     outputs = [
-        "//command_line_option:platforms",
         "//command_line_option:extra_execution_platforms",
     ],
+)
+
+def _toolchain_transition_impl(settings, attr):
+    # If no explicit exec platform is set,
+    # we don't transition.
+    # This can be used to define a downloaded toolchain,
+    # where the target is a source file.
+    if attr.exec_platform == None:
+        return {}
+    return {_platforms_setting: str(attr.exec_platform)}
+
+toolchain_transition = transition(
+    implementation = _toolchain_transition_impl,
+    inputs = [],
+    outputs = [_platforms_setting],
 )

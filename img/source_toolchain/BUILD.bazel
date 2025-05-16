@@ -1,0 +1,30 @@
+"""Defines toolchains that are built from source (instead of prebuilt downloads).
+
+These toolchains are not registered by default.
+You need to register them explicitly if you want to build from source.
+"""
+
+load("//img/private:image_toolchain.bzl", "TOOLCHAIN_TYPE", "image_toolchain")
+load("//img/private/platforms:platforms.bzl", "PLATFORMS")
+
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+[
+    image_toolchain(
+        name = name,
+        exec_platform = plt.platform_info,
+    )
+    for name, plt in PLATFORMS.items()
+]
+
+[
+    toolchain(
+        name = name + "_toolchain",
+        exec_compatible_with = plt.constraints,
+        toolchain = name,
+        toolchain_type = TOOLCHAIN_TYPE,
+    )
+    for name, plt in PLATFORMS.items()
+]
