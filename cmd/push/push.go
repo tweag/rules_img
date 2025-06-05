@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
+	"github.com/tweag/rules_img/pkg/api"
 	"github.com/tweag/rules_img/pkg/push"
 )
 
@@ -16,7 +17,7 @@ func PushProcess(ctx context.Context, args []string) {
 		pushFromArgs(ctx, args)
 		return
 	}
-	requestPath, err := rf.Rlocation("push_request.json")
+	requestPath, err := rf.Rlocation("dispatch.json")
 	if err != nil {
 		pushFromArgs(ctx, args)
 		return
@@ -42,16 +43,11 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 	var digest string
 	if req.Manifest.ManifestPath != "" {
 		manifestReq := push.PushManifestRequest{
-			ManifestPath: req.Manifest.ManifestPath,
-			ConfigPath:   req.Manifest.ConfigPath,
-			Layers:       req.Manifest.Layers,
-			MissingBlobs: req.Manifest.MissingBlobs,
-			RemoteBlobInfo: push.RemoteBlobInfo{
-				OriginalBaseImageRegistries: req.OriginalBaseImageRegistries,
-				OriginalBaseImageRepository: req.OriginalBaseImageRepository,
-				OriginalBaseImageTag:        req.OriginalBaseImageTag,
-				OriginalBaseImageDigest:     req.OriginalBaseImageDigest,
-			},
+			ManifestPath:   req.Manifest.ManifestPath,
+			ConfigPath:     req.Manifest.ConfigPath,
+			Layers:         req.Manifest.Layers,
+			MissingBlobs:   req.Manifest.MissingBlobs,
+			RemoteBlobInfo: req.PullInfo,
 		}
 		var err error
 		digest, err = pusher.PushManifest(ctx, req.Registry+"/"+req.Repository+":"+req.Tag, manifestReq)
@@ -65,16 +61,11 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 		}
 		for i, manifestReq := range req.Index.Manifests {
 			indexReq.ManifestRequests[i] = push.PushManifestRequest{
-				ManifestPath: manifestReq.ManifestPath,
-				ConfigPath:   manifestReq.ConfigPath,
-				Layers:       manifestReq.Layers,
-				MissingBlobs: manifestReq.MissingBlobs,
-				RemoteBlobInfo: push.RemoteBlobInfo{
-					OriginalBaseImageRegistries: req.OriginalBaseImageRegistries,
-					OriginalBaseImageRepository: req.OriginalBaseImageRepository,
-					OriginalBaseImageTag:        req.OriginalBaseImageTag,
-					OriginalBaseImageDigest:     req.OriginalBaseImageDigest,
-				},
+				ManifestPath:   manifestReq.ManifestPath,
+				ConfigPath:     manifestReq.ConfigPath,
+				Layers:         manifestReq.Layers,
+				MissingBlobs:   manifestReq.MissingBlobs,
+				RemoteBlobInfo: req.PullInfo,
 			}
 		}
 		var err error
@@ -94,12 +85,11 @@ func pushFromArgs(ctx context.Context, args []string) {
 }
 
 type request struct {
-	Registry   string          `json:"registry,omitempty"`
-	Repository string          `json:"repository,omitempty"`
-	Tag        string          `json:"tag,omitempty"`
-	Manifest   manifestRequest `json:"manifest,omitempty"`
-	Index      indexRequest    `json:"index,omitempty"`
-	push.RemoteBlobInfo
+	Command string `json:"command"`
+	api.PushTarget
+	Manifest manifestRequest `json:"manifest"`
+	Index    indexRequest    `json:"index"`
+	api.PullInfo
 }
 
 type indexRequest struct {

@@ -9,8 +9,9 @@ import (
 	"strings"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
-	registryv1 "github.com/google/go-containerregistry/pkg/v1"
-	types "github.com/google/go-containerregistry/pkg/v1/types"
+	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
+	types "github.com/malt3/go-containerregistry/pkg/v1/types"
+
 	"github.com/tweag/rules_img/pkg/api"
 )
 
@@ -20,7 +21,7 @@ type pushableLayer struct {
 	remote   *remoteBlob
 }
 
-func newPushableLayer(input LayerInput, remoteInfo RemoteBlobInfo) (*pushableLayer, error) {
+func newPushableLayer(input LayerInput, remoteInfo api.PullInfo) (*pushableLayer, error) {
 	metadataPath, err := runfiles.Rlocation(input.Metadata)
 	if err != nil {
 		return nil, err

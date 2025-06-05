@@ -1,0 +1,13 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "grpcheaderinterceptor",
+    srcs = ["grpcheaderinterceptor.go"],
+    importpath = "github.com/tweag/rules_img/pkg/auth/grpcheaderinterceptor",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/auth/credential",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//metadata",
+    ],
+)

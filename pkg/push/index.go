@@ -7,8 +7,8 @@ import (
 	"os"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
-	registryv1 "github.com/google/go-containerregistry/pkg/v1"
-	types "github.com/google/go-containerregistry/pkg/v1/types"
+	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
+	types "github.com/malt3/go-containerregistry/pkg/v1/types"
 )
 
 type pushableIndex struct {

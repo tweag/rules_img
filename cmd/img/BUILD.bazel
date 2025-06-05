@@ -13,6 +13,7 @@ go_library(
         "//cmd/manifest",
         "//cmd/push",
         "//cmd/validate",
+        "//pkg/api",
         "@rules_go//go/runfiles",
     ],
 )

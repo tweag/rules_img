@@ -4,18 +4,19 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/malt3/go-containerregistry/pkg/authn"
+	"github.com/malt3/go-containerregistry/pkg/name"
+	"github.com/malt3/go-containerregistry/pkg/v1/remote"
+
 	"github.com/tweag/rules_img/pkg/api"
 )
 
 type remoteBlob struct {
 	blobMeta   api.Descriptor
-	remoteInfo RemoteBlobInfo
+	remoteInfo api.PullInfo
 }
 
-func newRemoteBlob(blobMeta api.Descriptor, remoteInfo RemoteBlobInfo) *remoteBlob {
+func newRemoteBlob(blobMeta api.Descriptor, remoteInfo api.PullInfo) *remoteBlob {
 	return &remoteBlob{
 		blobMeta:   blobMeta,
 		remoteInfo: remoteInfo,

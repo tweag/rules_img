@@ -29,3 +29,9 @@ bzl_library(
     srcs = ["image_toolchain_info.bzl"],
     visibility = ["//img:__subpackages__"],
 )
+
+bzl_library(
+    name = "push_settings_info",
+    srcs = ["push_settings_info.bzl"],
+    visibility = ["//img:__subpackages__"],
+)

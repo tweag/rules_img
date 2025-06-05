@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
-	registryv1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/malt3/go-containerregistry/pkg/authn"
+	"github.com/malt3/go-containerregistry/pkg/name"
+	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
+	"github.com/malt3/go-containerregistry/pkg/v1/remote"
+
+	"github.com/tweag/rules_img/pkg/api"
 )
 
 type LayerInput struct {
@@ -16,19 +18,12 @@ type LayerInput struct {
 	BlobPath string `json:"blob_path"`
 }
 
-type RemoteBlobInfo struct {
-	OriginalBaseImageRegistries []string `json:"original_registries,omitempty"`
-	OriginalBaseImageRepository string   `json:"original_repository,omitempty"`
-	OriginalBaseImageTag        string   `json:"original_tag,omitempty"`
-	OriginalBaseImageDigest     string   `json:"original_digest,omitempty"`
-}
-
 type PushManifestRequest struct {
 	ManifestPath   string
 	ConfigPath     string
 	Layers         []LayerInput
 	MissingBlobs   []string
-	RemoteBlobInfo RemoteBlobInfo
+	RemoteBlobInfo api.PullInfo
 }
 
 type PushIndexRequest struct {

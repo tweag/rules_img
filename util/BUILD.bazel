@@ -23,6 +23,7 @@ gazelle_binary(
     name = "gazelle_bin",
     languages = [
         "@gazelle//language/go",
+        "@gazelle//language/proto",
         "@bazel_skylib_gazelle_plugin//bzl",
     ],
 )

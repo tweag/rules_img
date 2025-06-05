@@ -3,3 +3,4 @@ bazel-*
 .bazelrc.user
 .vscode
 .direnv
+.env

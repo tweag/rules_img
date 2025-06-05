@@ -1,7 +1,24 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@bazel_skylib//rules:common_settings.bzl", "string_setting")
+load(":settings.bzl", "push_settings")
 
 string_setting(
     name = "original_platforms",
     build_setting_default = "",
     visibility = ["//visibility:private"],
+)
+
+push_settings(
+    name = "push",
+    visibility = ["//visibility:public"],
+)
+
+bzl_library(
+    name = "settings",
+    srcs = ["settings.bzl"],
+    visibility = ["//img:__subpackages__"],
+    deps = [
+        "//img/private/providers:push_settings_info",
+        "@bazel_skylib//rules:common_settings",
+    ],
 )

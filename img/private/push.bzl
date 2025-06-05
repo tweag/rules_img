@@ -1,13 +1,15 @@
 """Push rule for uploading images to a registry."""
 
+load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/common:transitions.bzl", "host_platform_transition", "reset_platform_transition")
 load("//img/private/common:write_index_json.bzl", "write_index_json")
 load("//img/private/providers:image_toolchain_info.bzl", "ImageToolchainInfo")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
+load("//img/private/providers:push_settings_info.bzl", "PushSettingsInfo")
 
-def _encode_manifest(ctx, manifest_info, path_prefix = ""):
+def _encode_manifest(manifest_info, path_prefix = ""):
     layers = []
     for i, layer in enumerate(manifest_info.layers):
         blob_path = "{path_prefix}/layer/{i}".format(path_prefix = path_prefix, i = i) if layer.blob != None else ""
@@ -26,6 +28,13 @@ def _encode_manifest(ctx, manifest_info, path_prefix = ""):
         manifest = manifest,
         config = config,
         layers = layers,
+        missing_blobs = manifest_info.missing_blobs,
+    )
+
+def _encode_manifest_metadata(manifest_info):
+    manifest = manifest_info.manifest.path
+    return dict(
+        manifest = manifest,
         missing_blobs = manifest_info.missing_blobs,
     )
 
@@ -55,8 +64,27 @@ def _root_symlinks_for_manifest(manifest_info, index = None):
     root_symlinks.update(_metadata_symlinks_for_manifest(manifest_info, index))
     return root_symlinks
 
-def _image_push_impl(ctx):
-    """Implementation of the push rule."""
+def _push_strategy(ctx):
+    """Determine the push strategy to use based on the settings."""
+    push_settings = ctx.attr._push_settings[PushSettingsInfo]
+    strategy = ctx.attr.strategy
+    if strategy == "auto":
+        strategy = push_settings.strategy
+    return strategy
+
+def _target_info(ctx):
+    pull_info = ctx.attr.image[PullInfo] if PullInfo in ctx.attr.image else None
+    if pull_info == None:
+        return {}
+    return dict(
+        original_registries = pull_info.registries,
+        original_repository = pull_info.repository,
+        original_tag = pull_info.tag,
+        original_digest = pull_info.digest,
+    )
+
+def _image_push_upload_impl(ctx):
+    """Regular image push rule (bazel run target)."""
 
     pusher = ctx.actions.declare_file(ctx.label.name + ".exe")
     img_toolchain_info = ctx.attr._tool[0][ImageToolchainInfo]
@@ -65,7 +93,6 @@ def _image_push_impl(ctx):
         target_file = img_toolchain_info.tool_exe,
         is_executable = True,
     )
-    pull_info = ctx.attr.image[PullInfo] if PullInfo in ctx.attr.image else None
     manifest_info = ctx.attr.image[ImageManifestInfo] if ImageManifestInfo in ctx.attr.image else None
     index_info = ctx.attr.image[ImageIndexInfo] if ImageIndexInfo in ctx.attr.image else None
     if manifest_info == None and index_info == None:
@@ -75,15 +102,12 @@ def _image_push_impl(ctx):
 
     root_symlinks = {}
     push_request = dict(
+        command = "push",
         registry = ctx.attr.registry,
         repository = ctx.attr.repository,
         tag = ctx.attr.tag,
     )
-    if pull_info != None:
-        push_request["original_registries"] = pull_info.registries
-        push_request["original_repository"] = pull_info.repository
-        push_request["original_tag"] = pull_info.tag
-        push_request["original_digest"] = pull_info.digest
+    push_request.update(_target_info(ctx))
     if manifest_info != None:
         index_json = ctx.attr.declare_file(ctx.attr.name + "_index.json")
         write_index_json(
@@ -94,13 +118,13 @@ def _image_push_impl(ctx):
         )
         root_symlinks["index.json"] = index_json
         root_symlinks.update(_root_symlinks_for_manifest(manifest_info))
-        push_request["manifest"] = _encode_manifest(ctx, manifest_info)
+        push_request["manifest"] = _encode_manifest(manifest_info)
     if index_info != None:
         root_symlinks["index.json"] = index_info.index
         push_request["index"] = dict(
             index = "index.json",
             manifests = [
-                _encode_manifest(ctx, manifest, "manifest/{}".format(i))
+                _encode_manifest(manifest, "manifest/{}".format(i))
                 for i, manifest in enumerate(index_info.manifests)
             ],
         )
@@ -112,7 +136,7 @@ def _image_push_impl(ctx):
         request_json,
         json.encode(push_request),
     )
-    root_symlinks["push_request.json"] = request_json
+    root_symlinks["dispatch.json"] = request_json
     return [
         DefaultInfo(
             files = depset([request_json]),
@@ -122,6 +146,84 @@ def _image_push_impl(ctx):
             ),
         ),
     ]
+
+def _image_push_cas_impl(ctx):
+    """CAS push rule (bazel run target)."""
+    pusher = ctx.actions.declare_file(ctx.label.name + ".exe")
+    img_toolchain_info = ctx.attr._tool[0][ImageToolchainInfo]
+    ctx.actions.symlink(
+        output = pusher,
+        target_file = img_toolchain_info.tool_exe,
+        is_executable = True,
+    )
+
+    inputs = []
+    manifest_info = ctx.attr.image[ImageManifestInfo] if ImageManifestInfo in ctx.attr.image else None
+    index_info = ctx.attr.image[ImageIndexInfo] if ImageIndexInfo in ctx.attr.image else None
+    if manifest_info == None and index_info == None:
+        fail("image must provide ImageManifestInfo or ImageIndexInfo")
+    if manifest_info != None and index_info != None:
+        fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
+
+    push_request = dict(
+        command = "push-metadata",
+        registry = ctx.attr.registry,
+        repository = ctx.attr.repository,
+        tag = ctx.attr.tag,
+    )
+    push_request.update(_target_info(ctx))
+
+    if manifest_info != None:
+        push_request["manifest"] = _encode_manifest_metadata(manifest_info)
+        inputs.append(manifest_info.manifest)
+    if index_info != None:
+        push_request["index"] = dict(
+            index = index_info.index.path,
+            manifests = [
+                _encode_manifest_metadata(manifest)
+                for manifest in index_info.manifests
+            ],
+        )
+        inputs.append(index_info.index)
+        inputs.extend([manifest.manifest for manifest in index_info.manifests])
+
+    request_metadata = ctx.actions.declare_file(ctx.label.name + "_request_metadata.json")
+    ctx.actions.write(
+        request_metadata,
+        json.encode(push_request),
+    )
+    inputs.append(request_metadata)
+    metadata_out = ctx.actions.declare_file(ctx.label.name + ".json")
+
+    img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
+    ctx.actions.run(
+        inputs = inputs,
+        outputs = [metadata_out],
+        executable = img_toolchain_info.tool_exe,
+        arguments = ["push-metadata", "--from-file", request_metadata.path, metadata_out.path],
+        mnemonic = "PushMetadata",
+    )
+    return [
+        DefaultInfo(
+            files = depset([metadata_out]),
+            executable = pusher,
+            runfiles = ctx.runfiles(
+                root_symlinks = {
+                    "dispatch.json": metadata_out,
+                },
+            ),
+        ),
+    ]
+
+def _image_push_impl(ctx):
+    """Implementation of the push rule."""
+    strategy = _push_strategy(ctx)
+    if strategy == "upload":
+        return _image_push_upload_impl(ctx)
+    elif strategy == "cas":
+        return _image_push_cas_impl(ctx)
+    else:
+        fail("Unknown push strategy: {}".format(strategy))
 
 image_push = rule(
     implementation = _image_push_impl,
@@ -139,6 +241,15 @@ image_push = rule(
             doc = "Image to push. Should provide ImageManifestInfo or ImageIndexInfo.",
             mandatory = True,
         ),
+        "strategy": attr.string(
+            doc = "Push strategy to use.",
+            default = "auto",
+            values = ["auto", "cas", "upload"],
+        ),
+        "_push_settings": attr.label(
+            default = Label("//img/private/settings:push"),
+            providers = [PushSettingsInfo],
+        ),
         "_tool": attr.label(
             cfg = host_platform_transition,
             default = Label("//img:resolved_toolchain"),
@@ -146,4 +257,5 @@ image_push = rule(
     },
     executable = True,
     cfg = reset_platform_transition,
+    toolchains = TOOLCHAINS,
 )

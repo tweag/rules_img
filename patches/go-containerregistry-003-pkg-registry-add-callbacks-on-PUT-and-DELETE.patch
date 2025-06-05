@@ -1,0 +1,95 @@
+From bbb25cb00c37aeabbaa544c5ebc896a1229c6bb7 Mon Sep 17 00:00:00 2001
+From: Malte Poll <1780588+malt3@users.noreply.github.com>
+Date: Wed, 23 Jul 2025 20:22:13 +0200
+Subject: [PATCH 3/3] pkg/registry: add callbacks on PUT and DELETE
+
+---
+ pkg/registry/manifest.go | 30 ++++++++++++++++++++++++++----
+ pkg/registry/registry.go | 12 ++++++++++++
+ 2 files changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/pkg/registry/manifest.go b/pkg/registry/manifest.go
+index db8a8dc6..ff5fe7fd 100644
+--- a/pkg/registry/manifest.go
++++ b/pkg/registry/manifest.go
+@@ -46,9 +46,11 @@ type manifest struct {
+ 
+ type manifests struct {
+ 	// maps repo -> manifest tag/digest -> manifest
+-	manifests map[string]map[string]manifest
+-	lock      sync.RWMutex
+-	log       *log.Logger
++	manifests      map[string]map[string]manifest
++	putCallback    func(repo, target, contentType string, blob []byte) error
++	deleteCallback func(repo, target, contentType string, blob []byte) error
++	lock           sync.RWMutex
++	log            *log.Logger
+ }
+ 
+ func isManifest(req *http.Request) bool {
+@@ -204,6 +206,16 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
+ 			}
+ 		}
+ 
++		if m.putCallback != nil {
++			if err := m.putCallback(repo, target, mf.contentType, mf.blob); err != nil {
++				return &regError{
++					Status:  http.StatusInternalServerError,
++					Code:    "INTERNAL_ERROR",
++					Message: fmt.Sprintf("Error in callback: %v", err),
++				}
++			}
++		}
++
+ 		m.lock.Lock()
+ 		defer m.lock.Unlock()
+ 
+@@ -230,7 +242,7 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
+ 			}
+ 		}
+ 
+-		_, ok := m.manifests[repo][target]
++		mf, ok := m.manifests[repo][target]
+ 		if !ok {
+ 			return &regError{
+ 				Status:  http.StatusNotFound,
+@@ -239,6 +251,16 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
+ 			}
+ 		}
+ 
++		if m.deleteCallback != nil {
++			if err := m.deleteCallback(repo, target, mf.contentType, mf.blob); err != nil {
++				return &regError{
++					Status:  http.StatusInternalServerError,
++					Code:    "INTERNAL_ERROR",
++					Message: fmt.Sprintf("Error in callback: %v", err),
++				}
++			}
++		}
++
+ 		delete(m.manifests[repo], target)
+ 		resp.WriteHeader(http.StatusAccepted)
+ 		return nil
+diff --git a/pkg/registry/registry.go b/pkg/registry/registry.go
+index 2f8fd112..13cda897 100644
+--- a/pkg/registry/registry.go
++++ b/pkg/registry/registry.go
+@@ -142,3 +142,15 @@ func WithBlobHandler(h BlobHandler) Option {
+ 		r.blobs.blobHandler = h
+ 	}
+ }
++
++func WithManifestPutCallback(cb func(repo, target, contentType string, blob []byte) error) Option {
++	return func(r *registry) {
++		r.manifests.putCallback = cb
++	}
++}
++
++func WithManifestDeleteCallback(cb func(repo, target, contentType string, blob []byte) error) Option {
++	return func(r *registry) {
++		r.manifests.deleteCallback = cb
++	}
++}
+-- 
+2.47.2
+

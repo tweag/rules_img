@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/tweag/rules_img/cmd/manifest"
 	"github.com/tweag/rules_img/cmd/push"
 	"github.com/tweag/rules_img/cmd/validate"
+	"github.com/tweag/rules_img/pkg/api"
 )
 
 const usage = `Usage: img [COMMAND] [ARGS...]
@@ -54,6 +56,8 @@ func Run(ctx context.Context, args []string) {
 		validate.ValidationProcess(ctx, args[2:])
 	case "push":
 		push.PushProcess(ctx, args[2:])
+	case "push-metadata":
+		push.PushMetadataProcess(ctx, args[2:])
 	case "compress":
 		compress.CompressProcess(ctx, args[2:])
 	default:
@@ -70,19 +74,41 @@ func runfilesDispatch(ctx context.Context) bool {
 	if err != nil {
 		return false
 	}
-	requestPath, err := rf.Rlocation("push_request.json")
+	requestPath, err := rf.Rlocation("dispatch.json")
 	if err != nil {
 		return false
 	}
 	if _, err := os.Stat(requestPath); err != nil {
 		return false
 	}
+
+	rawRequest, err := os.ReadFile(requestPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "reading request file: %v\n", err)
+		os.Exit(1)
+	}
+
+	var req api.Dispatch
+	if err := json.Unmarshal(rawRequest, &req); err != nil {
+		fmt.Fprintf(os.Stderr, "unmarshalling request file: %v\n", err)
+		os.Exit(1)
+	}
+
 	// If we got here, we are in a Bazel runfiles context
 	// and we have a special root symlink indicating that this binary
-	// is used to push an image.
-	if err := push.PushFromFile(ctx, requestPath); err != nil {
-		fmt.Fprintf(os.Stderr, "pushing image based on request file %s: %v\n", requestPath, err)
+	// is using a json command.
+
+	switch req.Command {
+	case api.PushCommand:
+		if err := push.PushFromFile(ctx, requestPath); err != nil {
+			fmt.Fprintf(os.Stderr, "pushing image based on request file %s: %v\n", requestPath, err)
+			os.Exit(1)
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command %s\n", req.Command)
+		os.Exit(1)
 	}
+
 	return true
 }
 

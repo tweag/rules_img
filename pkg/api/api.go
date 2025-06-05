@@ -69,6 +69,19 @@ type Descriptor struct {
 	Size      int64  `json:"size"`
 }
 
+type PushTarget struct {
+	Registry   string `json:"registry,omitempty"`
+	Repository string `json:"repository,omitempty"`
+	Tag        string `json:"tag,omitempty"`
+}
+
+type PullInfo struct {
+	OriginalBaseImageRegistries []string `json:"original_registries,omitempty"`
+	OriginalBaseImageRepository string   `json:"original_repository,omitempty"`
+	OriginalBaseImageTag        string   `json:"original_tag,omitempty"`
+	OriginalBaseImageDigest     string   `json:"original_digest,omitempty"`
+}
+
 type AppenderState struct {
 	// Magic is an identifier for the format of the state.
 	Magic string `json:"magic"`
