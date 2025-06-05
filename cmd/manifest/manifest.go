@@ -11,10 +11,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/malt3/rules_img/pkg/api"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	specv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/tweag/rules_img/pkg/api"
 )
 
 var (

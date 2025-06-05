@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	layerpresence "github.com/malt3/rules_img/cmd/validate/layer-presence"
+	layerpresence "github.com/tweag/rules_img/cmd/validate/layer-presence"
 )
 
 const usage = `Usage img validate [COMMAND] [ARGS...]

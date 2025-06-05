@@ -6,6 +6,6 @@ go_library(
         "api.go",
         "binary.go",
     ],
-    importpath = "github.com/malt3/rules_img/pkg/api",
+    importpath = "github.com/tweag/rules_img/pkg/api",
     visibility = ["//visibility:public"],
 )

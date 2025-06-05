@@ -7,7 +7,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/malt3/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/api"
 )
 
 type remoteBlob struct {

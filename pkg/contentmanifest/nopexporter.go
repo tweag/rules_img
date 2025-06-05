@@ -1,6 +1,6 @@
 package contentmanifest
 
-import "github.com/malt3/rules_img/pkg/api"
+import "github.com/tweag/rules_img/pkg/api"
 
 type nopexporter struct{}
 

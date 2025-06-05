@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "runfiles",
     srcs = ["runfiles.go"],
-    importpath = "github.com/malt3/rules_img/pkg/tree/runfiles",
+    importpath = "github.com/tweag/rules_img/pkg/tree/runfiles",
     visibility = ["//visibility:public"],
     deps = ["//pkg/api"],
 )

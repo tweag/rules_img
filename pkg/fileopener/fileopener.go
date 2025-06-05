@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/malt3/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/api"
 )
 
 func CompressionReaderWithFormat(r io.Reader, format api.CompressionAlgorithm) (io.Reader, error) {

@@ -9,9 +9,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/malt3/rules_img/pkg/api"
-	"github.com/malt3/rules_img/pkg/compress"
-	"github.com/malt3/rules_img/pkg/fileopener"
+	"github.com/tweag/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/compress"
+	"github.com/tweag/rules_img/pkg/fileopener"
 )
 
 var (

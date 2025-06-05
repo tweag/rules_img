@@ -9,7 +9,7 @@ go_library(
         "push.go",
         "remotelayer.go",
     ],
-    importpath = "github.com/malt3/rules_img/pkg/push",
+    importpath = "github.com/tweag/rules_img/pkg/push",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

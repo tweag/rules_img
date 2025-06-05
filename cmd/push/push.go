@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
-	"github.com/malt3/rules_img/pkg/push"
+	"github.com/tweag/rules_img/pkg/push"
 )
 
 func PushProcess(ctx context.Context, args []string) {

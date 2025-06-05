@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "compress",
     srcs = ["compress.go"],
-    importpath = "github.com/malt3/rules_img/cmd/compress",
+    importpath = "github.com/tweag/rules_img/cmd/compress",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

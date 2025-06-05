@@ -6,7 +6,7 @@ go_library(
         "flagtypes.go",
         "manifest.go",
     ],
-    importpath = "github.com/malt3/rules_img/cmd/manifest",
+    importpath = "github.com/tweag/rules_img/cmd/manifest",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

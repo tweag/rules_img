@@ -12,8 +12,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/malt3/rules_img/pkg/api"
-	"github.com/malt3/rules_img/pkg/tree/merkle"
+	"github.com/tweag/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/tree/merkle"
 )
 
 type CAS[HM hashHelper] struct {

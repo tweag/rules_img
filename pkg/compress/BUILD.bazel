@@ -7,7 +7,7 @@ go_library(
         "factory.go",
         "options.go",
     ],
-    importpath = "github.com/malt3/rules_img/pkg/compress",
+    importpath = "github.com/tweag/rules_img/pkg/compress",
     visibility = ["//visibility:public"],
     deps = ["//pkg/api"],
 )

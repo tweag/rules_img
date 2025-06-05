@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"iter"
 
-	"github.com/malt3/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/api"
 )
 
 type MultiImporter struct {

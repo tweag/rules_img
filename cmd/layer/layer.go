@@ -9,12 +9,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/malt3/rules_img/pkg/api"
-	"github.com/malt3/rules_img/pkg/compress"
-	"github.com/malt3/rules_img/pkg/contentmanifest"
-	"github.com/malt3/rules_img/pkg/tarcas"
-	"github.com/malt3/rules_img/pkg/tree"
-	"github.com/malt3/rules_img/pkg/tree/runfiles"
+	"github.com/tweag/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/compress"
+	"github.com/tweag/rules_img/pkg/contentmanifest"
+	"github.com/tweag/rules_img/pkg/tarcas"
+	"github.com/tweag/rules_img/pkg/tree"
+	"github.com/tweag/rules_img/pkg/tree/runfiles"
 )
 
 func LayerProcess(ctx context.Context, args []string) {

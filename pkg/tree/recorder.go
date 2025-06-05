@@ -11,10 +11,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/malt3/rules_img/pkg/api"
-	"github.com/malt3/rules_img/pkg/fileopener"
-	"github.com/malt3/rules_img/pkg/tree/runfiles"
-	"github.com/malt3/rules_img/pkg/tree/treeartifact"
+	"github.com/tweag/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/fileopener"
+	"github.com/tweag/rules_img/pkg/tree/runfiles"
+	"github.com/tweag/rules_img/pkg/tree/treeartifact"
 )
 
 type Recorder struct {

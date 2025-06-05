@@ -7,7 +7,7 @@ go_library(
         "multiimporter.go",
         "nopexporter.go",
     ],
-    importpath = "github.com/malt3/rules_img/pkg/contentmanifest",
+    importpath = "github.com/tweag/rules_img/pkg/contentmanifest",
     visibility = ["//visibility:public"],
     deps = ["//pkg/api"],
 )

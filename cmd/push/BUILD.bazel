@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "push",
     srcs = ["push.go"],
-    importpath = "github.com/malt3/rules_img/cmd/push",
+    importpath = "github.com/tweag/rules_img/cmd/push",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/push",

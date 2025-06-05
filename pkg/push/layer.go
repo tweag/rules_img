@@ -11,7 +11,7 @@ import (
 	"github.com/bazelbuild/rules_go/go/runfiles"
 	registryv1 "github.com/google/go-containerregistry/pkg/v1"
 	types "github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/malt3/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/api"
 )
 
 type pushableLayer struct {

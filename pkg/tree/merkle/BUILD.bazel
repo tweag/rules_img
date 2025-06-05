@@ -7,6 +7,6 @@ go_library(
         "treehasher.go",
         "types.go",
     ],
-    importpath = "github.com/malt3/rules_img/pkg/tree/merkle",
+    importpath = "github.com/tweag/rules_img/pkg/tree/merkle",
     visibility = ["//visibility:public"],
 )

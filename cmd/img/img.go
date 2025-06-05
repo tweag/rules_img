@@ -6,13 +6,13 @@ import (
 	"os"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
-	"github.com/malt3/rules_img/cmd/compress"
-	"github.com/malt3/rules_img/cmd/index"
-	"github.com/malt3/rules_img/cmd/layer"
-	"github.com/malt3/rules_img/cmd/layermeta"
-	"github.com/malt3/rules_img/cmd/manifest"
-	"github.com/malt3/rules_img/cmd/push"
-	"github.com/malt3/rules_img/cmd/validate"
+	"github.com/tweag/rules_img/cmd/compress"
+	"github.com/tweag/rules_img/cmd/index"
+	"github.com/tweag/rules_img/cmd/layer"
+	"github.com/tweag/rules_img/cmd/layermeta"
+	"github.com/tweag/rules_img/cmd/manifest"
+	"github.com/tweag/rules_img/cmd/push"
+	"github.com/tweag/rules_img/cmd/validate"
 )
 
 const usage = `Usage: img [COMMAND] [ARGS...]

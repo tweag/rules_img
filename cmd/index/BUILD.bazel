@@ -6,7 +6,7 @@ go_library(
         "flags.go",
         "index.go",
     ],
-    importpath = "github.com/malt3/rules_img/cmd/index",
+    importpath = "github.com/tweag/rules_img/cmd/index",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_opencontainers_image_spec//specs-go",
