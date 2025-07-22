@@ -64,7 +64,7 @@ func ManifestProcess(_ context.Context, args []string) {
 		os.Exit(1)
 	}
 
-	layers := make([]api.LayerMetadata, len(layerFromMetadataArgs))
+	layers := make([]api.Descriptor, len(layerFromMetadataArgs))
 	for i, layerFile := range layerFromMetadataArgs {
 		layer, err := readLayerMetadata(layerFile)
 		if err != nil {
@@ -151,7 +151,7 @@ func ManifestProcess(_ context.Context, args []string) {
 	}
 }
 
-func prepareConfig(layers []api.LayerMetadata) (specv1.Image, error) {
+func prepareConfig(layers []api.Descriptor) (specv1.Image, error) {
 	// first, read the base config
 	// then, layer the config fragment on top of it
 	// finally, add our own stuff
@@ -174,18 +174,18 @@ func prepareConfig(layers []api.LayerMetadata) (specv1.Image, error) {
 	return config, nil
 }
 
-func readLayerMetadata(filePath string) (api.LayerMetadata, error) {
+func readLayerMetadata(filePath string) (api.Descriptor, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return api.LayerMetadata{}, fmt.Errorf("opening layer metadata file: %w", err)
+		return api.Descriptor{}, fmt.Errorf("opening layer metadata file: %w", err)
 	}
 	defer file.Close()
 
-	var layer api.LayerMetadata
+	var layer api.Descriptor
 	decoder := json.NewDecoder(file)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&layer); err != nil {
-		return api.LayerMetadata{}, fmt.Errorf("decoding layer metadata file: %w", err)
+		return api.Descriptor{}, fmt.Errorf("decoding layer metadata file: %w", err)
 	}
 
 	return layer, nil
@@ -307,7 +307,7 @@ func overlayConfigFromFile(config *specv1.Image, filePath string, isBase bool) e
 	return nil
 }
 
-func overlayNewConfigValues(config *specv1.Image, layers []api.LayerMetadata) error {
+func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor) error {
 	if config.OS == "" && operatingSystem != "" && config.OS != operatingSystem {
 		return fmt.Errorf("OS mismatch: %s != %s", config.OS, operatingSystem)
 	}

@@ -61,9 +61,9 @@ var (
 	Directory   = FileType{"d"}
 )
 
-type LayerMetadata struct {
+type Descriptor struct {
 	Name      string `json:"name"`
-	DiffID    string `json:"diff_id"`
+	DiffID    string `json:"diff_id,omitempty"`
 	MediaType string `json:"mediaType"`
 	Digest    string `json:"digest"`
 	Size      int64  `json:"size"`

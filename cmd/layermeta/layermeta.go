@@ -95,12 +95,12 @@ func LayerMetadataProcess(ctx context.Context, args []string) {
 	}
 }
 
-func calculateLayerMetadata(layerFile io.Reader, digest []byte, compressedSize int64, layerFormat api.LayerFormat) (api.LayerMetadata, error) {
+func calculateLayerMetadata(layerFile io.Reader, digest []byte, compressedSize int64, layerFormat api.LayerFormat) (api.Descriptor, error) {
 	if len(layerName) == 0 {
 		layerName = fmt.Sprintf("sha256:%x", digest)
 	}
 	if layerFormat == api.TarLayer {
-		return api.LayerMetadata{
+		return api.Descriptor{
 			Name:      layerName,
 			DiffID:    fmt.Sprintf("sha256:%x", digest),
 			MediaType: api.TarLayer,
@@ -112,9 +112,9 @@ func calculateLayerMetadata(layerFile io.Reader, digest []byte, compressedSize i
 	hasher := sha256.New()
 	_, err := io.Copy(hasher, layerFile)
 	if err != nil {
-		return api.LayerMetadata{}, fmt.Errorf("reading layer file: %w", err)
+		return api.Descriptor{}, fmt.Errorf("reading layer file: %w", err)
 	}
-	return api.LayerMetadata{
+	return api.Descriptor{
 		Name:      layerName,
 		DiffID:    fmt.Sprintf("sha256:%x", hasher.Sum(nil)),
 		MediaType: string(layerFormat),

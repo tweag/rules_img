@@ -146,7 +146,7 @@ func writeMetadata(compressorState api.AppenderState, outputFile io.Writer) erro
 	if len(layerName) == 0 {
 		layerName = fmt.Sprintf("sha256:%x", compressorState.OuterHash)
 	}
-	metadata := api.LayerMetadata{
+	metadata := api.Descriptor{
 		DiffID:    fmt.Sprintf("sha256:%x", compressorState.ContentHash),
 		MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
 		Digest:    fmt.Sprintf("sha256:%x", compressorState.OuterHash),

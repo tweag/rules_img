@@ -11,11 +11,11 @@ import (
 )
 
 type remoteBlob struct {
-	blobMeta   api.LayerMetadata
+	blobMeta   api.Descriptor
 	remoteInfo RemoteBlobInfo
 }
 
-func newRemoteBlob(blobMeta api.LayerMetadata, remoteInfo RemoteBlobInfo) *remoteBlob {
+func newRemoteBlob(blobMeta api.Descriptor, remoteInfo RemoteBlobInfo) *remoteBlob {
 	return &remoteBlob{
 		blobMeta:   blobMeta,
 		remoteInfo: remoteInfo,

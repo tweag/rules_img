@@ -16,7 +16,7 @@ import (
 
 type pushableLayer struct {
 	blobPath string
-	metadata api.LayerMetadata
+	metadata api.Descriptor
 	remote   *remoteBlob
 }
 
@@ -31,7 +31,7 @@ func newPushableLayer(input LayerInput, remoteInfo RemoteBlobInfo) (*pushableLay
 	}
 	decoder := json.NewDecoder(bytes.NewReader(rawMetadata))
 	decoder.DisallowUnknownFields()
-	var layerMetadata api.LayerMetadata
+	var layerMetadata api.Descriptor
 	if err := decoder.Decode(&layerMetadata); err != nil {
 		return nil, err
 	}

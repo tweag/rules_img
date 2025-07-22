@@ -286,7 +286,7 @@ func writeMetadata(name string, compressionAlgorithm api.CompressionAlgorithm, c
 		return fmt.Errorf("unsupported compression algorithm: %s", compressionAlgorithm)
 	}
 
-	metadata := api.LayerMetadata{
+	metadata := api.Descriptor{
 		Name:      name,
 		DiffID:    fmt.Sprintf("sha256:%x", compressorState.ContentHash),
 		MediaType: mediaType,

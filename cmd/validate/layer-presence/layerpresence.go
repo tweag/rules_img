@@ -92,18 +92,18 @@ func LayerPresenceProcess(_ context.Context, args []string) {
 	os.Exit(1)
 }
 
-func findMissingLayers(requiredLayersForLayer map[int][]api.LayerMetadata) []layerPresenceInfo {
+func findMissingLayers(requiredLayersForLayer map[int][]api.Descriptor) []layerPresenceInfo {
 	indices := make([]int, 0, len(layerMetadataArgs))
 	for index := range layerMetadataArgs {
 		indices = append(indices, index)
 	}
 	slices.Sort(indices)
-	providedLayers := make(map[string]api.LayerMetadata, len(indices))
+	providedLayers := make(map[string]api.Descriptor, len(indices))
 	for _, index := range indices {
 		metadata := layerMetadataArgs[index]
 		providedLayers[metadata.Digest] = metadata
 	}
-	baseLayers := make(map[string]api.LayerMetadata)
+	baseLayers := make(map[string]api.Descriptor)
 	var presence []layerPresenceInfo
 	for _, index := range indices {
 		layerMetadata := layerMetadataArgs[index]
@@ -112,7 +112,7 @@ func findMissingLayers(requiredLayersForLayer map[int][]api.LayerMetadata) []lay
 		if !ok {
 			requiredLayers = nil
 		}
-		var correctLayers, missingLayers, misorderedLayers []api.LayerMetadata
+		var correctLayers, missingLayers, misorderedLayers []api.Descriptor
 		for _, requiredLayer := range requiredLayers {
 			if _, ok := baseLayers[requiredLayer.Digest]; ok {
 				// layer is present and comes before current layer in order.
@@ -139,14 +139,14 @@ func findMissingLayers(requiredLayersForLayer map[int][]api.LayerMetadata) []lay
 	return presence
 }
 
-func parseParamFile(requiredLayersParamPath string) (map[int][]api.LayerMetadata, error) {
+func parseParamFile(requiredLayersParamPath string) (map[int][]api.Descriptor, error) {
 	file, err := os.Open(requiredLayersParamPath)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	requiredLayersForLayer := make(map[int][]api.LayerMetadata)
+	requiredLayersForLayer := make(map[int][]api.Descriptor)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -162,12 +162,12 @@ func parseParamFile(requiredLayersParamPath string) (map[int][]api.LayerMetadata
 		if err != nil {
 			return nil, fmt.Errorf("parsing param file %s: reading metadata file %s: %w", requiredLayersParamPath, kv[1], err)
 		}
-		var layerMeta api.LayerMetadata
+		var layerMeta api.Descriptor
 		if err := json.Unmarshal(rawMetadata, &layerMeta); err != nil {
 			return nil, fmt.Errorf("parsing param file %s: invalid layer metadata: %w", requiredLayersParamPath, err)
 		}
 		if _, ok := requiredLayersForLayer[index]; !ok {
-			requiredLayersForLayer[index] = []api.LayerMetadata{}
+			requiredLayersForLayer[index] = []api.Descriptor{}
 		}
 		layers := requiredLayersForLayer[index]
 		layers = append(layers, layerMeta)
@@ -178,8 +178,8 @@ func parseParamFile(requiredLayersParamPath string) (map[int][]api.LayerMetadata
 
 type layerPresenceInfo struct {
 	index            int
-	metadata         api.LayerMetadata
-	correctLayers    []api.LayerMetadata
-	missingLayers    []api.LayerMetadata
-	misorderedLayers []api.LayerMetadata
+	metadata         api.Descriptor
+	correctLayers    []api.Descriptor
+	missingLayers    []api.Descriptor
+	misorderedLayers []api.Descriptor
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/tweag/rules_img/pkg/api"
 )
 
-type layerMetadata map[int]api.LayerMetadata
+type layerMetadata map[int]api.Descriptor
 
 func (l *layerMetadata) String() string {
 	if l == nil || *l == nil {
@@ -47,7 +47,7 @@ func (l *layerMetadata) Set(value string) error {
 	if err != nil {
 		return err
 	}
-	var metadata api.LayerMetadata
+	var metadata api.Descriptor
 	if err := json.Unmarshal(rawMetadata, &metadata); err != nil {
 		return err
 	}
