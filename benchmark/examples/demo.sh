@@ -18,7 +18,7 @@ cleanup_cache() {
 }
 
 cleanup_cache
-time bazel build @cuda --credential_helper=credential-helper
+time bazel build @cuda
 
 cleanup_cache
 time bazel build @cuda_rules_oci

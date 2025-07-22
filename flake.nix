@@ -2,7 +2,9 @@
   description = "rules_img";
 
   inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     bazel-env.url = "github:malt3/bazel-env";
+    bazel-env.inputs.nixpkgs.follows = "nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -23,7 +25,7 @@
         });
         devShells.dev = packages.dev.env;
         devShells.default = pkgs.mkShell {
-          packages = [ packages.dev pkgs.pre-commit ];
+          packages = [ packages.dev pkgs.pre-commit pkgs.tweag-credential-helper ];
         };
       });
 }
