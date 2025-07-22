@@ -2,3 +2,4 @@ MODULE.bazel.lock
 bazel-*
 .bazelrc.user
 .vscode
+.direnv
