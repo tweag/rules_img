@@ -19,11 +19,6 @@ repos:
       # Requires that commitizen is already installed
       - id: commitizen
         stages: [commit-msg]
-  # Check validity of the renovate bot configuration
-  - repo: https://github.com/renovatebot/pre-commit-hooks
-    rev: 40.13.0
-    hooks:
-      - id: renovate-config-validator
   # Check validity of GitHub actions configuration
   - repo: https://github.com/mpalmer/action-validator
     rev: v0.6.0
