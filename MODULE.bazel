@@ -25,4 +25,11 @@ use_repo(go_sdk, "go_sdk")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
+go_deps.module_override(
+    patch_strip = 1,
+    patches = [
+        "//patches:go-containerregistry-001-pkg-registry-export-RedirectError.patch",
+    ],
+    path = "github.com/google/go-containerregistry",
+)
 use_repo(go_deps, "com_github_google_go_containerregistry", "com_github_opencontainers_go_digest", "com_github_opencontainers_image_spec")
