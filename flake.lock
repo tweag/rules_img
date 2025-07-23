@@ -7,11 +7,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1747858508,
-        "narHash": "sha256-m27kc6n8P18+Hj7fLPtJnBbTRjoHox9JtFhYXQYQYJo=",
+        "lastModified": 1753254764,
+        "narHash": "sha256-FICboiGNaYvMwaFkwA+eL10O56uVqE0BIXKDaTdjRm8=",
         "owner": "malt3",
         "repo": "bazel-env",
-        "rev": "a62d72e18dfb527d11a15e5974a885ae1eef8abc",
+        "rev": "b2933eedcd1e34b6b2330e15c988b5c9bd0ffef9",
         "type": "github"
       },
       "original": {

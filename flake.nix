@@ -17,15 +17,16 @@
         bazel_pkgs = bazel-env.packages.${system};
       in
       rec {
-        packages.dev = (bazel_pkgs.bazel-env.override {
+        packages.dev = (bazel_pkgs.bazel-full-env.override {
           name = "dev";
           extraPkgs = [
             pkgs.pre-commit
           ];
         });
+        packages.bazel-fhs = bazel_pkgs.bazel-full;
         devShells.dev = packages.dev.env;
         devShells.default = pkgs.mkShell {
-          packages = [ packages.dev pkgs.pre-commit pkgs.tweag-credential-helper ];
+          packages = [ packages.dev bazel_pkgs.bazel-full pkgs.pre-commit pkgs.tweag-credential-helper ];
         };
       });
 }
