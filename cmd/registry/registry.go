@@ -17,6 +17,8 @@ import (
 
 	"github.com/tweag/rules_img/pkg/auth/credential"
 	"github.com/tweag/rules_img/pkg/auth/protohelper"
+	blobcache_proto "github.com/tweag/rules_img/pkg/proto/blobcache"
+	"github.com/tweag/rules_img/pkg/serve/blobcache"
 	combined "github.com/tweag/rules_img/pkg/serve/registry"
 	"github.com/tweag/rules_img/pkg/serve/registry/reapi"
 	"github.com/tweag/rules_img/pkg/serve/registry/s3"
@@ -26,8 +28,10 @@ import (
 const usage = `Usage: registry [ARGS...]`
 
 func Run(ctx context.Context, args []string) {
-	var address string
-	var port int
+	var registryAddress string
+	var httpPort int
+	var grpcPort int
+	var enableBlobCache bool
 	var blobStores blobStores
 	var upstreamURL string
 	var reapiEndpoint string
@@ -52,8 +56,10 @@ func Run(ctx context.Context, args []string) {
 		}
 		os.Exit(1)
 	}
-	flagSet.StringVar(&address, "address", "localhost", "Address to bind the registry server to")
-	flagSet.IntVar(&port, "port", 0, "Port to bind the registry server to")
+	flagSet.StringVar(&registryAddress, "address", "localhost", "Address to bind the registry server to")
+	flagSet.IntVar(&httpPort, "port", 0, "Port to bind the registry HTTP server to")
+	flagSet.IntVar(&grpcPort, "grpc-port", 0, "Port to bind the gRPC server to")
+	flagSet.BoolVar(&enableBlobCache, "enable-blobcache", false, "Enable gRPC blob cache service")
 	flagSet.Var(&blobStores, "blob-store", `Blob store to use for the registry. Can be specified multiple times. One of "s3", "reapi", or "upstream".`)
 	flagSet.StringVar(&upstreamURL, "upstream-url", "", "URL of the registry to use for the upstream blob store")
 	flagSet.StringVar(&reapiEndpoint, "reapi-endpoint", "", "REAPI endpoint to use for the remote cache")
@@ -149,8 +155,27 @@ func Run(ctx context.Context, args []string) {
 		}
 		stores[reapiIndex] = reapiStore
 	}
+	if enableBlobCache {
+		if grpcClientConn == nil {
+			log.Fatalln("gRPC client connection must be provided to enable blob cache")
+		}
+		service := blobcache.NewServer(grpcClientConn, blobSizeCache)
+		grpcListener, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
+		if err != nil {
+			log.Fatalf("Failed to start gRPC server: %v", err)
+		}
+		fmt.Fprintf(os.Stderr, "gRPC blob cache server listening on %d\n", grpcPort)
+		go func() {
+			// TOODO: Handle errors and shutdown gracefully.
+			grpcServer := grpc.NewServer()
+			blobcache_proto.RegisterBlobsServer(grpcServer, service)
+			if err := grpcServer.Serve(grpcListener); err != nil {
+				log.Fatalf("Failed to serve gRPC server: %v", err)
+			}
+		}()
+	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", address, port))
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", registryAddress, httpPort))
 	if err != nil {
 		log.Fatalln(err)
 	}

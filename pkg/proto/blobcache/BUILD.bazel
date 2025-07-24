@@ -1,0 +1,25 @@
+load("@rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+# gazelle:exclude blobcache.go
+
+proto_library(
+    name = "blobcache_proto",
+    srcs = ["blobcache.proto"],
+    visibility = ["//visibility:public"],
+    deps = ["//pkg/proto/remote-apis/build/bazel/remote/execution/v2:remote_execution_proto"],
+)
+
+go_proto_library(
+    name = "blobcache",
+    compilers = [
+        "@rules_go//proto:go_proto",
+        "@rules_go//proto:go_grpc_v2",
+    ],
+    importpath = "github.com/tweag/rules_img/pkg/proto/blobcache",
+    proto = ":blobcache_proto",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/remote-apis/build/bazel/remote/execution/v2",
+    ],
+)

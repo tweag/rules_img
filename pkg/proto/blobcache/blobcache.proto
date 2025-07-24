@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package pkg.proto.blobcache;
+
+option go_package = "github.com/tweag/rules_img/pkg/proto/blobcache;blobcache";
+
+import "build/bazel/remote/execution/v2/remote_execution.proto";
+
+// Service definition for blob management
+service Blobs {
+  // Commits a list of blobs to the cache.
+  // This RPC:
+  // - Ensures FindMissingBlobs is called on the backing CAS
+  // - Prefills the cache with blob existence and size information
+  // - Returns the list of successfully committed digests
+  rpc Commit(CommitRequest) returns (CommitResponse) {}
+}
+
+message CommitRequest {
+  // List of digests to commit to the cache
+  repeated build.bazel.remote.execution.v2.Digest blob_digests = 1;
+  // The digest function used for the digests.
+  // This is typically SHA256, but can be different if the server supports it.
+  build.bazel.remote.execution.v2.DigestFunction.Value digest_function = 2;
+}
+
+// Response message for the Commit RPC
+message CommitResponse {
+  // List of digests that are missing in the cache
+  // everything else is considered committed.
+  repeated build.bazel.remote.execution.v2.Digest missing_blob_digests = 1;
+}

@@ -3,6 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "push",
     srcs = [
+        "caslayer.go",
         "index.go",
         "layer.go",
         "manifest.go",
@@ -13,6 +14,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",
+        "//pkg/cas",
         "@com_github_malt3_go_containerregistry//pkg/authn",
         "@com_github_malt3_go_containerregistry//pkg/name",
         "@com_github_malt3_go_containerregistry//pkg/v1:pkg",

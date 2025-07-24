@@ -11,6 +11,8 @@ go_library(
     deps = [
         "//pkg/auth/credential",
         "//pkg/auth/protohelper",
+        "//pkg/proto/blobcache",
+        "//pkg/serve/blobcache",
         "//pkg/serve/registry",
         "//pkg/serve/registry/reapi",
         "//pkg/serve/registry/s3",
