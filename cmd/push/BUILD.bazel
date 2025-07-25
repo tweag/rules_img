@@ -13,11 +13,11 @@ go_library(
         "//pkg/auth/credential",
         "//pkg/auth/protohelper",
         "//pkg/cas",
+        "//pkg/proto/blobcache",
         "//pkg/push",
         "//pkg/serve/registry/types",
         "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
         "@com_github_malt3_go_containerregistry//pkg/v1/types",
-        "@org_golang_google_grpc//:grpc",
         "@rules_go//go/runfiles",
     ],
 )

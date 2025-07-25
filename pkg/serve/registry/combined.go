@@ -61,6 +61,14 @@ func (c *combinedBlobStore) Stat(ctx context.Context, repo string, hash registry
 	return 0, registry.ErrNotFound
 }
 
+// Put should normally write the blob to some backend.
+// Currently, we just want push operations to succeed,
+// so we lie about the operation being successful.
+// TODO: implement a proper Put operation
+func (c *combinedBlobStore) Put(ctx context.Context, repo string, h v1.Hash, rc io.ReadCloser) error {
+	return nil
+}
+
 type Handler interface {
 	Stat(ctx context.Context, repo string, hash v1.Hash) (int64, error)
 	Get(ctx context.Context, repo string, hash v1.Hash) (io.ReadCloser, error)

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/types"
@@ -72,10 +73,11 @@ func WritePushMetadata(ctx context.Context, requestPath, outputPath string) erro
 	metadata := pushMetadata{
 		Command: req.Command,
 		PushRequest: registrytypes.PushRequest{
-			Strategy:   req.Strategy,
-			Blobs:      descriptors,
-			PushTarget: req.PushTarget,
-			PullInfo:   req.PullInfo,
+			Strategy:     req.Strategy,
+			Blobs:        descriptors,
+			MissingBlobs: collectMissingBlobs(req),
+			PushTarget:   req.PushTarget,
+			PullInfo:     req.PullInfo,
 		},
 	}
 	metadataBytes, err := json.Marshal(metadata)
@@ -197,6 +199,17 @@ func descriptorForFile(filePath string, mediaType string) (registryv1.Descriptor
 		Digest:    registryv1.Hash{Algorithm: "sha256", Hex: fmt.Sprintf("%x", digest)},
 		Size:      size,
 	}, nil
+}
+
+func collectMissingBlobs(req request) []string {
+	var missingBlobs []string
+	missingBlobs = append(missingBlobs, req.Manifest.MissingBlobs...)
+	for _, manifest := range req.Index.Manifests {
+		missingBlobs = append(missingBlobs, manifest.MissingBlobs...)
+	}
+	// Remove duplicates.
+	slices.Sort(missingBlobs)
+	return slices.Compact(missingBlobs)
 }
 
 func toAPIDescriptor(d registryv1.Descriptor) api.Descriptor {

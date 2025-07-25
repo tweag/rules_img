@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
 	"github.com/malt3/go-containerregistry/pkg/authn"
@@ -17,6 +18,7 @@ import (
 	typesv1 "github.com/malt3/go-containerregistry/pkg/v1/types"
 
 	"github.com/tweag/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/cas"
 	registrytypes "github.com/tweag/rules_img/pkg/serve/registry/types"
 )
 
@@ -34,6 +36,37 @@ func (p lazyPusher) Push(ctx context.Context, reference string, req registrytype
 	if len(req.Blobs) == 0 {
 		return "", errors.New("no blobs to push")
 	}
+
+	knownMissing := make(map[string]struct{}, len(req.MissingBlobs))
+	for _, hash := range req.MissingBlobs {
+		knownMissing[hash] = struct{}{}
+	}
+	var expectPresent []cas.Digest
+	for _, blob := range req.Blobs {
+		if !strings.HasPrefix(blob.Digest, "sha256:") {
+			return "", fmt.Errorf("invalid blob digest %s: expected sha256 prefix", blob.Digest)
+		}
+		if _, ok := knownMissing[blob.Digest[7:]]; ok {
+			continue // Skip blobs that are known to be missing.
+		}
+		digest, err := digestFromDescriptor(blob)
+		if err != nil {
+			return "", fmt.Errorf("invalid blob digest %s: %w", blob.Digest, err)
+		}
+		expectPresent = append(expectPresent, digest)
+	}
+	missing, err := p.casReader.FindMissingBlobs(ctx, expectPresent)
+	if err != nil {
+		return "", fmt.Errorf("checking for missing blobs: %w", err)
+	}
+	var missingHashes []string
+	for _, digest := range missing {
+		missingHashes = append(missingHashes, fmt.Sprintf("%x", digest.Hash))
+	}
+	if len(missing) > 0 {
+		return "", fmt.Errorf("missing blobs: %s", strings.Join(missingHashes, ", "))
+	}
+
 	updateChan := make(chan registryv1.Update, 64)
 	go progressPrinter(updateChan)
 	opts := []remote.Option{
@@ -48,7 +81,7 @@ func (p lazyPusher) Push(ctx context.Context, reference string, req registrytype
 
 	mediaType := typesv1.MediaType(req.Blobs[0].MediaType)
 	if mediaType.IsImage() {
-		manifest, err := p.pushableImage(ctx, req, req.Blobs[0], "index.json")
+		manifest, err := p.pushableImage(ctx, req, req.Blobs[0], "index.json", knownMissing)
 		if err != nil {
 			return "", err
 		}
@@ -56,19 +89,21 @@ func (p lazyPusher) Push(ctx context.Context, reference string, req registrytype
 			return "", err
 		}
 	} else if mediaType.IsIndex() {
-		index, err := p.pushableIndex(ctx, req, req.Blobs[0])
+		index, err := p.pushableIndex(ctx, req, req.Blobs[0], knownMissing)
 		if err != nil {
 			return "", err
 		}
 		if err := remote.WriteIndex(ref, index, opts...); err != nil {
 			return "", err
 		}
+	} else {
+		return "", fmt.Errorf("unsupported media type %s for push", mediaType)
 	}
 
 	return req.Blobs[0].Digest, nil
 }
 
-func (p lazyPusher) pushableImage(ctx context.Context, req registrytypes.PushRequest, descriptor api.Descriptor, manifestBasePath string) (*pushableImage, error) {
+func (p lazyPusher) pushableImage(ctx context.Context, req registrytypes.PushRequest, descriptor api.Descriptor, manifestBasePath string, knownMissing map[string]struct{}) (*pushableImage, error) {
 	manifestPath := manifestBasePath
 	if manifestBasePath != "index.json" {
 		manifestPath = filepath.Join(manifestBasePath, "manifest.json")
@@ -97,7 +132,16 @@ func (p lazyPusher) pushableImage(ctx context.Context, req registrytypes.PushReq
 	}
 	layers := make([]registryv1.Layer, len(manifest.Layers))
 	for i, layer := range manifest.Layers {
-		layers[i] = newMetadataLayer(toAPIDescriptor(layer), p.casReader)
+		if _, ok := knownMissing[layer.Digest.String()]; ok {
+			// Layer is from base image
+			layers[i] = &pushableLayer{
+				metadata: toAPIDescriptor(layer),
+				remote:   newRemoteBlob(toAPIDescriptor(layer), req.PullInfo),
+			}
+		} else {
+			// Layer can be served from the CAS.
+			layers[i] = newMetadataLayer(toAPIDescriptor(layer), p.casReader)
+		}
 	}
 
 	return &pushableImage{
@@ -109,19 +153,19 @@ func (p lazyPusher) pushableImage(ctx context.Context, req registrytypes.PushReq
 	}, nil
 }
 
-func (p lazyPusher) pushableIndex(ctx context.Context, req registrytypes.PushRequest, descriptor api.Descriptor) (*pushableIndex, error) {
+func (p lazyPusher) pushableIndex(ctx context.Context, req registrytypes.PushRequest, descriptor api.Descriptor, knownMissing map[string]struct{}) (*pushableIndex, error) {
 	rawIndex, err := readFileOrCAS(ctx, p.casReader, "index.json", descriptor)
 	if err != nil {
 		return nil, err
 	}
 	var index registryv1.IndexManifest
 	if err := json.Unmarshal(rawIndex, &index); err != nil {
-		return nil, fmt.Errorf("parsing imgge index: %w", err)
+		return nil, fmt.Errorf("parsing image index: %w", err)
 	}
 
 	manifests := make([]*pushableImage, len(index.Manifests))
 	for i, manifestDesc := range index.Manifests {
-		manifest, err := p.pushableImage(ctx, req, toAPIDescriptor(manifestDesc), filepath.Join("manifest", strconv.Itoa(i)))
+		manifest, err := p.pushableImage(ctx, req, toAPIDescriptor(manifestDesc), filepath.Join("manifest", strconv.Itoa(i)), knownMissing)
 		if err != nil {
 			return nil, err
 		}

@@ -12,6 +12,7 @@ import (
 	"github.com/tweag/rules_img/pkg/auth/credential"
 	"github.com/tweag/rules_img/pkg/auth/protohelper"
 	"github.com/tweag/rules_img/pkg/cas"
+	"github.com/tweag/rules_img/pkg/proto/blobcache"
 	"github.com/tweag/rules_img/pkg/push"
 )
 
@@ -43,6 +44,7 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 	}
 
 	reapiEndpoint := os.Getenv("IMG_REAPI_ENDPOINT")
+	blobcacheEndpoint := os.Getenv("IMG_BLOB_CACHE_ENDPOINT")
 	credentialHelperPath := os.Getenv("IMG_CREDENTIAL_HELPER")
 	var credentialHelper credential.Helper
 	if credentialHelperPath != "" {
@@ -113,7 +115,17 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 				return fmt.Errorf("pushing image with lazy strategy: %w", err)
 			}
 		case "cas_registry":
-			fmt.Fprintln(os.Stderr, "placeholder for cas_registry push strategy")
+			if blobcacheEndpoint == "" {
+				return fmt.Errorf("IMG_BLOB_CACHE_ENDPOINT environment variable must be set for cas_registry push strategy")
+			}
+			grpcClientConn, err := protohelper.Client(blobcacheEndpoint, credentialHelper)
+			if err != nil {
+				return fmt.Errorf("Failed to create gRPC client connection: %w", err)
+			}
+			blobcacheClient := blobcache.NewBlobsClient(grpcClientConn)
+			if _, err := push.NewCASRegistryPusher(blobcacheClient).Push(ctx, reference, metadataRequest.PushRequest); err != nil {
+				return fmt.Errorf("pushing image with CAS registry strategy: %w", err)
+			}
 		case "bes":
 			fmt.Fprintln(os.Stderr, `You don't need to "bazel run" the target in this mode. Image is pushed as a side-effect of uploading BEP data to the BES service.`)
 		default:
