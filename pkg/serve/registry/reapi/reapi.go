@@ -22,7 +22,7 @@ type REAPIBlobHandler struct {
 }
 
 func New(upstream registry.BlobStatHandler, clientConn *grpc.ClientConn, blobSizeCache *combined.BlobSizeCache) (*REAPIBlobHandler, error) {
-	casReader, err := cas.New(clientConn)
+	casReader, err := cas.New(clientConn, cas.WithLearnCapabilities(true))
 	if err != nil {
 		return nil, err
 	}

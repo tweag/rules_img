@@ -23,7 +23,8 @@ import (
 )
 
 type lazyPusher struct {
-	casReader blobReader
+	casReader        blobReader
+	checkConsistency bool
 }
 
 func NewLazy(casReader blobReader) *lazyPusher {
@@ -32,7 +33,12 @@ func NewLazy(casReader blobReader) *lazyPusher {
 	}
 }
 
-func (p lazyPusher) Push(ctx context.Context, reference string, req registrytypes.PushRequest) (string, error) {
+func (p lazyPusher) Push(ctx context.Context, reference string, req registrytypes.PushRequest, options ...lazyOpt) (string, error) {
+	var opt lazyOpts
+	for _, o := range options {
+		o(&opt)
+	}
+
 	if len(req.Blobs) == 0 {
 		return "", errors.New("no blobs to push")
 	}
@@ -55,16 +61,18 @@ func (p lazyPusher) Push(ctx context.Context, reference string, req registrytype
 		}
 		expectPresent = append(expectPresent, digest)
 	}
-	missing, err := p.casReader.FindMissingBlobs(ctx, expectPresent)
-	if err != nil {
-		return "", fmt.Errorf("checking for missing blobs: %w", err)
-	}
-	var missingHashes []string
-	for _, digest := range missing {
-		missingHashes = append(missingHashes, fmt.Sprintf("%x", digest.Hash))
-	}
-	if len(missing) > 0 {
-		return "", fmt.Errorf("missing blobs: %s", strings.Join(missingHashes, ", "))
+	if opt.checkConsistency {
+		missing, err := p.casReader.FindMissingBlobs(ctx, expectPresent)
+		if err != nil {
+			return "", fmt.Errorf("checking for missing blobs: %w", err)
+		}
+		var missingHashes []string
+		for _, digest := range missing {
+			missingHashes = append(missingHashes, fmt.Sprintf("%x", digest.Hash))
+		}
+		if len(missing) > 0 {
+			return "", fmt.Errorf("missing blobs: %s", strings.Join(missingHashes, ", "))
+		}
 	}
 
 	updateChan := make(chan registryv1.Update, 64)
@@ -215,4 +223,16 @@ func readFileOrCAS(ctx context.Context, casReader blobReader, filePath string, d
 	}
 	// If the file does not exist, try to read it from the CAS.
 	return casReader.ReadBlob(ctx, digest)
+}
+
+type lazyOpts struct {
+	checkConsistency bool
+}
+
+type lazyOpt func(*lazyOpts)
+
+func WithConsistencyCheck() lazyOpt {
+	return func(opts *lazyOpts) {
+		opts.checkConsistency = true
+	}
 }

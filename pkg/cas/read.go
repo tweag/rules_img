@@ -20,16 +20,32 @@ type CAS struct {
 	capabilities     capabilities
 }
 
-func New(clientConn *grpc.ClientConn) (*CAS, error) {
+func New(clientConn *grpc.ClientConn, opts ...casOption) (*CAS, error) {
+	casOpts := &casOptions{
+		capabilities: capabilities{
+			DigestFunctionSHA256:   true,
+			MaxBatchTotalSizeBytes: 2 * 1024 * 1024, // 2 MiB
+		},
+		learnCapabilities: false,
+	}
+	for _, opt := range opts {
+		opt(casOpts)
+	}
+	capabilities := casOpts.capabilities
+
 	casClient := remoteexecution_proto.NewContentAddressableStorageClient(clientConn)
 	byteStreamClient := bytestream_proto.NewByteStreamClient(clientConn)
-	capabilitiesClient := remoteexecution_proto.NewCapabilitiesClient(clientConn)
-	capabilities, err := learnCapabilities(context.Background(), capabilitiesClient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to learn capabilities: %w", err)
-	}
-	if !capabilities.DigestFunctionSHA256 {
-		return nil, errors.New("REAPI does not support SHA256 digest function")
+
+	if casOpts.learnCapabilities {
+		capabilitiesClient := remoteexecution_proto.NewCapabilitiesClient(clientConn)
+		var err error
+		capabilities, err = learnCapabilities(context.Background(), capabilitiesClient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to learn capabilities: %w", err)
+		}
+		if !capabilities.DigestFunctionSHA256 {
+			return nil, errors.New("REAPI does not support SHA256 digest function")
+		}
 	}
 
 	return &CAS{
@@ -351,4 +367,35 @@ func (b *byteStreamReadCloser) nilOrEOF() error {
 		return io.EOF
 	}
 	return nil
+}
+
+type casOptions struct {
+	capabilities      capabilities
+	learnCapabilities bool
+}
+
+type casOption func(*casOptions)
+
+func WithLearnCapabilities(learn bool) casOption {
+	return func(opts *casOptions) {
+		opts.learnCapabilities = learn
+	}
+}
+
+func WithMaxBatchTotalSizeBytes(maxBatchTotalSizeBytes int64) casOption {
+	return func(opts *casOptions) {
+		opts.capabilities.MaxBatchTotalSizeBytes = maxBatchTotalSizeBytes
+	}
+}
+
+func WithSHA256(supprted bool) casOption {
+	return func(opts *casOptions) {
+		opts.capabilities.DigestFunctionSHA256 = supprted
+	}
+}
+
+func WithSHA512(supported bool) casOption {
+	return func(opts *casOptions) {
+		opts.capabilities.DigestFunctionSHA512 = supported
+	}
 }
