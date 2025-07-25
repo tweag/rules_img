@@ -132,6 +132,12 @@ func (c *CAS) batchReadOne(ctx context.Context, digest Digest) ([]byte, error) {
 	if len(resp.Responses) != 1 {
 		return nil, errors.New("unexpected number of responses from BatchReadBlobs")
 	}
+	if resp.Responses[0].Status.Code != 0 {
+		return nil, fmt.Errorf("failed to read blob: %s", resp.Responses[0].Status.String())
+	}
+	if len(resp.Responses[0].Data) != int(digest.SizeBytes) {
+		return nil, fmt.Errorf("unexpected size of blob data: got %d bytes, expected %d bytes", len(resp.Responses[0].Data), digest.SizeBytes)
+	}
 	return resp.Responses[0].Data, nil
 }
 
@@ -250,8 +256,12 @@ func learnCapabilities(ctx context.Context, capabilitiesClient remoteexecution_p
 	}
 	caps.MaxBatchTotalSizeBytes = resp.CacheCapabilities.MaxBatchTotalSizeBytes
 	if caps.MaxBatchTotalSizeBytes <= 0 {
-		// Default to 64 MiB if not set.
-		caps.MaxBatchTotalSizeBytes = 64 * 1024 * 1024
+		// Default to 1 MiB if not set.
+		caps.MaxBatchTotalSizeBytes = 1 * 1024 * 1024
+	}
+	if caps.MaxBatchTotalSizeBytes > 4*1024*1024 {
+		// Cap to 4 MiB to avoid excessive memory usage.
+		caps.MaxBatchTotalSizeBytes = 4 * 1024 * 1024
 	}
 	return caps, nil
 }

@@ -25,6 +25,7 @@ func (i *authenticatingInterceptor) unaryAddHeaders(ctx context.Context, method 
 	}
 
 	md = addCredentialsToMD(ctx, cc.Target(), method, md, i.helper)
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	return invoker(ctx, method, req, reply, cc, opts...)
 }
@@ -37,6 +38,7 @@ func (i *authenticatingInterceptor) streamAddHeaders(ctx context.Context, desc *
 	}
 
 	md = addCredentialsToMD(ctx, cc.Target(), method, md, i.helper)
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	return streamer(ctx, desc, cc, method, opts...)
 }

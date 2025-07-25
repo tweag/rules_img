@@ -2,10 +2,12 @@ load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 
 string_flag(
     name = "push_strategy",
-    build_setting_default = "upload",
+    build_setting_default = "eager",
     values = [
-        "upload",
-        "cas",
+        "eager",
+        "lazy",
+        "cas_registry",
+        "bes",
     ],
     visibility = ["//img/private:__subpackages__"],
 )

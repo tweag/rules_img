@@ -54,14 +54,33 @@ def _metadata_symlinks_for_manifest(manifest_info, index = None):
         if layer.metadata != None
     }
 
-def _root_symlinks_for_manifest(manifest_info, index = None):
+def _root_symlinks_for_manifest(manifest_info, index = None, *, include_layers):
     base_path = "" if index == None else "manifest/{}/".format(index)
     root_symlinks = {
         "{base}manifest.json".format(base = base_path): manifest_info.manifest,
         "{base}config.json".format(base = base_path): manifest_info.config,
     }
-    root_symlinks.update(_layer_root_symlinks_for_manifest(manifest_info, index))
-    root_symlinks.update(_metadata_symlinks_for_manifest(manifest_info, index))
+    if include_layers:
+        root_symlinks.update(_layer_root_symlinks_for_manifest(manifest_info, index))
+        root_symlinks.update(_metadata_symlinks_for_manifest(manifest_info, index))
+    return root_symlinks
+
+def _root_symlinks(ctx, index_info, manifest_info, *, include_layers):
+    root_symlinks = {}
+    if index_info != None:
+        root_symlinks["index.json"] = index_info.index
+        for i, manifest in enumerate(index_info.manifests):
+            root_symlinks.update(_root_symlinks_for_manifest(manifest, index = i, include_layers = include_layers))
+    if manifest_info != None:
+        index_json = ctx.attr.declare_file(ctx.attr.name + "_index.json")
+        write_index_json(
+            ctx,
+            output = index_json,
+            manifests = [manifest_info],
+            annotations = {},
+        )
+        root_symlinks["index.json"] = index_json
+        root_symlinks.update(_root_symlinks_for_manifest(manifest_info, include_layers = include_layers))
     return root_symlinks
 
 def _push_strategy(ctx):
@@ -100,7 +119,7 @@ def _image_push_upload_impl(ctx):
     if manifest_info != None and index_info != None:
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
 
-    root_symlinks = {}
+    root_symlinks = _root_symlinks(ctx, index_info, manifest_info, include_layers = True)
     push_request = dict(
         command = "push",
         registry = ctx.attr.registry,
@@ -109,18 +128,8 @@ def _image_push_upload_impl(ctx):
     )
     push_request.update(_target_info(ctx))
     if manifest_info != None:
-        index_json = ctx.attr.declare_file(ctx.attr.name + "_index.json")
-        write_index_json(
-            ctx,
-            output = index_json,
-            manifests = [manifest_info],
-            annotations = {},
-        )
-        root_symlinks["index.json"] = index_json
-        root_symlinks.update(_root_symlinks_for_manifest(manifest_info))
         push_request["manifest"] = _encode_manifest(manifest_info)
     if index_info != None:
-        root_symlinks["index.json"] = index_info.index
         push_request["index"] = dict(
             index = "index.json",
             manifests = [
@@ -128,8 +137,6 @@ def _image_push_upload_impl(ctx):
                 for i, manifest in enumerate(index_info.manifests)
             ],
         )
-        for i, manifest in enumerate(index_info.manifests):
-            root_symlinks.update(_root_symlinks_for_manifest(manifest, index = i))
 
     request_json = ctx.actions.declare_file(ctx.label.name + ".json")
     ctx.actions.write(
@@ -165,8 +172,10 @@ def _image_push_cas_impl(ctx):
     if manifest_info != None and index_info != None:
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
 
+    root_symlinks = _root_symlinks(ctx, index_info, manifest_info, include_layers = False)
     push_request = dict(
         command = "push-metadata",
+        strategy = _push_strategy(ctx),
         registry = ctx.attr.registry,
         repository = ctx.attr.repository,
         tag = ctx.attr.tag,
@@ -203,24 +212,33 @@ def _image_push_cas_impl(ctx):
         arguments = ["push-metadata", "--from-file", request_metadata.path, metadata_out.path],
         mnemonic = "PushMetadata",
     )
+    root_symlinks["dispatch.json"] = metadata_out
     return [
         DefaultInfo(
             files = depset([metadata_out]),
             executable = pusher,
             runfiles = ctx.runfiles(
-                root_symlinks = {
-                    "dispatch.json": metadata_out,
-                },
+                root_symlinks = root_symlinks,
             ),
+        ),
+        RunEnvironmentInfo(
+            environment = {
+                # TODO: Make the default configurable.
+                "IMG_CREDENTIAL_HELPER": "tweag-credential-helper",
+            },
+            inherited_environment = [
+                "IMG_CREDENTIAL_HELPER",
+                "IMG_REAPI_ENDPOINT",
+            ],
         ),
     ]
 
 def _image_push_impl(ctx):
     """Implementation of the push rule."""
     strategy = _push_strategy(ctx)
-    if strategy == "upload":
+    if strategy == "eager":
         return _image_push_upload_impl(ctx)
-    elif strategy == "cas":
+    elif strategy in ["lazy", "cas_registry", "bes"]:
         return _image_push_cas_impl(ctx)
     else:
         fail("Unknown push strategy: {}".format(strategy))
@@ -244,7 +262,7 @@ image_push = rule(
         "strategy": attr.string(
             doc = "Push strategy to use.",
             default = "auto",
-            values = ["auto", "cas", "upload"],
+            values = ["auto", "eager", "lazy", "cas_registry", "bes"],
         ),
         "_push_settings": attr.label(
             default = Label("//img/private/settings:push"),

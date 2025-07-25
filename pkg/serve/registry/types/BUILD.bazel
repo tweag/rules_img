@@ -5,8 +5,5 @@ go_library(
     srcs = ["request.go"],
     importpath = "github.com/tweag/rules_img/pkg/serve/registry/types",
     visibility = ["//visibility:public"],
-    deps = [
-        "//pkg/api",
-        "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
-    ],
+    deps = ["//pkg/api"],
 )

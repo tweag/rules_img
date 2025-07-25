@@ -2,6 +2,7 @@ package push
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,12 +14,20 @@ import (
 	types "github.com/malt3/go-containerregistry/pkg/v1/types"
 
 	"github.com/tweag/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/cas"
 )
 
 type pushableLayer struct {
 	blobPath string
 	metadata api.Descriptor
-	remote   *remoteBlob
+	remote   compressedReader
+}
+
+func newMetadataLayer(blobMeta api.Descriptor, reader blobReader) *pushableLayer {
+	return &pushableLayer{
+		metadata: blobMeta,
+		remote:   newCASBlob(blobMeta, reader),
+	}
 }
 
 func newPushableLayer(input LayerInput, remoteInfo api.PullInfo) (*pushableLayer, error) {
@@ -100,4 +109,13 @@ func (l *pushableLayer) Size() (int64, error) {
 // MediaType returns the media type of the Layer.
 func (l *pushableLayer) MediaType() (types.MediaType, error) {
 	return types.MediaType(l.metadata.MediaType), nil
+}
+
+type compressedReader interface {
+	Compressed() (io.ReadCloser, error)
+}
+
+type blobReader interface {
+	ReadBlob(ctx context.Context, digest cas.Digest) ([]byte, error)
+	ReaderForBlob(ctx context.Context, digest cas.Digest) (io.ReadCloser, error)
 }

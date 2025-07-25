@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
+
 	"github.com/tweag/rules_img/cmd/compress"
 	"github.com/tweag/rules_img/cmd/index"
 	"github.com/tweag/rules_img/cmd/layer"
@@ -99,7 +100,7 @@ func runfilesDispatch(ctx context.Context) bool {
 	// is using a json command.
 
 	switch req.Command {
-	case api.PushCommand:
+	case api.PushCommand, api.PushMetadata:
 		if err := push.PushFromFile(ctx, requestPath); err != nil {
 			fmt.Fprintf(os.Stderr, "pushing image based on request file %s: %v\n", requestPath, err)
 			os.Exit(1)

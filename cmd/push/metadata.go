@@ -12,6 +12,7 @@ import (
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/types"
 
+	"github.com/tweag/rules_img/pkg/api"
 	registrytypes "github.com/tweag/rules_img/pkg/serve/registry/types"
 )
 
@@ -69,8 +70,9 @@ func WritePushMetadata(ctx context.Context, requestPath, outputPath string) erro
 	}
 
 	metadata := pushMetadata{
-		Command: "push-cas",
+		Command: req.Command,
 		PushRequest: registrytypes.PushRequest{
+			Strategy:   req.Strategy,
 			Blobs:      descriptors,
 			PushTarget: req.PushTarget,
 			PullInfo:   req.PullInfo,
@@ -86,8 +88,8 @@ func WritePushMetadata(ctx context.Context, requestPath, outputPath string) erro
 	return nil
 }
 
-func describeAll(req request) ([]registryv1.Descriptor, error) {
-	var descriptors []registryv1.Descriptor
+func describeAll(req request) ([]api.Descriptor, error) {
+	var descriptors []api.Descriptor
 	if req.Manifest.ManifestPath != "" {
 		var err error
 		descriptors, err = appendManifestDescriptors(req.Manifest.ManifestPath, descriptors)
@@ -106,7 +108,7 @@ func describeAll(req request) ([]registryv1.Descriptor, error) {
 	return descriptors, nil
 }
 
-func appendIndexDescriptors(req indexRequest, descriptors []registryv1.Descriptor) ([]registryv1.Descriptor, error) {
+func appendIndexDescriptors(req indexRequest, descriptors []api.Descriptor) ([]api.Descriptor, error) {
 	indexDescriptor, err := describeJSONFile(req.IndexPath)
 	if err != nil {
 		return nil, fmt.Errorf("getting index descriptor: %w", err)
@@ -120,8 +122,10 @@ func appendIndexDescriptors(req indexRequest, descriptors []registryv1.Descripto
 		return nil, fmt.Errorf("unmarshalling index file: %w", err)
 	}
 
-	descriptors = append(descriptors, indexDescriptor)
-	descriptors = append(descriptors, index.Manifests...)
+	descriptors = append(descriptors, toAPIDescriptor(indexDescriptor))
+	for _, desc := range index.Manifests {
+		descriptors = append(descriptors, toAPIDescriptor(desc))
+	}
 	for _, manifest := range req.Manifests {
 		var err error
 		descriptors, err = appendManifestChildren(manifest.ManifestPath, descriptors)
@@ -132,17 +136,17 @@ func appendIndexDescriptors(req indexRequest, descriptors []registryv1.Descripto
 	return descriptors, nil
 }
 
-func appendManifestDescriptors(filePath string, descriptors []registryv1.Descriptor) ([]registryv1.Descriptor, error) {
+func appendManifestDescriptors(filePath string, descriptors []api.Descriptor) ([]api.Descriptor, error) {
 	manifestDescriptor, err := describeJSONFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("getting manifest descriptor: %w", err)
 	}
 
-	descriptors = append(descriptors, manifestDescriptor)
+	descriptors = append(descriptors, toAPIDescriptor(manifestDescriptor))
 	return appendManifestChildren(filePath, descriptors)
 }
 
-func appendManifestChildren(filePath string, descriptors []registryv1.Descriptor) ([]registryv1.Descriptor, error) {
+func appendManifestChildren(filePath string, descriptors []api.Descriptor) ([]api.Descriptor, error) {
 	var manifest registryv1.Manifest
 	rawManifest, err := os.ReadFile(filePath)
 	if err != nil {
@@ -151,8 +155,11 @@ func appendManifestChildren(filePath string, descriptors []registryv1.Descriptor
 	if err := json.Unmarshal(rawManifest, &manifest); err != nil {
 		return nil, fmt.Errorf("unmarshalling manifest file: %w", err)
 	}
-	descriptors = append(descriptors, manifest.Config)
-	descriptors = append(descriptors, manifest.Layers...)
+
+	descriptors = append(descriptors, toAPIDescriptor(manifest.Config))
+	for _, layer := range manifest.Layers {
+		descriptors = append(descriptors, toAPIDescriptor(layer))
+	}
 	return descriptors, nil
 }
 
@@ -190,6 +197,14 @@ func descriptorForFile(filePath string, mediaType string) (registryv1.Descriptor
 		Digest:    registryv1.Hash{Algorithm: "sha256", Hex: fmt.Sprintf("%x", digest)},
 		Size:      size,
 	}, nil
+}
+
+func toAPIDescriptor(d registryv1.Descriptor) api.Descriptor {
+	return api.Descriptor{
+		MediaType: string(d.MediaType),
+		Digest:    d.Digest.String(),
+		Size:      d.Size,
+	}
 }
 
 type pushMetadata struct {

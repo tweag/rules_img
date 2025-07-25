@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/malt3/go-containerregistry/pkg/authn"
 	"github.com/malt3/go-containerregistry/pkg/name"
@@ -31,13 +32,13 @@ type PushIndexRequest struct {
 	ManifestRequests []PushManifestRequest
 }
 
-type pusher struct{}
+type eagerPusher struct{}
 
-func New() *pusher {
-	return &pusher{}
+func New() *eagerPusher {
+	return &eagerPusher{}
 }
 
-func (p *pusher) PushManifest(ctx context.Context, reference string, req PushManifestRequest) (string, error) {
+func (p *eagerPusher) PushManifest(ctx context.Context, reference string, req PushManifestRequest) (string, error) {
 	manifest, err := newPushableImage(req)
 	if err != nil {
 		return "", err
@@ -63,7 +64,7 @@ func (p *pusher) PushManifest(ctx context.Context, reference string, req PushMan
 	return digest.String(), nil
 }
 
-func (p *pusher) PushIndex(ctx context.Context, reference string, req PushIndexRequest) (string, error) {
+func (p *eagerPusher) PushIndex(ctx context.Context, reference string, req PushIndexRequest) (string, error) {
 	index, err := newPushableIndex(req)
 	if err != nil {
 		return "", err
@@ -90,12 +91,18 @@ func (p *pusher) PushIndex(ctx context.Context, reference string, req PushIndexR
 }
 
 func progressPrinter(updates <-chan registryv1.Update) {
+	var lastUpdate time.Time
 	for update := range updates {
 		relative := float64(update.Complete) / float64(update.Total) * 100
 		if update.Error != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", update.Error)
 			continue
 		}
+		if time.Since(lastUpdate) < 10*time.Millisecond {
+			// Avoid printing too frequently
+			continue
+		}
 		fmt.Fprintf(os.Stderr, "Progress: %.2f %% (%v / %v bytes)\r", relative, update.Complete, update.Total)
+		lastUpdate = time.Now()
 	}
 }
