@@ -46,11 +46,6 @@ func (s *server) Commit(ctx context.Context, req *blobcache_proto.CommitRequest)
 	}
 
 	for _, digest := range req.BlobDigests {
-		if _, ok := missingBlobsMap[digest.Hash]; ok {
-			// FindMissingBlobs reported this as missing,
-			// so we cannot trust the reported size.
-			continue
-		}
 		hash := hashFromProto(digest, req.DigestFunction)
 		if hash.Algorithm == "" {
 			continue // Skip unsupported digest algorithms.

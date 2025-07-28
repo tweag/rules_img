@@ -147,13 +147,15 @@ func Run(ctx context.Context, args []string) {
 			stores = append(stores, nil) // Placeholder for reapi store, will be set later
 		}
 	}
+	var blobWriter combined.Writer
 	if wantREAPI {
-		var reapiUpstream combined.Handler = combined.NewCombinedBlobStore(blobSizeCache, nonREAPIStores...).(combined.Handler)
+		var reapiUpstream combined.Handler = combined.NewCombinedBlobStore(blobSizeCache, nil /* writer */, nonREAPIStores...).(combined.Handler)
 		reapiStore, err := reapi.New(reapiUpstream, grpcClientConn, blobSizeCache)
 		if err != nil {
 			log.Fatalf("Failed to create REAPI blob store: %v", err)
 		}
 		stores[reapiIndex] = reapiStore
+		blobWriter = reapiStore
 	}
 	if enableBlobCache {
 		if grpcClientConn == nil {
@@ -181,7 +183,7 @@ func Run(ctx context.Context, args []string) {
 	}
 	porti := listener.Addr().(*net.TCPAddr).Port
 
-	combinedStore := combined.NewCombinedBlobStore(blobSizeCache, stores...)
+	combinedStore := combined.NewCombinedBlobStore(blobSizeCache, blobWriter, stores...)
 	callbacker := combined.NewBlobSizeCacheCallback(blobSizeCache, combinedStore.(combined.Handler))
 	server := &http.Server{
 		Handler: registry.New(

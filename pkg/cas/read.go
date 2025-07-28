@@ -101,7 +101,7 @@ func (c *CAS) ReadBlob(ctx context.Context, digest Digest) ([]byte, error) {
 	if digest.SizeBytes == 0 {
 		return nil, nil // blob is empty
 	}
-	if digest.SizeBytes < c.capabilities.MaxBatchTotalSizeBytes {
+	if digest.SizeBytes <= c.capabilities.MaxBatchTotalSizeBytes {
 		// If the blob is small enough, we can use BatchReadBlobs.
 		return c.batchReadOne(ctx, digest)
 	}
@@ -125,7 +125,7 @@ func (c *CAS) ReaderForBlob(ctx context.Context, digest Digest) (io.ReadCloser, 
 	if digest.SizeBytes == 0 {
 		return io.NopCloser(bytes.NewReader(nil)), nil // blob is empty
 	}
-	if digest.SizeBytes < c.capabilities.MaxBatchTotalSizeBytes {
+	if digest.SizeBytes <= c.capabilities.MaxBatchTotalSizeBytes {
 		// If the blob is small enough, we can use BatchReadBlobs.
 		data, err := c.batchReadOne(ctx, digest)
 		if err != nil {

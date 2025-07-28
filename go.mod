@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.18
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.84.1
 	github.com/bazelbuild/rules_go v0.54.0
+	github.com/google/uuid v1.6.0
 	github.com/malt3/go-containerregistry v0.0.0-20250724131542-7e98b20e9b45
 	github.com/opencontainers/go-digest v1.0.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142

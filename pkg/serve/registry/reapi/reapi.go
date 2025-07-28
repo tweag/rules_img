@@ -9,6 +9,7 @@ import (
 
 	registry "github.com/malt3/go-containerregistry/pkg/registry"
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
+	v1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"google.golang.org/grpc"
 
 	"github.com/tweag/rules_img/pkg/cas"
@@ -88,6 +89,27 @@ func (h *REAPIBlobHandler) Stat(ctx context.Context, repo string, hash registryv
 		return upstreamSize, nil // Blob is present.
 	}
 	return 0, registry.ErrNotFound // Blob is missing.
+}
+
+func (h *REAPIBlobHandler) Put(ctx context.Context, repo string, hash v1.Hash, rc io.ReadCloser) error {
+	// since we need to know the size of the blob for any REAPI operations,
+	// we ask the cache or upstream registry to find out if the blob exists.
+	defer rc.Close() // Ensure the reader is closed after use.
+	var upstreamSize int64
+	if cachedSize, ok := h.blobSizeCache.Get(hash); ok {
+		upstreamSize = cachedSize
+	} else {
+		var upstreamErr error
+		upstreamSize, upstreamErr = h.upstream.Stat(ctx, repo, hash)
+		if upstreamErr != nil {
+			return upstreamErr
+		}
+	}
+	digest, err := digestFromDescriptor(hash, upstreamSize)
+	if err != nil {
+		return err
+	}
+	return h.casReader.WriteBlob(ctx, digest, rc)
 }
 
 func digestFromDescriptor(hash registryv1.Hash, size int64) (cas.Digest, error) {

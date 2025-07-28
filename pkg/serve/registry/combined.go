@@ -12,13 +12,14 @@ import (
 
 type combinedBlobStore struct {
 	blobStores []Handler
-	// TODO: update size cache on write operations
-	sizeCache *BlobSizeCache
+	writer     Writer
+	sizeCache  *BlobSizeCache
 }
 
-func NewCombinedBlobStore(sizeCache *BlobSizeCache, blobStores ...Handler) registry.BlobHandler {
+func NewCombinedBlobStore(sizeCache *BlobSizeCache, writer Writer, blobStores ...Handler) registry.BlobHandler {
 	return &combinedBlobStore{
 		blobStores: blobStores,
+		writer:     writer,
 		sizeCache:  sizeCache,
 	}
 }
@@ -61,15 +62,18 @@ func (c *combinedBlobStore) Stat(ctx context.Context, repo string, hash registry
 	return 0, registry.ErrNotFound
 }
 
-// Put should normally write the blob to some backend.
-// Currently, we just want push operations to succeed,
-// so we lie about the operation being successful.
-// TODO: implement a proper Put operation
 func (c *combinedBlobStore) Put(ctx context.Context, repo string, h v1.Hash, rc io.ReadCloser) error {
-	return nil
+	if c.writer == nil {
+		return errors.New("registry is configured to be read-only")
+	}
+	return c.writer.Put(ctx, repo, h, rc)
 }
 
 type Handler interface {
 	Stat(ctx context.Context, repo string, hash v1.Hash) (int64, error)
 	Get(ctx context.Context, repo string, hash v1.Hash) (io.ReadCloser, error)
+}
+
+type Writer interface {
+	Put(ctx context.Context, repo string, h v1.Hash, rc io.ReadCloser) error
 }
