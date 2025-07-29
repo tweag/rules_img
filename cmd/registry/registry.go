@@ -185,11 +185,20 @@ func Run(ctx context.Context, args []string) {
 
 	combinedStore := combined.NewCombinedBlobStore(blobSizeCache, blobWriter, stores...)
 	callbacker := combined.NewBlobSizeCacheCallback(blobSizeCache, combinedStore.(combined.Handler))
+	protos := &http.Protocols{}
+	protos.SetHTTP1(true)
+	protos.SetHTTP2(false)
+	protos.SetUnencryptedHTTP2(false)
 	server := &http.Server{
 		Handler: registry.New(
 			registry.WithBlobHandler(combinedStore),
 			registry.WithManifestPutCallback(callbacker.ManifestPutCallback),
 		),
+		IdleTimeout:       30 * time.Minute,
+		ReadTimeout:       30 * time.Minute,
+		WriteTimeout:      30 * time.Minute,
+		ReadHeaderTimeout: 30 * time.Minute,
+		Protocols:         protos,
 	}
 	fmt.Fprintf(os.Stderr, "Listening on %d\n", porti)
 	server.Serve(listener)
