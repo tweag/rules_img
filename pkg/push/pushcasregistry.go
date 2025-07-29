@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
 	"github.com/malt3/go-containerregistry/pkg/authn"
@@ -70,10 +73,27 @@ func (p casRegistryPusher) Push(ctx context.Context, reference string, req regis
 
 	updateChan := make(chan registryv1.Update, 64)
 	go progressPrinter(updateChan)
+
+	transport := remote.DefaultTransport.(*http.Transport).Clone()
+	// Ironically, the go-containerregistry HTTP transport forces HTTP/2,
+	// while the go-containerregistry registry HTTP server doesn't handle HTTP/2 well.
+	// This is a workaround to force HTTP/1.1 for the push operation.
+	transport.ForceAttemptHTTP2 = false
+	// The registry has a bug that causes long moments of inactivity.
+	// See also: https://github.com/google/go-containerregistry/issues/2120
+	transport.IdleConnTimeout = 30 * time.Minute
+	transport.DialContext = (&net.Dialer{
+		Timeout:   1800 * time.Second,
+		KeepAlive: 10 * time.Second,
+	}).DialContext
+	transport.ExpectContinueTimeout = 30 * time.Minute
+	transport.MaxIdleConns = 0
+
 	opts := []remote.Option{
 		remote.WithContext(ctx),
 		remote.WithAuthFromKeychain(authn.DefaultKeychain),
 		remote.WithProgress(updateChan),
+		remote.WithTransport(transport),
 	}
 	ref, err := name.ParseReference(reference)
 	if err != nil {
