@@ -163,7 +163,7 @@ def _image_push_cas_impl(ctx):
     if manifest_info != None and index_info != None:
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
 
-    root_symlinks = _root_symlinks(ctx, index_info, manifest_info, include_layers = False)
+    root_symlinks = _root_symlinks(index_info, manifest_info, include_layers = False)
     push_request = dict(
         command = "push-metadata",
         strategy = _push_strategy(ctx),
