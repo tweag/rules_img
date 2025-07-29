@@ -153,3 +153,12 @@ image_push(
     repository = "malt3/ubuntu",
     tag = "latest",
 )
+
+image_push(
+    name = "cuda_push",
+    image = ":cuda_no_op",
+    registry = "ghcr.io",
+    repository = "malt3/cuda",
+    tag = "latest",
+    tags = ["manual"],
+)
