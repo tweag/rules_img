@@ -89,20 +89,15 @@ func (c *CAS) streamUploadOne(ctx context.Context, digest Digest, r io.Reader) e
 			eof = true
 		}
 	}
-	closeErr := stream.CloseSend()
 	if offset != digest.SizeBytes {
 		return fmt.Errorf("expected to write %d bytes, but wrote %d bytes", digest.SizeBytes, offset)
 	}
-	if closeErr != nil {
-		return closeErr
+	resp, err := stream.CloseAndRecv()
+	if err != nil {
+		return fmt.Errorf("closing stream: %w", err)
 	}
-	return c.finalizeUploadStream(ctx, resourceName)
-}
-
-func (c *CAS) finalizeUploadStream(ctx context.Context, resourceName string) error {
-	_, err := c.byteStreamClient.QueryWriteStatus(ctx, &bytestream.QueryWriteStatusRequest{
-		ResourceName: resourceName,
-	})
-	// we don't want to wait for the upload to complete, so we just check that a status can be obtianed without error
-	return err
+	if resp.CommittedSize != digest.SizeBytes {
+		return fmt.Errorf("committed size %d does not match expected size %d for blob %x", resp.CommittedSize, digest.SizeBytes, digest.Hash)
+	}
+	return nil
 }
