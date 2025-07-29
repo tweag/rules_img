@@ -2,7 +2,6 @@
 
 load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/common:transitions.bzl", "host_platform_transition", "reset_platform_transition")
-load("//img/private/common:write_index_json.bzl", "write_index_json")
 load("//img/private/providers:image_toolchain_info.bzl", "ImageToolchainInfo")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
@@ -65,21 +64,13 @@ def _root_symlinks_for_manifest(manifest_info, index = None, *, include_layers):
         root_symlinks.update(_metadata_symlinks_for_manifest(manifest_info, index))
     return root_symlinks
 
-def _root_symlinks(ctx, index_info, manifest_info, *, include_layers):
+def _root_symlinks(index_info, manifest_info, *, include_layers):
     root_symlinks = {}
     if index_info != None:
         root_symlinks["index.json"] = index_info.index
         for i, manifest in enumerate(index_info.manifests):
             root_symlinks.update(_root_symlinks_for_manifest(manifest, index = i, include_layers = include_layers))
     if manifest_info != None:
-        index_json = ctx.attr.declare_file(ctx.attr.name + "_index.json")
-        write_index_json(
-            ctx,
-            output = index_json,
-            manifests = [manifest_info],
-            annotations = {},
-        )
-        root_symlinks["index.json"] = index_json
         root_symlinks.update(_root_symlinks_for_manifest(manifest_info, include_layers = include_layers))
     return root_symlinks
 
@@ -119,7 +110,7 @@ def _image_push_upload_impl(ctx):
     if manifest_info != None and index_info != None:
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
 
-    root_symlinks = _root_symlinks(ctx, index_info, manifest_info, include_layers = True)
+    root_symlinks = _root_symlinks(index_info, manifest_info, include_layers = True)
     push_request = dict(
         command = "push",
         registry = ctx.attr.registry,
@@ -172,7 +163,7 @@ def _image_push_cas_impl(ctx):
     if manifest_info != None and index_info != None:
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
 
-    root_symlinks = _root_symlinks(ctx, index_info, manifest_info, include_layers = False)
+    root_symlinks = _root_symlinks(index_info, manifest_info, include_layers = False)
     push_request = dict(
         command = "push-metadata",
         strategy = _push_strategy(ctx),

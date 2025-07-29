@@ -82,7 +82,7 @@ func (p casRegistryPusher) Push(ctx context.Context, reference string, req regis
 
 	mediaType := typesv1.MediaType(req.Blobs[0].MediaType)
 	if mediaType.IsImage() {
-		manifest, err := p.pushableImage(ctx, req, "index.json", knownMissing)
+		manifest, err := p.pushableImage(ctx, req, "manifest.json", knownMissing)
 		if err != nil {
 			return "", err
 		}
@@ -106,11 +106,11 @@ func (p casRegistryPusher) Push(ctx context.Context, reference string, req regis
 
 func (p casRegistryPusher) pushableImage(ctx context.Context, req registrytypes.PushRequest, manifestBasePath string, knownMissing map[string]struct{}) (*pushableImage, error) {
 	manifestPath := manifestBasePath
-	if manifestBasePath != "index.json" {
+	if manifestBasePath != "manifest.json" {
 		manifestPath = filepath.Join(manifestBasePath, "manifest.json")
 	}
 	configPath := "config.json"
-	if manifestBasePath != "index.json" {
+	if manifestBasePath != "manifest.json" {
 		configPath = filepath.Join(manifestBasePath, "config.json")
 	}
 	rawManifest, err := readFile(manifestPath)
