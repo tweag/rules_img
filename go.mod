@@ -13,6 +13,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/malt3/go-containerregistry v0.0.0-20250724131542-7e98b20e9b45
 	github.com/opencontainers/go-digest v1.0.0
+	golang.org/x/sync v0.15.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142
 	google.golang.org/genproto/googleapis/bytestream v0.0.0-20240730163845-b1a4ccb954bf
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250106144421-5f5ef82da422
@@ -47,7 +48,6 @@ require (
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/vbatts/tar-split v0.12.1 // indirect
 	golang.org/x/net v0.37.0 // indirect
-	golang.org/x/sync v0.15.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 )
