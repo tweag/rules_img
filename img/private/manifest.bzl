@@ -58,7 +58,14 @@ def _platform_matches(wanted_platform, manifest):
     return True
 
 def select_base(ctx):
-    """Select the base image to use for this image."""
+    """Select the base image to use for this image.
+
+    Args:
+        ctx: Rule context containing base image information.
+
+    Returns:
+        ImageManifestInfo for the selected base image, or None if no base.
+    """
     if ctx.attr.base == None:
         return None
     if ImageManifestInfo in ctx.attr.base:

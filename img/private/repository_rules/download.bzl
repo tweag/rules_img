@@ -1,4 +1,16 @@
+"""Repository rules for downloading container image components."""
+
 def download_blob(rctx, *, digest, **kwargs):
+    """Download a blob from a container registry.
+
+    Args:
+        rctx: Repository context.
+        digest: The blob digest to download.
+        **kwargs: Additional arguments.
+
+    Returns:
+        A struct containing digest, path, and data of the downloaded blob.
+    """
     sha256 = digest.removeprefix("sha256:")
     output = "blobs/sha256/" + sha256
     registries = [r for r in rctx.attr.registries]
@@ -27,6 +39,16 @@ def download_blob(rctx, *, digest, **kwargs):
     )
 
 def download_manifest(rctx, *, reference, **kwargs):
+    """Download a manifest from a container registry.
+
+    Args:
+        rctx: Repository context.
+        reference: The manifest reference to download.
+        **kwargs: Additional arguments.
+
+    Returns:
+        A struct containing digest, path, and data of the downloaded manifest.
+    """
     registries = [r for r in rctx.attr.registries]
     have_valid_digest = False
     if rctx.attr.registry:

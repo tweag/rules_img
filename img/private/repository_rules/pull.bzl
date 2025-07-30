@@ -1,3 +1,5 @@
+"""Repository rules for pulling container images."""
+
 load(
     ":download.bzl",
     _download_blob = "download_blob",

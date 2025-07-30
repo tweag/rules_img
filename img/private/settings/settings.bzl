@@ -1,3 +1,5 @@
+"""Build settings for container image rules."""
+
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//img/private/providers:push_settings_info.bzl", "PushSettingsInfo")
 

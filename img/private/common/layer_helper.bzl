@@ -13,7 +13,17 @@ extension_to_compression = {
 }
 
 def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file):
-    """Calculates the layer info for a tar file."""
+    """Calculates the layer info for a tar file.
+
+    Args:
+        ctx: Rule context.
+        media_type: Media type of the layer.
+        tar_file: Input tar file.
+        metadata_file: Output metadata file.
+
+    Returns:
+        LayerInfo provider with blob, metadata, and media type.
+    """
     args = ctx.actions.args()
     args.add("layer-metadata")
     args.add("--name", ctx.label)
@@ -34,7 +44,19 @@ def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file):
     )
 
 def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target_compression):
-    """Recompresses a tar file."""
+    """Recompresses a tar file.
+
+    Args:
+        ctx: Rule context.
+        media_type: Media type of the layer.
+        tar_file: Input tar file.
+        metadata_file: Input metadata file.
+        output: Output recompressed file.
+        target_compression: Target compression format.
+
+    Returns:
+        LayerInfo provider with recompressed blob and metadata.
+    """
     args = ctx.actions.args()
     args.add("compress")
     args.add("--name", ctx.label)
@@ -57,7 +79,19 @@ def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target
     )
 
 def optimize_layer(*, ctx, media_type, tar_file, metadata_file, output, target_compression):
-    """Optimizes a tar file."""
+    """Optimizes a tar file.
+
+    Args:
+        ctx: Rule context.
+        media_type: Media type of the layer.
+        tar_file: Input tar file.
+        metadata_file: Input metadata file.
+        output: Output optimized file.
+        target_compression: Target compression format.
+
+    Returns:
+        LayerInfo provider with optimized blob and metadata.
+    """
     inputs = [tar_file]
     args = ctx.actions.args()
     args.add("layer")
