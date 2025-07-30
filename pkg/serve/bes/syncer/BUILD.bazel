@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "syncer",
+    srcs = ["syncer.go"],
+    importpath = "github.com/tweag/rules_img/pkg/serve/bes/syncer",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api",
+        "//pkg/cas",
+        "//pkg/serve/registry/types",
+        "@com_github_malt3_go_containerregistry//pkg/authn",
+        "@com_github_malt3_go_containerregistry//pkg/name",
+        "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
+        "@com_github_malt3_go_containerregistry//pkg/v1/remote",
+        "@com_github_malt3_go_containerregistry//pkg/v1/types",
+        "@org_golang_x_sync//errgroup",
+    ],
+)
