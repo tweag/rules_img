@@ -18,7 +18,6 @@ def _image_index_impl(ctx):
         ctx,
         output = index_out,
         manifests = [manifest[ImageManifestInfo] for manifest in ctx.attr.manifests],
-        annotations = ctx.attr.annotations,
     )
     providers = [
         DefaultInfo(files = depset([index_out])),

@@ -1,3 +1,5 @@
+"""Configuration definitions for container image rules."""
+
 TargetPlatformInfo = provider(
     doc = "Information on the target platform.",
     fields = {

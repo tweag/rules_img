@@ -1,3 +1,5 @@
+"""Build tree utilities for benchmark testing."""
+
 def _build_tree_impl(ctx):
     dir = ctx.actions.declare_directory(ctx.attr.name + "_dir")
     ctx.actions.run_shell(

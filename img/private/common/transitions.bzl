@@ -1,3 +1,5 @@
+"""Platform transition implementations for container image rules."""
+
 _platforms_setting = "//command_line_option:platforms"
 _original_platforms_setting = str(Label("//img/private/settings:original_platforms"))
 
@@ -35,7 +37,7 @@ multi_platform_image_transition = transition(
     ],
 )
 
-def _reset_platform_transition_impl(settings, attr):
+def _reset_platform_transition_impl(settings, _attr):
     return {
         _platforms_setting: _decode_original_patforms(settings),
         # remove the saved info about the
@@ -83,7 +85,7 @@ host_platform_transition = transition(
     ],
 )
 
-def _toolchain_transition_impl(settings, attr):
+def _toolchain_transition_impl(_settings, attr):
     # If no explicit exec platform is set,
     # we don't transition.
     # This can be used to define a downloaded toolchain,

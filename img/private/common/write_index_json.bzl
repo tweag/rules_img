@@ -1,9 +1,18 @@
+"""Utilities for writing index.json files."""
+
 load("//img/private/common:build.bzl", "TOOLCHAIN")
 
 def _annotation_arg(tup):
     return "{}={}".format(tup[0], tup[1])
 
-def write_index_json(ctx, *, output, manifests, annotations):
+def write_index_json(ctx, *, output, manifests):
+    """Write an index.json file for a multi-platform image.
+
+    Args:
+        ctx: Rule context.
+        output: Output file to write.
+        manifests: List of manifests to include in the index.
+    """
     manifest_descriptors = [manifest.descriptor for manifest in manifests]
     args = ctx.actions.args()
     args.add("index")
