@@ -25,7 +25,12 @@ bzl_library(
     name = "layer",
     srcs = ["layer.bzl"],
     visibility = ["//img:__subpackages__"],
-    deps = ["//img:providers"],
+    deps = [
+        "//img:providers",
+        "//img/private/common:build",
+        "//img/private/providers:layer_info",
+        "@bazel_skylib//rules:common_settings",
+    ],
 )
 
 bzl_library(
@@ -34,7 +39,14 @@ bzl_library(
     visibility = ["//img:__subpackages__"],
     deps = [
         "//img:providers",
+        "//img/private/common:build",
+        "//img/private/common:transitions",
         "//img/private/common:write_index_json",
+        "//img/private/providers:image_toolchain_info",
+        "//img/private/providers:index_info",
+        "//img/private/providers:manifest_info",
+        "//img/private/providers:pull_info",
+        "//img/private/providers:push_settings_info",
     ],
 )
 

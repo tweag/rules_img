@@ -4,8 +4,9 @@ repos:
     hooks:
     -   id: check-yaml
     -   id: end-of-file-fixer
-        exclude: ^testdata/
+        exclude: ^(testdata/|docs/.*\.md$)
     -   id: trailing-whitespace
+        exclude: ^docs/.*\.md$
   # Check formatting and lint for starlark code
   - repo: https://github.com/keith/pre-commit-buildifier
     rev: 8.0.3
