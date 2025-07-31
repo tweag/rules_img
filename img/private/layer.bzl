@@ -41,6 +41,11 @@ def _image_layer_impl(ctx):
     if compression == "auto":
         compression = ctx.attr._default_compression[BuildSettingInfo].value
 
+    estargz = ctx.attr.estargz
+    if estargz == "auto":
+        estargz = ctx.attr._default_estargz[BuildSettingInfo].value
+    estargz_enabled = estargz == "enabled"
+
     if compression == "gzip":
         out_ext = ".tgz"
         media_type = "application/vnd.oci.image.layer.v1.tar+gzip"
@@ -53,7 +58,7 @@ def _image_layer_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + out_ext)
     metadata_out = ctx.actions.declare_file(ctx.attr.name + "_metadata.json")
     args = ["layer", "--name", str(ctx.label), "--metadata", metadata_out.path, "--format", compression]
-    if ctx.attr.estargz:
+    if estargz_enabled:
         args.append("--estargz")
     for key, value in ctx.attr.annotations.items():
         args.extend(["--annotation", "{}={}".format(key, value)])
@@ -120,7 +125,7 @@ def _image_layer_impl(ctx):
             blob = out,
             metadata = metadata_out,
             media_type = media_type,
-            estargz = ctx.attr.estargz,
+            estargz = estargz_enabled,
         ),
     ]
 
@@ -139,10 +144,11 @@ image_layer = rule(
             values = ["auto", "gzip", "zstd"],
             doc = """Compression algorithm to use. If set to 'auto', uses the global default compression setting.""",
         ),
-        "estargz": attr.bool(
-            default = False,
-            doc = """If set, the layer will be created using estargz format.
-This means that the layer will be optimized for lazy pulling and will be compatible with the estargz format.""",
+        "estargz": attr.string(
+            default = "auto",
+            values = ["auto", "enabled", "disabled"],
+            doc = """Whether to use estargz format. If set to 'auto', uses the global default estargz setting.
+When enabled, the layer will be optimized for lazy pulling and will be compatible with the estargz format.""",
         ),
         "annotations": attr.string_dict(
             default = {},
@@ -150,6 +156,10 @@ This means that the layer will be optimized for lazy pulling and will be compati
         ),
         "_default_compression": attr.label(
             default = Label("//img/settings:compress"),
+            providers = [BuildSettingInfo],
+        ),
+        "_default_estargz": attr.label(
+            default = Label("//img/settings:estargz"),
             providers = [BuildSettingInfo],
         ),
     },

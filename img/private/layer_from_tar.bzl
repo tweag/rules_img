@@ -12,6 +12,11 @@ def _layer_from_tar_impl(ctx):
     if compression == "auto":
         compression = ctx.attr._default_compression[BuildSettingInfo].value
 
+    estargz = ctx.attr.estargz
+    if estargz == "auto":
+        estargz = ctx.attr._default_estargz[BuildSettingInfo].value
+    estargz_enabled = estargz == "enabled"
+
     target_compression = compression if source_compression != "none" else source_compression
 
     needs_recompression = source_compression != target_compression
@@ -37,7 +42,7 @@ def _layer_from_tar_impl(ctx):
             media_type = media_type,
             tar_file = ctx.file.src,
             metadata_file = metadata_file,
-            estargz = ctx.attr.estargz,
+            estargz = estargz_enabled,
             annotations = ctx.attr.annotations,
         )
     elif not optimize:
@@ -49,7 +54,7 @@ def _layer_from_tar_impl(ctx):
             metadata_file = metadata_file,
             output = ctx.actions.declare_file(ctx.attr.name + output_name_extension),
             target_compression = target_compression,
-            estargz = ctx.attr.estargz,
+            estargz = estargz_enabled,
             annotations = ctx.attr.annotations,
         )
     else:
@@ -62,7 +67,7 @@ def _layer_from_tar_impl(ctx):
             metadata_file = metadata_file,
             output = ctx.actions.declare_file(ctx.attr.name + output_name_extension),
             target_compression = target_compression,
-            estargz = ctx.attr.estargz,
+            estargz = estargz_enabled,
             annotations = ctx.attr.annotations,
         )
 
@@ -93,10 +98,11 @@ layer_from_tar = rule(
             doc = """If set, rewrites the tar file to deduplicate it's contents.
 This is useful for reducing the size of the image, but will take extra time and space to store the optimized layer.""",
         ),
-        "estargz": attr.bool(
-            default = False,
-            doc = """If set, the layer will be treated as an estargz layer.
-This means that the layer will be optimized for lazy pulling and will be compatible with the estargz format.""",
+        "estargz": attr.string(
+            default = "auto",
+            values = ["auto", "enabled", "disabled"],
+            doc = """Whether to use estargz format. If set to 'auto', uses the global default estargz setting.
+When enabled, the layer will be optimized for lazy pulling and will be compatible with the estargz format.""",
         ),
         "annotations": attr.string_dict(
             default = {},
@@ -104,6 +110,10 @@ This means that the layer will be optimized for lazy pulling and will be compati
         ),
         "_default_compression": attr.label(
             default = Label("//img/settings:compress"),
+            providers = [BuildSettingInfo],
+        ),
+        "_default_estargz": attr.label(
+            default = Label("//img/settings:estargz"),
             providers = [BuildSettingInfo],
         ),
     },
