@@ -17,6 +17,7 @@ FIELDS = dict(
     blob = "File containing the raw layer or None (for shallow base images).",
     metadata = _metadata_doc,
     media_type = "The media type of the layer as a string. Example: application/vnd.oci.image.layer.v1.tar+gzip.",
+    estargz = "Boolean indicating whether the layer is an estargz layer.",
 )
 
 LayerInfo = provider(

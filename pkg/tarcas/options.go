@@ -30,7 +30,6 @@ const (
 )
 
 type options struct {
-	appendable                bool
 	structure                 FileStructure
 	writeHeaderCallback       WriteHeaderCallback
 	writeHeaderCallbackFilter WriteHeaderCallbackFilter

@@ -14,15 +14,18 @@ import (
 )
 
 var layerName string
+var annotations annotationsFlag
 
 func LayerMetadataProcess(ctx context.Context, args []string) {
+	annotations = make(annotationsFlag)
 	flagSet := flag.NewFlagSet("layer-metadata", flag.ExitOnError)
 	flagSet.Usage = func() {
 		fmt.Fprintf(flagSet.Output(), "Calculates metadata about an existing layer file.\n\n")
-		fmt.Fprintf(flagSet.Output(), "Usage: img layer-metadata [--name=name] [layer] [output]\n")
+		fmt.Fprintf(flagSet.Output(), "Usage: img layer-metadata [--name=name] [--annotation=key=value] [layer] [output]\n")
 		flagSet.PrintDefaults()
 		examples := []string{
 			"img layer-metadata layer.tgz layer.json",
+			"img layer-metadata --annotation=foo=bar --annotation=version=1.0 layer.tgz layer.json",
 		}
 		fmt.Fprintf(flagSet.Output(), "\nExamples:\n")
 		for _, example := range examples {
@@ -31,6 +34,7 @@ func LayerMetadataProcess(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 	flagSet.StringVar(&layerName, "name", "", `Optional name of the layer. Defaults to digest.`)
+	flagSet.Var(&annotations, "annotation", `Add an annotation as key=value. Can be specified multiple times.`)
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
 		os.Exit(1)
@@ -76,7 +80,7 @@ func LayerMetadataProcess(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
-	layerMetadata, err := calculateLayerMetadata(reader, digest, compressedSize, layerFormat)
+	layerMetadata, err := calculateLayerMetadata(reader, digest, compressedSize, layerFormat, annotations)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
@@ -95,17 +99,18 @@ func LayerMetadataProcess(ctx context.Context, args []string) {
 	}
 }
 
-func calculateLayerMetadata(layerFile io.Reader, digest []byte, compressedSize int64, layerFormat api.LayerFormat) (api.Descriptor, error) {
+func calculateLayerMetadata(layerFile io.Reader, digest []byte, compressedSize int64, layerFormat api.LayerFormat, annotations map[string]string) (api.Descriptor, error) {
 	if len(layerName) == 0 {
 		layerName = fmt.Sprintf("sha256:%x", digest)
 	}
 	if layerFormat == api.TarLayer {
 		return api.Descriptor{
-			Name:      layerName,
-			DiffID:    fmt.Sprintf("sha256:%x", digest),
-			MediaType: api.TarLayer,
-			Digest:    fmt.Sprintf("sha256:%x", digest),
-			Size:      compressedSize,
+			Name:        layerName,
+			DiffID:      fmt.Sprintf("sha256:%x", digest),
+			MediaType:   api.TarLayer,
+			Digest:      fmt.Sprintf("sha256:%x", digest),
+			Size:        compressedSize,
+			Annotations: annotations,
 		}, nil
 	}
 
@@ -115,10 +120,11 @@ func calculateLayerMetadata(layerFile io.Reader, digest []byte, compressedSize i
 		return api.Descriptor{}, fmt.Errorf("reading layer file: %w", err)
 	}
 	return api.Descriptor{
-		Name:      layerName,
-		DiffID:    fmt.Sprintf("sha256:%x", hasher.Sum(nil)),
-		MediaType: string(layerFormat),
-		Digest:    fmt.Sprintf("sha256:%x", digest),
-		Size:      compressedSize,
+		Name:        layerName,
+		DiffID:      fmt.Sprintf("sha256:%x", hasher.Sum(nil)),
+		MediaType:   string(layerFormat),
+		Digest:      fmt.Sprintf("sha256:%x", digest),
+		Size:        compressedSize,
+		Annotations: annotations,
 	}, nil
 }

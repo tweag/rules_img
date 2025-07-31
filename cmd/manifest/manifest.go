@@ -90,9 +90,10 @@ func ManifestProcess(_ context.Context, args []string) {
 	layerDescriptors := make([]specv1.Descriptor, len(layers))
 	for i, layer := range layers {
 		layerDescriptors[i] = specv1.Descriptor{
-			MediaType: layer.MediaType,
-			Digest:    digest.Digest(layer.Digest),
-			Size:      layer.Size,
+			MediaType:   layer.MediaType,
+			Digest:      digest.Digest(layer.Digest),
+			Size:        layer.Size,
+			Annotations: layer.Annotations,
 		}
 	}
 

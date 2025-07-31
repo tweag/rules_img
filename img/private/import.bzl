@@ -61,6 +61,7 @@ def _write_layer_info(ctx, manifest, config, layer_index, index_position = None)
         mediaType = media_type,
         digest = digest,
         size = size,
+        annotations = layer.get("annotations", {}),
     )
     index_position_str = "" if index_position == None else str(index_position) + "_"
     layer_metadata = ctx.actions.declare_file(ctx.attr.name + "_{}{}_layer_metadata.json".format(index_position_str, layer_index))
@@ -69,6 +70,7 @@ def _write_layer_info(ctx, manifest, config, layer_index, index_position = None)
         blob = _digest_to_file(ctx, digest),
         metadata = layer_metadata,
         media_type = media_type,
+        estargz = layer.get("annotations", {}).get(TOC_JSON_DIGEST_ANNOTATION) != None,
     )
 
 def _write_manifest_descriptor(ctx, digest, manifest, platform, descriptor = None, index_position = None):
@@ -178,3 +180,5 @@ DOCKER_MANIFEST_LIST_V2 = "application/vnd.docker.distribution.manifest.list.v2+
 MEDIA_TYPE_MANIFEST = "application/vnd.oci.image.manifest.v1+json"
 DOCKER_MANIFEST_V2 = "application/vnd.docker.distribution.manifest.v2+json"
 MEDIA_TYPE_CONFIG = "application/vnd.oci.image.config.v1+json"
+TOC_JSON_DIGEST_ANNOTATION = "containerd.io/snapshot/stargz/toc.digest"
+STORE_UNCOMPRESSED_SIZE_ANNOTATION = "io.containers.estargz.uncompressed-size"

@@ -29,6 +29,8 @@ def _layer_from_tar_impl(ctx):
             media_type = media_type,
             tar_file = ctx.file.src,
             metadata_file = metadata_file,
+            estargz = ctx.attr.estargz,
+            annotations = ctx.attr.annotations,
         )
     elif not optimize:
         # here, we recompress the tar file and calculate the layer info
@@ -39,6 +41,8 @@ def _layer_from_tar_impl(ctx):
             metadata_file = metadata_file,
             output = ctx.actions.declare_file(ctx.attr.name + output_name_extension),
             target_compression = target_compression,
+            estargz = ctx.attr.estargz,
+            annotations = ctx.attr.annotations,
         )
     else:
         # here, we optimize, recompress the tar file,
@@ -50,6 +54,8 @@ def _layer_from_tar_impl(ctx):
             metadata_file = metadata_file,
             output = ctx.actions.declare_file(ctx.attr.name + output_name_extension),
             target_compression = target_compression,
+            estargz = ctx.attr.estargz,
+            annotations = ctx.attr.annotations,
         )
 
     return [
@@ -79,6 +85,15 @@ If the file extension is `.tar` or the compression is none, no compression will 
         "optimize": attr.bool(
             doc = """If set, rewrites the tar file to deduplicate it's contents.
 This is useful for reducing the size of the image, but will take extra time and space to store the optimized layer.""",
+        ),
+        "estargz": attr.bool(
+            default = False,
+            doc = """If set, the layer will be treated as an estargz layer.
+This means that the layer will be optimized for lazy pulling and will be compatible with the estargz format.""",
+        ),
+        "annotations": attr.string_dict(
+            default = {},
+            doc = """Annotations to add to the layer metadata as key-value pairs.""",
         ),
     },
     toolchains = TOOLCHAINS,

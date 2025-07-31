@@ -62,11 +62,12 @@ var (
 )
 
 type Descriptor struct {
-	Name      string `json:"name"`
-	DiffID    string `json:"diff_id,omitempty"`
-	MediaType string `json:"mediaType"`
-	Digest    string `json:"digest"`
-	Size      int64  `json:"size"`
+	Name        string            `json:"name"`
+	DiffID      string            `json:"diff_id,omitempty"`
+	MediaType   string            `json:"mediaType"`
+	Digest      string            `json:"digest"`
+	Size        int64             `json:"size"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type PushTarget struct {
@@ -99,12 +100,26 @@ type AppenderState struct {
 	CompressedSize int64 `json:"compressed_size"`
 	// UncompressedSize is the uncompressed size of the blob.
 	UncompressedSize int64 `json:"uncompressed_size"`
+	// LayerAnnotations are additional metadata for the layer.
+	LayerAnnotations map[string]string `json:"layer_annotations,omitempty"`
 }
 
 type Appender interface {
 	io.Writer
 	Finalize() (AppenderState, error)
 }
+
+type TarAppender interface {
+	AppendTar(r io.Reader) error
+	Finalize() (AppenderState, error)
+}
+
+const (
+	// TocDigestAnnotation is the annotation key for the TOC digest in estargz layers
+	TocDigestAnnotation = "containerd.io/snapshot/stargz/toc.digest"
+	// UncompressedSizeAnnotation is the annotation key for the uncompressed size in estargz layers
+	UncompressedSizeAnnotation = "io.containers.estargz.uncompressed-size"
+)
 
 type CAS interface {
 	Import(CASStateSupplier) error
@@ -136,9 +151,9 @@ type CASStateExporter interface {
 
 type TarWriter interface {
 	Close() error
-	Flush() error
-	Write(b []byte) (int, error)
 	WriteHeader(hdr *tar.Header) error
+	WriteRegular(hdr *tar.Header, r io.Reader) error
+	WriteRegularDeduplicated(hdr *tar.Header, r io.Reader) error
 }
 
 type TarCAS interface {

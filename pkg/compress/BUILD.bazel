@@ -4,10 +4,14 @@ go_library(
     name = "compress",
     srcs = [
         "compress.go",
+        "estargz.go",
         "factory.go",
         "options.go",
     ],
     importpath = "github.com/tweag/rules_img/pkg/compress",
     visibility = ["//visibility:public"],
-    deps = ["//pkg/api"],
+    deps = [
+        "//pkg/api",
+        "@com_github_containerd_stargz_snapshotter_estargz//:estargz",
+    ],
 )

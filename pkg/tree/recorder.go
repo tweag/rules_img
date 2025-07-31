@@ -18,12 +18,14 @@ import (
 )
 
 type Recorder struct {
-	tf api.TarCAS
+	tf          api.TarCAS
+	deduplicate bool
 }
 
 func NewRecorder(tf api.TarCAS) Recorder {
 	return Recorder{
-		tf: tf,
+		tf:          tf,
+		deduplicate: true,
 	}
 }
 
@@ -49,11 +51,18 @@ func (r Recorder) ImportTar(tarFile string) error {
 			return err
 		}
 
-		if err := r.tf.WriteHeader(hdr); err != nil {
-			return err
-		}
 		if hdr.Typeflag == tar.TypeReg {
-			if _, err := io.Copy(r.tf, tr); err != nil {
+			var err error
+			if r.deduplicate {
+				err = r.tf.WriteRegularDeduplicated(hdr, tr)
+			} else {
+				err = r.tf.WriteRegular(hdr, tr)
+			}
+			if err != nil {
+				return fmt.Errorf("failed to write regular file %s: %w", hdr.Name, err)
+			}
+		} else {
+			if err := r.tf.WriteHeader(hdr); err != nil {
 				return err
 			}
 		}
@@ -90,17 +99,15 @@ func (r Recorder) RegularFile(f io.Reader, info fs.FileInfo, target string) erro
 		Mode:     0o755,
 		// leave out any extra metadata (for better reproducibility)
 	}
-	if err := r.tf.WriteHeader(hdr); err != nil {
-		return err
+	if r.deduplicate {
+		err = r.tf.WriteRegularDeduplicated(hdr, f)
+	} else {
+		err = r.tf.WriteRegular(hdr, f)
 	}
-	n, err := io.Copy(r.tf, f)
 	if err != nil {
 		return err
 	}
-	if n != info.Size() {
-		return fmt.Errorf("recorder expected to write %d bytes, but wrote %d", info.Size(), n)
-	}
-	return r.tf.Flush()
+	return nil
 }
 
 func (r Recorder) TreeFromPath(dirPath, target string) error {

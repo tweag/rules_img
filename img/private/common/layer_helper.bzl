@@ -12,7 +12,7 @@ extension_to_compression = {
     "tgz": "gzip",
 }
 
-def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file):
+def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file, estargz, annotations = {}):
     """Calculates the layer info for a tar file.
 
     Args:
@@ -20,6 +20,8 @@ def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file):
         media_type: Media type of the layer.
         tar_file: Input tar file.
         metadata_file: Output metadata file.
+        estargz: Boolean indicating whether the layer is an estargz layer.
+        annotations: Dict of string annotations to add to the layer metadata.
 
     Returns:
         LayerInfo provider with blob, metadata, and media type.
@@ -27,6 +29,8 @@ def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file):
     args = ctx.actions.args()
     args.add("layer-metadata")
     args.add("--name", ctx.label)
+    for key, value in annotations.items():
+        args.add("--annotation", "{}={}".format(key, value))
     args.add(tar_file.path)
     args.add(metadata_file.path)
     img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
@@ -41,9 +45,10 @@ def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file):
         blob = tar_file,
         metadata = metadata_file,
         media_type = media_type,
+        estargz = estargz,
     )
 
-def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target_compression):
+def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target_compression, estargz, annotations):
     """Recompresses a tar file.
 
     Args:
@@ -53,6 +58,8 @@ def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target
         metadata_file: Input metadata file.
         output: Output recompressed file.
         target_compression: Target compression format.
+        estargz: Boolean indicating whether the layer is an estargz layer.
+        annotations: Dict of string annotations to add to the layer metadata.
 
     Returns:
         LayerInfo provider with recompressed blob and metadata.
@@ -61,6 +68,10 @@ def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target
     args.add("compress")
     args.add("--name", ctx.label)
     args.add("--format", target_compression)
+    if estargz:
+        args.add("--estargz")
+    for key, value in annotations.items():
+        args.add("--annotation", "{}={}".format(key, value))
     args.add("--metadata", metadata_file.path)
     args.add(tar_file.path)
     args.add(output)
@@ -76,9 +87,10 @@ def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target
         blob = output,
         metadata = metadata_file,
         media_type = media_type,
+        estargz = estargz,
     )
 
-def optimize_layer(*, ctx, media_type, tar_file, metadata_file, output, target_compression):
+def optimize_layer(*, ctx, media_type, tar_file, metadata_file, output, target_compression, estargz, annotations):
     """Optimizes a tar file.
 
     Args:
@@ -88,6 +100,8 @@ def optimize_layer(*, ctx, media_type, tar_file, metadata_file, output, target_c
         metadata_file: Input metadata file.
         output: Output optimized file.
         target_compression: Target compression format.
+        estargz: Boolean indicating whether the layer is an estargz layer.
+        annotations: Dict of string annotations to add to the layer metadata.
 
     Returns:
         LayerInfo provider with optimized blob and metadata.
@@ -97,6 +111,10 @@ def optimize_layer(*, ctx, media_type, tar_file, metadata_file, output, target_c
     args.add("layer")
     args.add("--name", ctx.attr.name)
     args.add("--format", target_compression)
+    if estargz:
+        args.add("--estargz")
+    for key, value in annotations.items():
+        args.add("--annotation", "{}={}".format(key, value))
     args.add("--metadata", metadata_file.path)
     args.add("--import-tar", tar_file.path)
     args.add(output)
@@ -112,4 +130,5 @@ def optimize_layer(*, ctx, media_type, tar_file, metadata_file, output, target_c
         blob = output,
         metadata = metadata_file,
         media_type = media_type,
+        estargz = estargz,
     )

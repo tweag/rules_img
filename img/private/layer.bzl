@@ -39,6 +39,10 @@ def _image_layer_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + ".tgz")
     metadata_out = ctx.actions.declare_file(ctx.attr.name + "_metadata.json")
     args = ["layer", "--name", str(ctx.label), "--metadata", metadata_out.path]
+    if ctx.attr.estargz:
+        args.append("--estargz")
+    for key, value in ctx.attr.annotations.items():
+        args.extend(["--annotation", "{}={}".format(key, value)])
     files_args = ctx.actions.args()
     files_args.set_param_file_format("multiline")
     files_args.use_param_file("--add-from-file=%s", use_always = True)
@@ -102,6 +106,7 @@ def _image_layer_impl(ctx):
             blob = out,
             metadata = metadata_out,
             media_type = "application/vnd.oci.image.layer.v1.tar+gzip",
+            estargz = ctx.attr.estargz,
         ),
     ]
 
@@ -114,6 +119,15 @@ image_layer = rule(
         ),
         "symlinks": attr.string_dict(
             doc = "Symlinks that should be added to the layer.",
+        ),
+        "estargz": attr.bool(
+            default = False,
+            doc = """If set, the layer will be created using estargz format.
+This means that the layer will be optimized for lazy pulling and will be compatible with the estargz format.""",
+        ),
+        "annotations": attr.string_dict(
+            default = {},
+            doc = """Annotations to add to the layer metadata as key-value pairs.""",
         ),
     },
     toolchains = TOOLCHAINS,

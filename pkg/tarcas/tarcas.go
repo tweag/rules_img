@@ -18,9 +18,8 @@ import (
 
 type CAS[HM hashHelper] struct {
 	buf           bytes.Buffer
-	currentFile   *tar.Header
 	deferredFiles []*tar.Header
-	tarFile       *tar.Writer
+	tarAppender   api.TarAppender
 	hashOrder     [][]byte
 	nodeOrder     [][]byte
 	treeOrder     [][]byte
@@ -31,9 +30,8 @@ type CAS[HM hashHelper] struct {
 	options
 }
 
-func New[HM hashHelper](w io.Writer, opts ...Option) *CAS[HM] {
+func New[HM hashHelper](appender api.TarAppender, opts ...Option) *CAS[HM] {
 	options := options{
-		appendable:                true,
 		structure:                 CASFirst,
 		writeHeaderCallbackFilter: WriteHeaderCallbackFilterDefault,
 	}
@@ -42,7 +40,7 @@ func New[HM hashHelper](w io.Writer, opts ...Option) *CAS[HM] {
 	}
 
 	return &CAS[HM]{
-		tarFile:      tar.NewWriter(w),
+		tarAppender:  appender,
 		hashOrder:    [][]byte{},
 		nodeOrder:    [][]byte{},
 		treeOrder:    [][]byte{},
@@ -50,6 +48,27 @@ func New[HM hashHelper](w io.Writer, opts ...Option) *CAS[HM] {
 		storedNodes:  make(map[string]struct{}),
 		storedTrees:  make(map[string]struct{}),
 		options:      options,
+	}
+}
+
+func (c *CAS[HM]) writeHeaderAndData(hdr *tar.Header, data io.Reader) error {
+	// Create a tar entry with header and data combined
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	if err := tw.WriteHeader(hdr); err != nil {
+		return err
+	}
+	if hdr.Typeflag == tar.TypeReg {
+		data = io.LimitReader(data, hdr.Size)
+		multireader := io.MultiReader(bytes.NewBuffer(buf.Bytes()), data)
+		paddedreader := &paddedReader{
+			Reader:  multireader,
+			padSize: 512, // tar block size
+		}
+		return c.tarAppender.AppendTar(paddedreader)
+	} else {
+		tw.Flush()
+		return c.tarAppender.AppendTar(bytes.NewReader(buf.Bytes()))
 	}
 }
 
@@ -91,133 +110,63 @@ func (c *CAS[HM]) Close() error {
 		return nil
 	}
 
-	if c.currentFile != nil {
-		return fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
-	}
 	c.closed = true
 	for _, hdr := range c.deferredFiles {
-		if err := c.writeHeaderOrDefer(hdr); err != nil {
+		if err := c.writeHeaderOrDefer(hdr, nil); err != nil {
 			return fmt.Errorf("error writing deferred header: %w", err)
 		}
 	}
 
-	if err := c.tarFile.Flush(); err != nil {
-		return err
-	}
-	if c.options.appendable {
-		// Appendable tar files do not have a footer.
-		// Calling Close on the real tar.Writer would write a footer,
-		// so we skip that.
-		return nil
-	}
-	return c.tarFile.Close()
-}
-
-func (c *CAS[HM]) Flush() error {
-	return c.tarFile.Flush()
-}
-
-func (c *CAS[HM]) Write(b []byte) (int, error) {
-	if c.currentFile == nil {
-		if len(b) == 0 {
-			return 0, nil
-		}
-		return 0, fmt.Errorf("no current file to write to")
-	}
-	if c.currentFile.Typeflag != tar.TypeReg {
-		return 0, fmt.Errorf("current file is not a regular file")
-	}
-
-	if c.buf.Len() >= int(c.currentFile.Size) && len(b) > 0 {
-		return 0, tar.ErrWriteTooLong
-	}
-	if len(b) > int(c.currentFile.Size)-c.buf.Len() {
-		return 0, tar.ErrWriteTooLong
-	}
-
-	// Write the data to the buffer
-	n, err := c.buf.Write(b)
-	if err != nil {
-		return n, err
-	}
-	if c.buf.Len() < int(c.currentFile.Size) {
-		// Not yet finished writing the current file
-		return n, nil
-	}
-
-	// Whole file is buffered.
-	// Commit the CAS object, followed by a hardlink.
-	th := c.currentFile
-	c.currentFile = nil
-	defer func() {
-		c.buf.Reset()
-	}()
-
-	var helper HM
-	blobHasher := helper.New()
-	blobHasher.Write(c.buf.Bytes())
-	blobHash := blobHasher.Sum(nil)
-
-	var linkPath string
-	if isBlobTarHeader(th) {
-		// Try to store a blob without special metadata.
-		// This only works for regular files
-		// with hardcoded rwxr-xr-x permissions.
-		var err error
-		linkPath, err = c.StoreKnownHashAndSize(&c.buf, blobHash, th.Size)
-		if err != nil {
-			return n, err
-		}
-	} else {
-		// This file has more complex requirements.
-		// Store it as a "node" instead, including metadata.
-		var err error
-		linkPath, err = c.StoreNodeKnownHash(&c.buf, th, blobHash)
-		if err != nil {
-			return n, err
-		}
-	}
-
-	if linkPath == th.Name {
-		// If we were writing to the CAS object itself,
-		// we don't need to write a hardlink.
-		return n, nil
-	}
-	header := cloneTarHeader(th)
-	header.Typeflag = tar.TypeLink
-	header.Linkname = linkPath
-	return n, c.writeHeaderOrDefer(&header)
+	return nil
 }
 
 func (c *CAS[HM]) WriteHeader(hdr *tar.Header) error {
-	if c.currentFile != nil {
-		return errors.New("current file is not fully written")
+	if hdr.Typeflag == tar.TypeReg {
+		return errors.New("WriteHeader called with regular file header, use WriteRegular instead")
 	}
 
-	if hdr.Typeflag == tar.TypeReg && !strings.HasSuffix(hdr.Name, "/") {
-		// Regular file
-		// TODO: Check if the header contains any non-standard
-		// metadata. If so, we cannot use it as a CAS object.
-		// In those cases, we should either fail, or
-		// write the full file to the original location.
-		c.currentFile = hdr
-		if hdr.Size == 0 {
-			// try to commit empty files immediately
-			// since they might never be written by io.Copy
-			_, err := c.Write(nil)
-			return err
-		}
+	return c.writeHeaderOrDefer(hdr, nil)
+}
+
+func (c *CAS[HM]) WriteRegular(hdr *tar.Header, r io.Reader) error {
+	if hdr.Typeflag != tar.TypeReg {
+		return fmt.Errorf("WriteRegular called with non-regular header: %s", hdr.Name)
+	}
+	return c.writeHeaderOrDefer(hdr, r)
+}
+
+func (c *CAS[HM]) WriteRegularDeduplicated(hdr *tar.Header, r io.Reader) error {
+	if hdr.Typeflag != tar.TypeReg {
+		return fmt.Errorf("WriteRegular called with non-regular header: %s", hdr.Name)
+	}
+
+	var linkPath string
+	var sz int64
+	var storeErr error
+
+	if isBlobTarHeader(hdr) {
+		linkPath, _, sz, storeErr = c.Store(r)
+	} else {
+		linkPath, _, sz, storeErr = c.StoreNode(r, hdr)
+	}
+	if storeErr != nil {
+		return storeErr
+	}
+	if sz != hdr.Size {
+		return fmt.Errorf("expected file of size %d, got %d", hdr.Size, sz)
+	}
+	if linkPath == hdr.Name {
+		// If we were writing to the CAS object itself,
+		// we don't need to write a hardlink.
 		return nil
 	}
-
-	return c.writeHeaderOrDefer(hdr)
+	header := cloneTarHeader(hdr)
+	header.Typeflag = tar.TypeLink
+	header.Linkname = linkPath
+	return c.writeHeaderOrDefer(&header, nil)
 }
 
 func (c *CAS[HM]) Store(r io.Reader) (string, []byte, int64, error) {
-	if c.currentFile != nil && c.currentFile.Size != int64(c.buf.Len()) {
-		return "", nil, 0, fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
-	}
-
 	var helper HM
 	var buf bytes.Buffer
 	h := helper.New()
@@ -231,10 +180,6 @@ func (c *CAS[HM]) Store(r io.Reader) (string, []byte, int64, error) {
 }
 
 func (c *CAS[HM]) StoreKnownHashAndSize(r io.Reader, hash []byte, size int64) (string, error) {
-	if c.currentFile != nil && c.currentFile.Size != int64(c.buf.Len()) {
-		return "", fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
-	}
-
 	contentName := casPath("blob", hash)
 
 	if _, exists := c.storedHashes[string(hash)]; exists {
@@ -247,16 +192,9 @@ func (c *CAS[HM]) StoreKnownHashAndSize(r io.Reader, hash []byte, size int64) (s
 		Size:     size,
 		Mode:     0o755,
 	}
-	if err := c.tarFile.WriteHeader(header); err != nil {
-		return "", err
-	}
 
-	n, err := io.Copy(c.tarFile, r)
-	if err != nil {
+	if err := c.writeHeaderAndData(header, r); err != nil {
 		return "", err
-	}
-	if n != size {
-		return "", fmt.Errorf("size mismatch when storing CAS object in tar: expected %d, wrote %d", size, n)
 	}
 
 	c.storedHashes[string(hash)] = struct{}{}
@@ -281,9 +219,6 @@ func (c *CAS[HM]) StoreNode(r io.Reader, hdr *tar.Header) (linkPath string, blob
 
 func (c *CAS[HM]) StoreNodeKnownHash(r io.Reader, hdr *tar.Header, blobHash []byte) (linkPath string, err error) {
 	var helper HM
-	if c.currentFile != nil && c.currentFile.Size != int64(c.buf.Len()) {
-		return "", fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
-	}
 
 	// nodes are like blobs (regular files with content),
 	// but they also have metadata (like permissions, owner, group, mtime, xattrs, etc.)
@@ -315,16 +250,9 @@ func (c *CAS[HM]) StoreNodeKnownHash(r io.Reader, hdr *tar.Header, blobHash []by
 	}
 
 	recordedTarHeader.Name = linkPath
-	if err := c.tarFile.WriteHeader(&recordedTarHeader); err != nil {
-		return linkPath, err
-	}
 
-	n, err := io.Copy(c.tarFile, r)
-	if err != nil {
+	if err := c.writeHeaderAndData(&recordedTarHeader, r); err != nil {
 		return linkPath, err
-	}
-	if n != recordedTarHeader.Size {
-		return linkPath, fmt.Errorf("size mismatch when storing CAS object in tar: expected %d, wrote %d", recordedTarHeader.Size, n)
 	}
 
 	c.storedNodes[string(nodeHash)] = struct{}{}
@@ -347,10 +275,6 @@ func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, treeHash []byte) (linkPath stri
 	// along with a hardlink to the CAS object.
 	// For now, we don't support any special metadata for tree artifacts and disallow empty directories,
 	// so we can get away with storing a single directory entry (for the root directory of the tree).
-	if c.currentFile != nil && c.currentFile.Size != int64(c.buf.Len()) {
-		return "", fmt.Errorf("current file is not fully written (%d/%d bytes)", c.buf.Len(), c.currentFile.Size)
-	}
-
 	treeBase := casPath("tree", treeHash)
 	if _, exists := c.storedTrees[string(treeHash)]; exists {
 		return treeBase, nil
@@ -361,7 +285,7 @@ func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, treeHash []byte) (linkPath stri
 		Name:     treeBase,
 		Mode:     0o755,
 	}
-	if err := c.tarFile.WriteHeader(header); err != nil {
+	if err := c.writeHeaderAndData(header, nil); err != nil {
 		return treeBase, err
 	}
 
@@ -390,7 +314,7 @@ func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, treeHash []byte) (linkPath stri
 			Linkname: linkName,
 			Mode:     0o755,
 		}
-		if err := c.tarFile.WriteHeader(header); err != nil {
+		if err := c.writeHeaderAndData(header, nil); err != nil {
 			return fmt.Errorf("writing link for %s: %w", p, err)
 		}
 		return nil
@@ -403,7 +327,7 @@ func (c *CAS[HM]) StoreTreeKnownHash(fsys fs.FS, treeHash []byte) (linkPath stri
 	return treeBase, nil
 }
 
-func (c *CAS[HM]) writeHeaderOrDefer(hdr *tar.Header) error {
+func (c *CAS[HM]) writeHeaderOrDefer(hdr *tar.Header, data io.Reader) error {
 	if hdr.Typeflag != tar.TypeReg && c.structure == CASFirst && !c.closed {
 		// Defer writing the header for non-regular files
 		// until Close() is called.
@@ -426,7 +350,7 @@ func (c *CAS[HM]) writeHeaderOrDefer(hdr *tar.Header) error {
 	// We are either writing a regular files (CAS object)
 	// Or are in intertwined mode (CAS and non-CAS objects are mixed together as they are written)
 	// Or we are in CASFirst mode and we are about to close the tar (so we need to write the deferred files)
-	return c.tarFile.WriteHeader(hdr)
+	return c.writeHeaderAndData(hdr, data)
 }
 
 func casPath(blobKind string, hash []byte) string {
@@ -486,3 +410,35 @@ func (e *exporterState) TreeHashes() iter.Seq2[[]byte, error] {
 		}
 	}
 }
+
+type paddedReader struct {
+	io.Reader
+	n       int
+	eof     bool
+	padSize int
+}
+
+func (p *paddedReader) Read(b []byte) (int, error) {
+	if p.eof || p.padSize <= 0 {
+		return p.Reader.Read(b)
+	}
+
+	n, err := p.Reader.Read(b)
+	p.n += n
+	if err == io.EOF {
+		p.eof = true
+		blockFill := p.n % p.padSize
+		var padding []byte
+		if blockFill == 0 {
+			padding = nil
+		} else {
+			padding = make([]byte, p.padSize-blockFill)
+		}
+		p.Reader = bytes.NewReader(padding)
+		return n, nil
+	}
+
+	return n, err
+}
+
+var zeroBlock [512]byte

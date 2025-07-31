@@ -18,6 +18,7 @@ import (
 )
 
 func LayerProcess(ctx context.Context, args []string) {
+	annotations := make(annotationsFlag)
 	var layerName string
 	var addFiles addFiles
 	var addFromFile addFromFileArgs
@@ -29,6 +30,7 @@ func LayerProcess(ctx context.Context, args []string) {
 	var contentManifestInputFlags contentManifests
 	var contentManifestCollection string
 	var formatFlag string
+	var estargzFlag bool
 	var metadataOutputFlag string
 	var contentManifestOutputFlag string
 
@@ -61,6 +63,8 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 	flagSet.Var(&contentManifestInputFlags, "deduplicate", `Path of a content manifest of a previous layer that can be used for deduplication.`)
 	flagSet.StringVar(&contentManifestCollection, "deduplicate-collection", "", `Path of a content manifest collection file that can be used for deduplication.`)
 	flagSet.StringVar(&formatFlag, "format", "", `The compression format of the output layer. Can be "gzip" or "none". Default is to guess the algorithm based on the filename, but fall back to "gzip".`)
+	flagSet.BoolVar(&estargzFlag, "estargz", false, `Use estargz format for compression. This creates seekable gzip streams optimized for lazy pulling.`)
+	flagSet.Var(&annotations, "annotation", `Add an annotation as key=value. Can be specified multiple times.`)
 	flagSet.StringVar(&metadataOutputFlag, "metadata", "", `Write the metadata to the specified file. The metadata is a JSON file containing info needed to use the layer as part of an OCI image.`)
 	flagSet.StringVar(&contentManifestOutputFlag, "content-manifest", "", `Write a manifest of the contents of the layer to the specified file. The manifest uses a custom binary format listing all blobs, nodes, and trees in the layer after deduplication.`)
 
@@ -166,7 +170,7 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 	}
 
 	compressorState, err := handleLayerState(
-		compressionAlgorithm, addFiles, importTarFlags, executableFlags, symlinkFlags,
+		compressionAlgorithm, estargzFlag, addFiles, importTarFlags, executableFlags, symlinkFlags,
 		casImporter, casExporter, outputFile,
 	)
 	if err != nil {
@@ -182,7 +186,7 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 		}
 		defer metadataOutputFile.Close()
 
-		if err := writeMetadata(layerName, compressionAlgorithm, compressorState, metadataOutputFile); err != nil {
+		if err := writeMetadata(layerName, compressionAlgorithm, estargzFlag, annotations, compressorState, metadataOutputFile); err != nil {
 			fmt.Fprintf(os.Stderr, "Writing metadata: %v\n", err)
 			os.Exit(1)
 		}
@@ -190,10 +194,10 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 }
 
 func handleLayerState(
-	compressionAlgorithm api.CompressionAlgorithm, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks,
+	compressionAlgorithm api.CompressionAlgorithm, useEstargz bool, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks,
 	casImporter api.CASStateSupplier, casExporter api.CASStateExporter, outputFile io.Writer,
 ) (compressorState api.AppenderState, err error) {
-	compressor, err := compress.AppenderFactory("sha256", string(compressionAlgorithm), outputFile)
+	compressor, err := compress.TarAppenderFactory("sha256", string(compressionAlgorithm), useEstargz, outputFile)
 	if err != nil {
 		return compressorState, fmt.Errorf("creating compressor: %w", err)
 	}
@@ -272,7 +276,7 @@ func writeLayer(recorder tree.Recorder, addFiles addFiles, importTars importTars
 	return nil
 }
 
-func writeMetadata(name string, compressionAlgorithm api.CompressionAlgorithm, compressorState api.AppenderState, outputFile io.Writer) error {
+func writeMetadata(name string, compressionAlgorithm api.CompressionAlgorithm, useEstargz bool, annotations map[string]string, compressorState api.AppenderState, outputFile io.Writer) error {
 	if len(name) == 0 {
 		name = fmt.Sprintf("sha256:%x", compressorState.OuterHash)
 	}
@@ -286,12 +290,24 @@ func writeMetadata(name string, compressionAlgorithm api.CompressionAlgorithm, c
 		return fmt.Errorf("unsupported compression algorithm: %s", compressionAlgorithm)
 	}
 
+	// Merge user annotations with layer annotations from the appender state
+	mergedAnnotations := make(map[string]string)
+	// First add user annotations
+	for k, v := range annotations {
+		mergedAnnotations[k] = v
+	}
+	// Then add layer annotations from AppenderState (e.g., estargz annotations)
+	for k, v := range compressorState.LayerAnnotations {
+		mergedAnnotations[k] = v
+	}
+
 	metadata := api.Descriptor{
-		Name:      name,
-		DiffID:    fmt.Sprintf("sha256:%x", compressorState.ContentHash),
-		MediaType: mediaType,
-		Digest:    fmt.Sprintf("sha256:%x", compressorState.OuterHash),
-		Size:      compressorState.CompressedSize,
+		Name:        name,
+		DiffID:      fmt.Sprintf("sha256:%x", compressorState.ContentHash),
+		MediaType:   mediaType,
+		Digest:      fmt.Sprintf("sha256:%x", compressorState.OuterHash),
+		Size:        compressorState.CompressedSize,
+		Annotations: mergedAnnotations,
 	}
 
 	json.NewEncoder(outputFile).SetIndent("", "  ")

@@ -2,7 +2,10 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "compress",
-    srcs = ["compress.go"],
+    srcs = [
+        "compress.go",
+        "flagtypes.go",
+    ],
     importpath = "github.com/tweag/rules_img/cmd/compress",
     visibility = ["//visibility:public"],
     deps = [

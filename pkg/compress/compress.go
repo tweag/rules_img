@@ -137,6 +137,12 @@ func (a Appender[C]) Finalize() (api.AppenderState, error) {
 	return state, nil
 }
 
+func (a Appender[C]) TarAppender() api.TarAppender {
+	return tarAppenderAdapter{
+		appender: a,
+	}
+}
+
 func (a Appender[C]) magic() string {
 	magic := fmt.Sprintf("imgv1+compressed+%s+%s", a.hashFunctionName, a.compressionAlgorithmName)
 	if len(a.contentType) > 0 {
@@ -201,4 +207,17 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 	n, err := c.w.Write(p)
 	c.n += int64(n)
 	return n, err
+}
+
+type tarAppenderAdapter struct {
+	appender api.Appender
+}
+
+func (t tarAppenderAdapter) AppendTar(r io.Reader) error {
+	_, err := io.Copy(t.appender, r)
+	return err
+}
+
+func (t tarAppenderAdapter) Finalize() (api.AppenderState, error) {
+	return t.appender.Finalize()
 }

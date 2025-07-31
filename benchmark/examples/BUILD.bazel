@@ -61,8 +61,19 @@ image_manifest(
 )
 
 image_layer(
+    name = "demo_layer",
+    srcs = {"a/b/c/hello.txt": ":hello.txt"},
+    estargz = True,
+)
+
+image_layer(
     name = "img_layer",
     srcs = {"usr/bin/img": "@rules_img//cmd/img"},
+    annotations = {
+        "foo": "bar",
+        "baz": "qux",
+    },
+    estargz = True,
 )
 
 image_layer(
@@ -75,6 +86,7 @@ image_layer(
         "var/tree_b": ":tree",
         "var/large_tree": ":large_tree",
     },
+    estargz = True,
     symlinks = {
         "a": "b",
     },
@@ -84,6 +96,7 @@ layer_from_tar(
     name = "my_layer_from_tar",
     src = "@test_archive//file",
     compress = "gzip",
+    estargz = True,
 )
 
 image_manifest(

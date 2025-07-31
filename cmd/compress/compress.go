@@ -18,14 +18,16 @@ var (
 	layerName          string
 	sourceFormat       string
 	format             string
+	estargzFlag        bool
 	metadataOutputFile string
 )
 
 func CompressProcess(ctx context.Context, args []string) {
+	annotations := make(annotationsFlag)
 	flagSet := flag.NewFlagSet("compress", flag.ExitOnError)
 	flagSet.Usage = func() {
 		fmt.Fprintf(flagSet.Output(), "(Re-)compresses a layer to the chosen format.\n\n")
-		fmt.Fprintf(flagSet.Output(), "Usage: img layer-metadata [--name name] [--source-format format] [--format format] [--metadata=metadata_output_file] [input] [output]\n")
+		fmt.Fprintf(flagSet.Output(), "Usage: img compress [--name name] [--source-format format] [--format format] [--metadata=metadata_output_file] [input] [output]\n")
 		flagSet.PrintDefaults()
 		examples := []string{
 			"img compress --format gzip layer.tar layer.tgz",
@@ -40,6 +42,8 @@ func CompressProcess(ctx context.Context, args []string) {
 	flagSet.StringVar(&layerName, "name", "", `Optional name of the layer. Defaults to digest.`)
 	flagSet.StringVar(&sourceFormat, "source-format", "", `The format of the source layer. Can be "tar" or "gzip".`)
 	flagSet.StringVar(&format, "format", "", `The format of the output layer. Can be "tar" or "gzip".`)
+	flagSet.BoolVar(&estargzFlag, "estargz", false, `Use estargz format for compression. This creates seekable gzip streams optimized for lazy pulling.`)
+	flagSet.Var(&annotations, "annotation", `Add an annotation as key=value. Can be specified multiple times.`)
 	flagSet.StringVar(&metadataOutputFile, "metadata", "", `Write the metadata to the specified file. The metadata is a JSON file containing info needed to use the layer as part of an OCI image.`)
 
 	if err := flagSet.Parse(args); err != nil {
@@ -95,7 +99,7 @@ func CompressProcess(ctx context.Context, args []string) {
 	}
 	defer outputHandle.Close()
 
-	compressorState, err := recompress(reader, outputHandle, outputFormat)
+	compressorState, err := recompress(reader, outputHandle, outputFormat, estargzFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Recompressing layer: %v\n", err)
 		os.Exit(1)
@@ -108,14 +112,14 @@ func CompressProcess(ctx context.Context, args []string) {
 			os.Exit(1)
 		}
 		defer metadataOutputHandle.Close()
-		if err := writeMetadata(compressorState, metadataOutputHandle); err != nil {
+		if err := writeMetadata(compressorState, annotations, metadataOutputHandle); err != nil {
 			fmt.Fprintf(os.Stderr, "Writing metadata: %v\n", err)
 			os.Exit(1)
 		}
 	}
 }
 
-func recompress(input io.Reader, output io.Writer, format api.LayerFormat) (compressorState api.AppenderState, err error) {
+func recompress(input io.Reader, output io.Writer, format api.LayerFormat, estargz bool) (compressorState api.AppenderState, err error) {
 	var CompressionAlgorithm api.CompressionAlgorithm
 	switch format {
 	case api.TarLayer:
@@ -125,7 +129,7 @@ func recompress(input io.Reader, output io.Writer, format api.LayerFormat) (comp
 	default:
 		return compressorState, fmt.Errorf("unsupported compression format: %s", format)
 	}
-	compressor, err := compress.AppenderFactory(string(api.SHA256), string(CompressionAlgorithm), output, compress.ContentType("tar"))
+	compressor, err := compress.TarAppenderFactory(string(api.SHA256), string(CompressionAlgorithm), estargz, output, compress.ContentType("tar"))
 	if err != nil {
 		return compressorState, fmt.Errorf("creating compressor: %w", err)
 	}
@@ -138,19 +142,32 @@ func recompress(input io.Reader, output io.Writer, format api.LayerFormat) (comp
 		}
 	}()
 
-	_, err = io.Copy(compressor, input)
-	return compressorState, err
+	return compressorState, compressor.AppendTar(input)
 }
 
-func writeMetadata(compressorState api.AppenderState, outputFile io.Writer) error {
+func writeMetadata(compressorState api.AppenderState, annotations map[string]string, outputFile io.Writer) error {
 	if len(layerName) == 0 {
 		layerName = fmt.Sprintf("sha256:%x", compressorState.OuterHash)
 	}
+
+	// Merge user annotations with layer annotations from the appender state
+	mergedAnnotations := make(map[string]string)
+	// First add user annotations
+	for k, v := range annotations {
+		mergedAnnotations[k] = v
+	}
+	// Then add layer annotations from AppenderState (e.g., estargz annotations)
+	for k, v := range compressorState.LayerAnnotations {
+		mergedAnnotations[k] = v
+	}
+
 	metadata := api.Descriptor{
-		DiffID:    fmt.Sprintf("sha256:%x", compressorState.ContentHash),
-		MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
-		Digest:    fmt.Sprintf("sha256:%x", compressorState.OuterHash),
-		Size:      compressorState.CompressedSize,
+		Name:        layerName,
+		DiffID:      fmt.Sprintf("sha256:%x", compressorState.ContentHash),
+		MediaType:   "application/vnd.oci.image.layer.v1.tar+gzip",
+		Digest:      fmt.Sprintf("sha256:%x", compressorState.OuterHash),
+		Size:        compressorState.CompressedSize,
+		Annotations: mergedAnnotations,
 	}
 
 	json.NewEncoder(outputFile).SetIndent("", "  ")

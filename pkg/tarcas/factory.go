@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"hash"
-	"io"
 
 	"github.com/tweag/rules_img/pkg/api"
 )
@@ -15,14 +14,14 @@ func (SHA256Helper) New() hash.Hash {
 	return sha256.New()
 }
 
-func NewSHA256CAS(w io.Writer, options ...Option) *CAS[SHA256Helper] {
-	return New[SHA256Helper](w, options...)
+func NewSHA256CAS(appender api.TarAppender, options ...Option) *CAS[SHA256Helper] {
+	return New[SHA256Helper](appender, options...)
 }
 
-func CASFactory(hashAlgorithm string, w io.Writer, options ...Option) (api.TarCAS, error) {
+func CASFactory(hashAlgorithm string, appender api.TarAppender, options ...Option) (api.TarCAS, error) {
 	switch {
 	case hashAlgorithm == "sha256":
-		return NewSHA256CAS(w, options...), nil
+		return NewSHA256CAS(appender, options...), nil
 	}
 	return nil, errors.New("unsupported hash algorithm")
 }
