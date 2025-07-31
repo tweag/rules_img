@@ -1,5 +1,6 @@
 """Layer rule for building layers in a container image."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/providers:layer_info.bzl", "LayerInfo")
 
@@ -36,9 +37,22 @@ def _symlink_tuple_to_arg(pair):
     return "{}\0{}".format(source, dest)
 
 def _image_layer_impl(ctx):
-    out = ctx.actions.declare_file(ctx.attr.name + ".tgz")
+    compression = ctx.attr.compress
+    if compression == "auto":
+        compression = ctx.attr._default_compression[BuildSettingInfo].value
+
+    if compression == "gzip":
+        out_ext = ".tgz"
+        media_type = "application/vnd.oci.image.layer.v1.tar+gzip"
+    elif compression == "zstd":
+        out_ext = ".tar.zst"
+        media_type = "application/vnd.oci.image.layer.v1.tar+zstd"
+    else:
+        fail("Unsupported compression: {}".format(compression))
+
+    out = ctx.actions.declare_file(ctx.attr.name + out_ext)
     metadata_out = ctx.actions.declare_file(ctx.attr.name + "_metadata.json")
-    args = ["layer", "--name", str(ctx.label), "--metadata", metadata_out.path]
+    args = ["layer", "--name", str(ctx.label), "--metadata", metadata_out.path, "--format", compression]
     if ctx.attr.estargz:
         args.append("--estargz")
     for key, value in ctx.attr.annotations.items():
@@ -105,7 +119,7 @@ def _image_layer_impl(ctx):
         LayerInfo(
             blob = out,
             metadata = metadata_out,
-            media_type = "application/vnd.oci.image.layer.v1.tar+gzip",
+            media_type = media_type,
             estargz = ctx.attr.estargz,
         ),
     ]
@@ -120,6 +134,11 @@ image_layer = rule(
         "symlinks": attr.string_dict(
             doc = "Symlinks that should be added to the layer.",
         ),
+        "compress": attr.string(
+            default = "auto",
+            values = ["auto", "gzip", "zstd"],
+            doc = """Compression algorithm to use. If set to 'auto', uses the global default compression setting.""",
+        ),
         "estargz": attr.bool(
             default = False,
             doc = """If set, the layer will be created using estargz format.
@@ -128,6 +147,10 @@ This means that the layer will be optimized for lazy pulling and will be compati
         "annotations": attr.string_dict(
             default = {},
             doc = """Annotations to add to the layer metadata as key-value pairs.""",
+        ),
+        "_default_compression": attr.label(
+            default = Label("//img/settings:compress"),
+            providers = [BuildSettingInfo],
         ),
     },
     toolchains = TOOLCHAINS,

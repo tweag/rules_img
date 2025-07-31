@@ -83,6 +83,8 @@ func CompressProcess(ctx context.Context, args []string) {
 		outputFormat = api.TarLayer
 	case "gzip":
 		outputFormat = api.TarGzipLayer
+	case "zstd":
+		outputFormat = api.TarZstdLayer
 	case "":
 		fmt.Println("--format flag is required")
 		flagSet.Usage()
@@ -99,7 +101,7 @@ func CompressProcess(ctx context.Context, args []string) {
 	}
 	defer outputHandle.Close()
 
-	compressorState, err := recompress(reader, outputHandle, outputFormat, estargzFlag)
+	compressorState, mediaType, err := recompress(reader, outputHandle, outputFormat, estargzFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Recompressing layer: %v\n", err)
 		os.Exit(1)
@@ -112,26 +114,29 @@ func CompressProcess(ctx context.Context, args []string) {
 			os.Exit(1)
 		}
 		defer metadataOutputHandle.Close()
-		if err := writeMetadata(compressorState, annotations, metadataOutputHandle); err != nil {
+		if err := writeMetadata(compressorState, annotations, mediaType, metadataOutputHandle); err != nil {
 			fmt.Fprintf(os.Stderr, "Writing metadata: %v\n", err)
 			os.Exit(1)
 		}
 	}
 }
 
-func recompress(input io.Reader, output io.Writer, format api.LayerFormat, estargz bool) (compressorState api.AppenderState, err error) {
+func recompress(input io.Reader, output io.Writer, format api.LayerFormat, estargz bool) (compressorState api.AppenderState, mediaType string, err error) {
 	var CompressionAlgorithm api.CompressionAlgorithm
 	switch format {
 	case api.TarLayer:
 		CompressionAlgorithm = api.Uncompressed
 	case api.TarGzipLayer:
 		CompressionAlgorithm = api.Gzip
+	case api.TarZstdLayer:
+		CompressionAlgorithm = api.Zstd
 	default:
-		return compressorState, fmt.Errorf("unsupported compression format: %s", format)
+		return compressorState, "", fmt.Errorf("unsupported compression format: %s", format)
 	}
+	mediaType = string(format)
 	compressor, err := compress.TarAppenderFactory(string(api.SHA256), string(CompressionAlgorithm), estargz, output, compress.ContentType("tar"))
 	if err != nil {
-		return compressorState, fmt.Errorf("creating compressor: %w", err)
+		return compressorState, "", fmt.Errorf("creating compressor: %w", err)
 	}
 	defer func() {
 		var compressorCloseErr error
@@ -142,10 +147,10 @@ func recompress(input io.Reader, output io.Writer, format api.LayerFormat, estar
 		}
 	}()
 
-	return compressorState, compressor.AppendTar(input)
+	return compressorState, mediaType, compressor.AppendTar(input)
 }
 
-func writeMetadata(compressorState api.AppenderState, annotations map[string]string, outputFile io.Writer) error {
+func writeMetadata(compressorState api.AppenderState, annotations map[string]string, mediaType string, outputFile io.Writer) error {
 	if len(layerName) == 0 {
 		layerName = fmt.Sprintf("sha256:%x", compressorState.OuterHash)
 	}
@@ -164,7 +169,7 @@ func writeMetadata(compressorState api.AppenderState, annotations map[string]str
 	metadata := api.Descriptor{
 		Name:        layerName,
 		DiffID:      fmt.Sprintf("sha256:%x", compressorState.ContentHash),
-		MediaType:   "application/vnd.oci.image.layer.v1.tar+gzip",
+		MediaType:   mediaType,
 		Digest:      fmt.Sprintf("sha256:%x", compressorState.OuterHash),
 		Size:        compressorState.CompressedSize,
 		Annotations: mergedAnnotations,
@@ -188,9 +193,9 @@ func learnFileType(r io.ReaderAt) (api.LayerFormat, error) {
 	if bytes.Compare(startMagic[:2], gzipMagic[:]) == 0 {
 		return api.TarGzipLayer, nil
 	}
-	// if bytes.Compare(startMagic[:4], zstdMagic[:]) == 0 {
-	// 	return api.TarZstdLayer, nil
-	// }
+	if bytes.Compare(startMagic[:4], zstdMagic[:]) == 0 {
+		return api.TarZstdLayer, nil
+	}
 
 	var tarMagic [8]byte
 	if _, err := r.ReadAt(tarMagic[:], 257); err != nil {

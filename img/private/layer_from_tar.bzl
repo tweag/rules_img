@@ -1,5 +1,6 @@
 """Layer rule for converting existing tar files to usable layers."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//img/private/common:build.bzl", "TOOLCHAINS")
 load("//img/private/common:layer_helper.bzl", "allow_tar_files", "calculate_layer_info", "extension_to_compression", "optimize_layer", "recompress_layer")
 load("//img/private/providers:layer_info.bzl", "LayerInfo")
@@ -7,7 +8,12 @@ load("//img/private/providers:layer_info.bzl", "LayerInfo")
 def _layer_from_tar_impl(ctx):
     optimize = ctx.attr.optimize
     source_compression = extension_to_compression[ctx.file.src.extension]
-    target_compression = source_compression if ctx.attr.compress == "auto" else ctx.attr.compress
+    compression = ctx.attr.compress
+    if compression == "auto":
+        compression = ctx.attr._default_compression[BuildSettingInfo].value
+
+    target_compression = compression if source_compression != "none" else source_compression
+
     needs_recompression = source_compression != target_compression
     needs_rewrite = needs_recompression or optimize
 
@@ -17,6 +23,8 @@ def _layer_from_tar_impl(ctx):
         media_type += "+{}".format(target_compression)
     if target_compression == "gzip":
         output_name_extension = ".tgz"
+    elif target_compression == "zstd":
+        output_name_extension = ".tar.zst"
     elif target_compression == "none":
         output_name_extension = ".tar"
     else:
@@ -78,9 +86,8 @@ layer_from_tar = rule(
         ),
         "compress": attr.string(
             default = "auto",
-            values = ["auto", "none", "gzip"],
-            doc = """Compression algorithm to use when creating the tar file. If this is set to `auto`, the algorithm will be chosen based on the file extension.
-If the file extension is `.tar` or the compression is none, no compression will be used. This may lead to the tar file being rewritten if the output compression is different from the input compression.""",
+            values = ["auto", "gzip", "zstd"],
+            doc = """Compression algorithm to use. If set to 'auto', uses the global default compression setting.""",
         ),
         "optimize": attr.bool(
             doc = """If set, rewrites the tar file to deduplicate it's contents.
@@ -94,6 +101,10 @@ This means that the layer will be optimized for lazy pulling and will be compati
         "annotations": attr.string_dict(
             default = {},
             doc = """Annotations to add to the layer metadata as key-value pairs.""",
+        ),
+        "_default_compression": attr.label(
+            default = Label("//img/settings:compress"),
+            providers = [BuildSettingInfo],
         ),
     },
     toolchains = TOOLCHAINS,

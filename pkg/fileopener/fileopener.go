@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/tweag/rules_img/pkg/api"
 )
 
@@ -13,6 +14,12 @@ func CompressionReaderWithFormat(r io.Reader, format api.CompressionAlgorithm) (
 	switch format {
 	case api.Gzip:
 		return gzip.NewReader(r)
+	case api.Zstd:
+		decoder, err := zstd.NewReader(r)
+		if err != nil {
+			return nil, err
+		}
+		return decoder.IOReadCloser(), nil
 	case api.Uncompressed, "tar", "none":
 		return r, nil
 	default:
@@ -37,9 +44,9 @@ func LearnCompressionAlgorithm(r io.ReaderAt) (api.CompressionAlgorithm, error) 
 	if bytes.Compare(startMagic[:2], gzipMagic[:]) == 0 {
 		return api.Gzip, nil
 	}
-	// if bytes.Compare(startMagic[:4], zstdMagic[:]) == 0 {
-	// 	return api.Zstd, nil
-	// }
+	if bytes.Compare(startMagic[:4], zstdMagic[:]) == 0 {
+		return api.Zstd, nil
+	}
 	return api.Uncompressed, nil
 }
 
@@ -53,6 +60,8 @@ func LearnLayerFormat(r io.ReaderAt) (api.LayerFormat, error) {
 		switch compressionFormat {
 		case api.Gzip:
 			return api.TarGzipLayer, nil
+		case api.Zstd:
+			return api.TarZstdLayer, nil
 		default:
 			return "", fmt.Errorf("unsupported compression format: %s", compressionFormat)
 		}

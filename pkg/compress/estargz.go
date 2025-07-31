@@ -5,6 +5,8 @@ import (
 	"io"
 
 	"github.com/containerd/stargz-snapshotter/estargz"
+	"github.com/containerd/stargz-snapshotter/estargz/zstdchunked"
+	"github.com/klauspost/compress/zstd"
 
 	"github.com/tweag/rules_img/pkg/api"
 )
@@ -199,20 +201,39 @@ func (c *countingReader) Read(p []byte) (int, error) {
 
 // EstargzWriter wraps estargz.Writer to implement TarCompressor
 type EstargzWriter struct {
-	writer *estargz.Writer
+	writer            *estargz.Writer
+	compressionFormat string
 }
 
-// NewEstargzWriter creates a new EstargzWriter
+// NewEstargzWriter creates a new EstargzWriter with default gzip compression
 func NewEstargzWriter(w io.Writer) *EstargzWriter {
 	writer := estargz.NewWriter(w)
-	return &EstargzWriter{writer: writer}
+	return &EstargzWriter{writer: writer, compressionFormat: "gzip"}
 }
 
 // NewEstargzWriterLevel creates a new EstargzWriter with compression level
 func NewEstargzWriterLevel(w io.Writer, level int) (*EstargzWriter, error) {
 	compressor := estargz.NewGzipCompressorWithLevel(level)
 	writer := estargz.NewWriterWithCompressor(w, compressor)
-	return &EstargzWriter{writer: writer}, nil
+	return &EstargzWriter{writer: writer, compressionFormat: "gzip"}, nil
+}
+
+// NewEstargzWriterWithCompression creates a new EstargzWriter with specified compression
+func NewEstargzWriterWithCompression(w io.Writer, compressionFormat string, level int) (*EstargzWriter, error) {
+	var compressor estargz.Compressor
+	switch compressionFormat {
+	case "gzip":
+		compressor = estargz.NewGzipCompressorWithLevel(level)
+	case "zstd":
+		compressor = &zstdchunked.Compressor{
+			CompressionLevel: zstd.EncoderLevel(level),
+			Metadata:         make(map[string]string),
+		}
+	default:
+		return nil, fmt.Errorf("unsupported compression format: %s", compressionFormat)
+	}
+	writer := estargz.NewWriterWithCompressor(w, compressor)
+	return &EstargzWriter{writer: writer, compressionFormat: compressionFormat}, nil
 }
 
 // AppendTar appends a tar entry using estargz Writer.AppendTar
@@ -226,17 +247,33 @@ func (e *EstargzWriter) Close() (string, error) {
 	return digest.String(), err
 }
 
-// EstargzCompressorMaker implements tarCompressorMaker for EstargzWriter
-type EstargzCompressorMaker struct{}
+// EstargzGzipCompressorMaker implements tarCompressorMaker for EstargzWriter with gzip
+type EstargzGzipCompressorMaker struct{}
 
-func (EstargzCompressorMaker) NewWriter(w io.Writer) *EstargzWriter {
+func (EstargzGzipCompressorMaker) NewWriter(w io.Writer) *EstargzWriter {
 	return NewEstargzWriter(w)
 }
 
-func (EstargzCompressorMaker) NewWriterLevel(w io.Writer, level int) (*EstargzWriter, error) {
+func (EstargzGzipCompressorMaker) NewWriterLevel(w io.Writer, level int) (*EstargzWriter, error) {
 	return NewEstargzWriterLevel(w, level)
 }
 
-func (EstargzCompressorMaker) Name() string {
-	return "estargz"
+func (EstargzGzipCompressorMaker) Name() string {
+	return "gzip"
+}
+
+// EstargzZstdCompressorMaker implements tarCompressorMaker for EstargzWriter with zstd
+type EstargzZstdCompressorMaker struct{}
+
+func (EstargzZstdCompressorMaker) NewWriter(w io.Writer) *EstargzWriter {
+	writer, _ := NewEstargzWriterWithCompression(w, "zstd", 3) // default level
+	return writer
+}
+
+func (EstargzZstdCompressorMaker) NewWriterLevel(w io.Writer, level int) (*EstargzWriter, error) {
+	return NewEstargzWriterWithCompression(w, "zstd", level)
+}
+
+func (EstargzZstdCompressorMaker) Name() string {
+	return "zstd"
 }

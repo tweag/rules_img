@@ -17,7 +17,7 @@ const (
 	// Compression algorithms
 	Uncompressed CompressionAlgorithm = "uncompressed"
 	Gzip         CompressionAlgorithm = "gzip"
-	// TODO: Zstd CompressionAlgorithm = "zstd"
+	Zstd         CompressionAlgorithm = "zstd"
 
 	// Hash algorithms
 	SHA256 HashAlgorithm = "sha256"
@@ -25,7 +25,7 @@ const (
 	// Layer formats
 	TarLayer     = "application/vnd.oci.image.layer.v1.tar"
 	TarGzipLayer = "application/vnd.oci.image.layer.v1.tar+gzip"
-	// TarZstdLayer = "application/vnd.oci.image.layer.v1.tar+zstd"
+	TarZstdLayer = "application/vnd.oci.image.layer.v1.tar+zstd"
 )
 
 func (h HashAlgorithm) Len() int {
@@ -43,8 +43,8 @@ func (c LayerFormat) CompressionAlgorithm() CompressionAlgorithm {
 		return Uncompressed
 	case TarGzipLayer:
 		return Gzip
-	// case TarZstdLayer:
-	// 	return Zstd
+	case TarZstdLayer:
+		return Zstd
 	default:
 		return ""
 	}

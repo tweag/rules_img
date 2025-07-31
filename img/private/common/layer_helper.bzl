@@ -3,13 +3,16 @@
 load("//img/private/common:build.bzl", "TOOLCHAIN")
 load("//img/private/providers:layer_info.bzl", "LayerInfo")
 
-allow_tar_files = [".tar", ".tar.gz", ".tgz"]
+allow_tar_files = [".tar", ".tar.gz", ".tgz", ".tar.zst", ".tzst"]
 
 extension_to_compression = {
     "tar": "none",
     "gz": "gzip",
     "tar.gz": "gzip",
     "tgz": "gzip",
+    "zst": "zstd",
+    "tar.zst": "zstd",
+    "tzst": "zstd",
 }
 
 def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file, estargz, annotations = {}):

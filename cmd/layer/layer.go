@@ -87,15 +87,19 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 			compressionAlgorithm = api.Uncompressed
 		} else if filepath.Ext(outputFilePath) == ".tgz" || filepath.Ext(outputFilePath) == ".gz" {
 			compressionAlgorithm = api.Gzip
+		} else if filepath.Ext(outputFilePath) == ".zst" {
+			compressionAlgorithm = api.Zstd
 		} else {
 			compressionAlgorithm = api.Gzip
 		}
 	case "gzip":
 		compressionAlgorithm = api.Gzip
+	case "zstd":
+		compressionAlgorithm = api.Zstd
 	case "none", "uncompressed", "tar":
 		compressionAlgorithm = api.Uncompressed
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown format %s. Supported formats are gzip and uncompressed.\n", formatFlag)
+		fmt.Fprintf(os.Stderr, "Unknown format %s. Supported formats are gzip, zstd and uncompressed.\n", formatFlag)
 		os.Exit(1)
 	}
 
@@ -286,6 +290,8 @@ func writeMetadata(name string, compressionAlgorithm api.CompressionAlgorithm, u
 		mediaType = "application/vnd.oci.image.layer.v1.tar"
 	case api.Gzip:
 		mediaType = "application/vnd.oci.image.layer.v1.tar+gzip"
+	case api.Zstd:
+		mediaType = "application/vnd.oci.image.layer.v1.tar+zstd"
 	default:
 		return fmt.Errorf("unsupported compression algorithm: %s", compressionAlgorithm)
 	}

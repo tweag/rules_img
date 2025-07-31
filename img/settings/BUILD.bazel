@@ -11,3 +11,13 @@ string_flag(
     ],
     visibility = ["//img/private:__subpackages__"],
 )
+
+string_flag(
+    name = "compress",
+    build_setting_default = "gzip",
+    values = [
+        "gzip",
+        "zstd",
+    ],
+    visibility = ["//visibility:public"],
+)

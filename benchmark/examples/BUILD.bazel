@@ -73,7 +73,7 @@ image_layer(
         "foo": "bar",
         "baz": "qux",
     },
-    estargz = True,
+    estargz = False,
 )
 
 image_layer(
@@ -95,7 +95,7 @@ image_layer(
 layer_from_tar(
     name = "my_layer_from_tar",
     src = "@test_archive//file",
-    compress = "gzip",
+    compress = "zstd",
     estargz = True,
 )
 
