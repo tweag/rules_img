@@ -1,22 +1,12 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 bzl_library(
-    name = "image",
-    visibility = ["//img:__subpackages__"],
-    deps = [
-        ":transitions",
-        "//img:providers",
-        "//img/private/config:defs",
-    ],
-)
-
-bzl_library(
     name = "import",
     srcs = ["import.bzl"],
     visibility = ["//img:__subpackages__"],
     deps = [
-        ":transitions",
         "//img:providers",
+        "//img/private/common:transitions",
     ],
 )
 
@@ -25,9 +15,9 @@ bzl_library(
     srcs = ["index.bzl"],
     visibility = ["//img:__subpackages__"],
     deps = [
-        ":transitions",
-        ":write_index_json",
         "//img:providers",
+        "//img/private/common:transitions",
+        "//img/private/common:write_index_json",
     ],
 )
 
@@ -39,28 +29,12 @@ bzl_library(
 )
 
 bzl_library(
-    name = "layer_from_tar",
-    srcs = ["layer_from_tar.bzl"],
-    visibility = ["//img:__subpackages__"],
-    deps = [
-        ":layer_helper",
-        "//img:providers",
-    ],
-)
-
-bzl_library(
-    name = "layer_helper",
-    visibility = ["//img:__subpackages__"],
-    deps = ["//img:providers"],
-)
-
-bzl_library(
     name = "push",
     srcs = ["push.bzl"],
     visibility = ["//img:__subpackages__"],
     deps = [
-        ":write_index_json",
         "//img:providers",
+        "//img/private/common:write_index_json",
     ],
 )
 

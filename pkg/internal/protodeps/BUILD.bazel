@@ -1,15 +1,1 @@
-load("@rules_go//go:def.bzl", "go_library")
-
-go_library(
-    name = "protodeps",
-    srcs = ["protodeps.go"],
-    importpath = "github.com/tweag/rules_img/pkg/internal/protodeps",
-    visibility = ["//pkg:__subpackages__"],
-    deps = [
-        "@com_google_cloud_go_longrunning//autogen/longrunningpb",
-        "@org_golang_google_genproto_googleapis_api//annotations",
-        "@org_golang_google_genproto_googleapis_rpc//status",
-        "@org_golang_google_grpc//:grpc",
-        "@org_golang_google_protobuf//:protobuf",
-    ],
-)
+# gazelle:exclude protodeps.go
