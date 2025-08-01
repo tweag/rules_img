@@ -477,12 +477,35 @@ func (s *Syncer) uploadBlob(ctx context.Context, ref name.Reference, desc api.De
 
 	var layer v1.Layer
 
-	layer = &casStreamingLayer{
-		syncer:    s,
-		digest:    digest,
-		size:      desc.Size,
-		mediaType: desc.MediaType,
-		desc:      desc,
+	// Check if this is a missing blob from shallow base image pull
+	isMissing := false
+	for _, missingDigest := range metadata.MissingBlobs {
+		if missingDigest == digest {
+			isMissing = true
+			break
+		}
+	}
+
+	if isMissing {
+		// Layer is from base image and not in CAS, stream from original registry
+		layer = &remoteStreamingLayer{
+			digest:    digest,
+			diffID:    desc.DiffID,
+			size:      desc.Size,
+			mediaType: desc.MediaType,
+			desc:      desc,
+			pullInfo:  metadata.PullInfo,
+		}
+	} else {
+		// Layer is in CAS
+		layer = &casStreamingLayer{
+			syncer:    s,
+			digest:    digest,
+			diffID:    desc.DiffID,
+			size:      desc.Size,
+			mediaType: desc.MediaType,
+			desc:      desc,
+		}
 	}
 
 	// Upload to registry
@@ -591,6 +614,9 @@ type casImage struct {
 	manifest     *v1.Manifest
 	manifestData []byte
 	metadata     registrytypes.PushRequest
+	config       *v1.ConfigFile // cached config
+	configOnce   sync.Once
+	configErr    error
 }
 
 func (i *casImage) MediaType() (types.MediaType, error) {
@@ -606,16 +632,21 @@ func (i *casImage) ConfigName() (v1.Hash, error) {
 }
 
 func (i *casImage) ConfigFile() (*v1.ConfigFile, error) {
-	configData, err := i.syncer.getBlobFromCAS(context.Background(), apiDescriptorFromV1(i.manifest.Config))
-	if err != nil {
-		return nil, err
-	}
+	i.configOnce.Do(func() {
+		configData, err := i.syncer.getBlobFromCAS(context.Background(), apiDescriptorFromV1(i.manifest.Config))
+		if err != nil {
+			i.configErr = err
+			return
+		}
 
-	var config v1.ConfigFile
-	if err := json.Unmarshal(configData, &config); err != nil {
-		return nil, err
-	}
-	return &config, nil
+		var config v1.ConfigFile
+		if err := json.Unmarshal(configData, &config); err != nil {
+			i.configErr = err
+			return
+		}
+		i.config = &config
+	})
+	return i.config, i.configErr
 }
 
 func (i *casImage) RawConfigFile() ([]byte, error) {
@@ -641,10 +672,21 @@ func (i *casImage) RawManifest() ([]byte, error) {
 }
 
 func (i *casImage) LayerByDigest(hash v1.Hash) (v1.Layer, error) {
-	for _, layer := range i.manifest.Layers {
+	// Get config to access DiffIDs
+	config, err := i.ConfigFile()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get config: %w", err)
+	}
+
+	for idx, layer := range i.manifest.Layers {
 		if layer.Digest == hash {
+			diffID := ""
+			if idx < len(config.RootFS.DiffIDs) {
+				diffID = config.RootFS.DiffIDs[idx].String()
+			}
 			return &casLayer{
 				digest:    layer.Digest.String(),
+				diffID:    diffID,
 				size:      layer.Size,
 				mediaType: string(layer.MediaType),
 			}, nil
@@ -654,10 +696,21 @@ func (i *casImage) LayerByDigest(hash v1.Hash) (v1.Layer, error) {
 }
 
 func (i *casImage) Layers() ([]v1.Layer, error) {
+	// Get config to access DiffIDs
+	config, err := i.ConfigFile()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get config: %w", err)
+	}
+
 	layers := make([]v1.Layer, len(i.manifest.Layers))
 	for j, layer := range i.manifest.Layers {
+		diffID := ""
+		if j < len(config.RootFS.DiffIDs) {
+			diffID = config.RootFS.DiffIDs[j].String()
+		}
 		layers[j] = &casLayer{
 			digest:    layer.Digest.String(),
+			diffID:    diffID,
 			size:      layer.Size,
 			mediaType: string(layer.MediaType),
 		}
@@ -744,6 +797,7 @@ func (idx *casIndex) ImageIndex(hash v1.Hash) (v1.ImageIndex, error) {
 // already be present in the target registry.
 type casLayer struct {
 	digest    string
+	diffID    string
 	size      int64
 	mediaType string
 }
@@ -759,9 +813,13 @@ func (l *casLayer) Digest() (v1.Hash, error) {
 }
 
 func (l *casLayer) DiffID() (v1.Hash, error) {
-	// For now, assume DiffID is the same as Digest for simplicity
-	// In practice, this should be the decompressed digest
-	return l.Digest()
+	if !strings.HasPrefix(l.diffID, "sha256:") {
+		return v1.Hash{}, fmt.Errorf("unsupported diff id algorithm: %s", l.diffID)
+	}
+	return v1.Hash{
+		Algorithm: "sha256",
+		Hex:       l.diffID[7:],
+	}, nil
 }
 
 func (l *casLayer) Size() (int64, error) {
@@ -786,9 +844,22 @@ func (l *casLayer) Uncompressed() (io.ReadCloser, error) {
 type casStreamingLayer struct {
 	syncer    *Syncer
 	digest    string
+	diffID    string
 	size      int64
 	mediaType string
 	desc      api.Descriptor
+}
+
+// remoteStreamingLayer implements the go-containerregistry v1.Layer interface for layers from shallow base pulls.
+// It streams blob data directly from the original registry when the blob is not available in CAS.
+// This is used for base image layers that were not downloaded during the shallow pull.
+type remoteStreamingLayer struct {
+	digest    string
+	diffID    string
+	size      int64
+	mediaType string
+	desc      api.Descriptor
+	pullInfo  api.PullInfo
 }
 
 func (l *casStreamingLayer) Digest() (v1.Hash, error) {
@@ -802,9 +873,13 @@ func (l *casStreamingLayer) Digest() (v1.Hash, error) {
 }
 
 func (l *casStreamingLayer) DiffID() (v1.Hash, error) {
-	// For now, assume DiffID is the same as Digest for simplicity
-	// In practice, this should be the decompressed digest
-	return l.Digest()
+	if !strings.HasPrefix(l.diffID, "sha256:") {
+		return v1.Hash{}, fmt.Errorf("unsupported diff id algorithm: %s", l.diffID)
+	}
+	return v1.Hash{
+		Algorithm: "sha256",
+		Hex:       l.diffID[7:],
+	}, nil
 }
 
 func (l *casStreamingLayer) Size() (int64, error) {
@@ -834,7 +909,61 @@ func (l *casStreamingLayer) Compressed() (io.ReadCloser, error) {
 }
 
 func (l *casStreamingLayer) Uncompressed() (io.ReadCloser, error) {
-	// For simplicity, assume data is already in the right format
-	// In practice, this might need decompression logic
-	return l.Compressed()
+	return nil, errors.New("layer data should not be accessed - blobs are already uploaded to registry")
+}
+
+func (l *remoteStreamingLayer) Digest() (v1.Hash, error) {
+	if !strings.HasPrefix(l.digest, "sha256:") {
+		return v1.Hash{}, fmt.Errorf("unsupported digest algorithm: %s", l.digest)
+	}
+	return v1.Hash{
+		Algorithm: "sha256",
+		Hex:       l.digest[7:],
+	}, nil
+}
+
+func (l *remoteStreamingLayer) DiffID() (v1.Hash, error) {
+	if !strings.HasPrefix(l.diffID, "sha256:") {
+		return v1.Hash{}, fmt.Errorf("unsupported diff id algorithm: %s", l.diffID)
+	}
+	return v1.Hash{
+		Algorithm: "sha256",
+		Hex:       l.diffID[7:],
+	}, nil
+}
+
+func (l *remoteStreamingLayer) Size() (int64, error) {
+	return l.size, nil
+}
+
+func (l *remoteStreamingLayer) MediaType() (types.MediaType, error) {
+	return types.MediaType(l.mediaType), nil
+}
+
+func (l *remoteStreamingLayer) Compressed() (io.ReadCloser, error) {
+	// Stream from the original registry
+	if len(l.pullInfo.OriginalBaseImageRegistries) == 0 {
+		return nil, fmt.Errorf("no original registries provided for remote layer %s", l.digest)
+	}
+
+	// Construct the reference to the blob in the original registry
+	ref, err := name.NewDigest(fmt.Sprintf("%s/%s@%s",
+		l.pullInfo.OriginalBaseImageRegistries[0],
+		l.pullInfo.OriginalBaseImageRepository,
+		l.digest))
+	if err != nil {
+		return nil, fmt.Errorf("creating blob reference: %w", err)
+	}
+
+	// Fetch the layer from the original registry
+	layer, err := remote.Layer(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	if err != nil {
+		return nil, fmt.Errorf("getting layer from original registry: %w", err)
+	}
+
+	return layer.Compressed()
+}
+
+func (l *remoteStreamingLayer) Uncompressed() (io.ReadCloser, error) {
+	return nil, errors.New("layer data should not be accessed - blobs are already uploaded to registry")
 }
