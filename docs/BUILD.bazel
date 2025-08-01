@@ -15,5 +15,10 @@ stardoc_with_diff_test(
     bzl_library_target = "//img:push",
 )
 
+stardoc_with_diff_test(
+    name = "pull",
+    bzl_library_target = "//img:pull",
+)
+
 # Update all generated documentation
 update_docs(name = "update")

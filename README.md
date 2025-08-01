@@ -1,6 +1,10 @@
+<div align="center">
+
 # rules_img
 
-Modern Bazel rules for building OCI container images with advanced performance optimizations.
+**Modern Bazel rules for building OCI container images with advanced performance optimizations**
+
+</div>
 
 ## Features
 
@@ -24,7 +28,7 @@ bazel_dep(name = "rules_img", version = "0.0.0")
 Configure default settings (optional) in `.bazelrc`:
 
 ```
-# The compressions algorithm to use ("gzip" or "zstd")
+# The compression algorithm to use ("gzip" or "zstd")
 common --@rules_img//img/settings:compress=zstd
 
 # Support for seekable eStargz layers
@@ -36,7 +40,7 @@ common --@rules_img//img/settings:estargz=enabled
 common --@rules_img//img/settings:push_strategy=eager
 ```
 
-You also need a credential helper to pull base image from container registries.
+You also need a credential helper to pull base images from container registries.
 We recommend [tweag-credential-helper][tweag-credential-helper].
 
 ## Quick Start
@@ -64,6 +68,8 @@ pull(
     tag = "12.8.1-cudnn-devel-ubuntu20.04",
 )
 ```
+
+Compose images in `BUILD.bazel`:
 
 ```starlark
 load("@rules_img//img:layer.bzl", "image_layer")
@@ -147,7 +153,7 @@ image_index(
 
 </details>
 
-### Pushing to Registry
+### Pushing to a Registry
 
 ```starlark
 load("@rules_img//img:push.bzl", "image_push")
@@ -166,38 +172,6 @@ Run with:
 bazel run //:push
 ```
 
-## Advanced Features
-
-### eStargz Optimization
-
-Enable lazy pulling for faster container startup:
-
-```starlark
-image_layer(
-    name = "optimized_layer",
-    srcs = {...},
-    estargz = "enabled",  # Creates seekable compressed layers
-)
-```
-
-The same setting can be globally enabled using `--@rules_img//img/settings:estargz=enabled`.
-Read the [stargz-snapshotter documentation][stargz-snapshotter] for more information.
-
-### Layer Optimization
-
-Create layers from existing tarballs with optimization:
-
-```starlark
-load("@rules_img//img:layer.bzl", "layer_from_tar")
-
-layer_from_tar(
-    name = "base_layer",
-    src = "@debian_base//file",
-    compress = "zstd",
-    optimize = True,  # Deduplicate tar contents
-)
-```
-
 ### Global Configuration
 
 Configure defaults via command-line flags:
@@ -213,20 +187,13 @@ bazel build //... --//img/settings:estargz=enabled
 bazel build //... --//img/settings:push_strategy=cas_registry
 ```
 
-## Push Strategies
+## Comparison with rules_oci
 
-rules_img supports multiple push strategies optimized for different scenarios:
-
-| Strategy | Description | Use Case | Requirements |
-|----------|-------------|----------|--------------|
-| `eager` | Traditional push, download all blobs to the machine running Bazel, then uploads all blobs. | Simple deployments | Normal container registry |
-| `lazy` | Checks registry first, skips existing blobs and streams missing blobs from Bazel's remote cache | Faster CI/CD and Build without the Bytes | Bazel remote cache |
-| `cas_registry` | Uses special container registry that is directly connected to Bazel's remote cache | Fast development cycles. | Special container registry (`cmd/registry`), Bazel remote cache |
-| `bes` | Image push happens as side-effect of BES upload. Requires self-hosted BES server. | Extremely fast and efficient for large organizations. | Special BES backend (`cmd/bes`), Bazel remote cache |
-
-## Comparison
-
-### vs rules_oci
+Both `rules_img` and `rules_oci` are modern Bazel rulesets for building OCI container images. While they share the goal of hermetic, reproducible container builds, they take fundamentally different architectural approaches.
+`rules_oci` uses the [oci image layout][oci-image-layout] as an on-disk representation of container images at every step (base image pull, `oci_image` rule, `oci_image_index` rule).
+Additionally, `rules_oci` chooses to use only off-the-shelf, pre-built tools for assembling images.
+`rules_img` chooses to use providers that contain just enough information as needed for subsequent steps. We also use customized tools, instead of prebuilt ones.
+This results in a more complex implementation, but also allows for interesting optimizations.
 
 - ✅ [Shallow base image pulling](#shallow-base-image-pulling)
 - ✅ [Layers are produced in a single action](#single-action-layers)
@@ -243,8 +210,9 @@ rules_img supports multiple push strategies optimized for different scenarios:
   - **Image Rules**
     - [`image_manifest`](docs/image.md#image_manifest) - Build single-platform images
     - [`image_index`](docs/image.md#image_index) - Build multi-platform image indexes
-  - **Push Rules**
+  - **Push and Pull Rules**
     - [`image_push`](docs/push.md#image_push) - Push images to registries
+    - [`pull`](docs/pull.md#pull) - Push images to registries
 
 ## Examples
 
@@ -288,17 +256,21 @@ This allows for smaller container images.
 
 ### Advanced Push Strategies
 
-While rules_oci uses a traditional push approach, rules_img offers four sophisticated strategies:
-
-1. **Eager** - Traditional approach, similar to rules_oci
-2. **Lazy** - Checks registry first, only uploads missing blobs
-3. **CAS Registry** - Direct integration with Bazel's content-addressable storage
-4. **BES** - Pushes as a side-effect of build event uploads
-
-These strategies enable:
-- **Faster CI/CD** - Lazy push can skip 90%+ of uploads in typical workflows
-- **Build without the bytes** - CAS/BES strategies work with remote execution
+rules_img offers four sophisticated push strategies compared to rules_oci's traditional approach. These strategies enable:
+- **Faster CI/CD** - Avoid unnecesary file transfer
+- **Build without the bytes** - Never materialize container layers on your local machine
 - **Scalability** - Designed for organizations with thousands of builds per day
+
+rules_img supports multiple push strategies optimized for different scenarios:
+
+| Strategy | Description | Use Case | Requirements |
+|----------|-------------|----------|--------------|
+| [`eager`](docs/push-strategies.md#eager-push) | Traditional push, download all blobs to the machine running Bazel, then uploads all blobs. | Simple deployments | Normal container registry |
+| [`lazy`](docs/push-strategies.md#lazy-push) | Checks registry first, skips existing blobs and streams missing blobs from Bazel's remote cache | Faster CI/CD and Build without the Bytes | Bazel remote cache |
+| [`cas_registry`](docs/push-strategies.md#cas-registry-push) | Uses special container registry that is directly connected to Bazel's remote cache | Fast development cycles. | Special container registry (`cmd/registry`), Bazel remote cache |
+| [`bes`](docs/push-strategies.md#bes-push) | Image push happens as side-effect of BES upload. Requires self-hosted BES server. | Extremely fast and efficient for large organizations. | Special BES backend (`cmd/bes`), Bazel remote cache |
+
+See the [Push Strategies Guide](docs/push-strategies.md) for detailed information about each strategy.
 
 ### eStargz Lazy Pulling
 
@@ -318,6 +290,9 @@ image_layer(
 )
 ```
 
+The same setting can be globally enabled using `--@rules_img//img/settings:estargz=enabled`.
+Read the [stargz-snapshotter documentation][stargz-snapshotter] for more information.
+
 ## Contributing
 
 Contributions are welcome! Please read our contributing guidelines and submit pull requests to our repository.
@@ -328,3 +303,4 @@ This project is licensed under the Apache License 2.0 - see the LICENSE file for
 
 [tweag-credential-helper]: https://github.com/tweag/credential-helper
 [stargz-snapshotter]: https://github.com/containerd/stargz-snapshotter
+[oci-image-layout]: https://github.com/opencontainers/image-spec/blob/v1.1.1/image-layout.md

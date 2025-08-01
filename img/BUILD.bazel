@@ -55,3 +55,10 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = ["//img/private:push"],
 )
+
+bzl_library(
+    name = "pull",
+    srcs = ["pull.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["//img/private/repository_rules:pull"],
+)

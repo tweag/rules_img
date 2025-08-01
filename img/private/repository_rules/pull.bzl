@@ -99,16 +99,59 @@ image_import(
 
 pull = repository_rule(
     implementation = _pull_impl,
+    doc = """Pulls a container image from a registry using shallow pulling.
+
+This repository rule implements shallow pulling - it only downloads the image manifest
+and config, not the actual layer blobs. The layers are downloaded on-demand during
+push operations or when explicitly needed. This significantly reduces bandwidth usage
+and speeds up builds, especially for large base images.
+
+Example usage in MODULE.bazel:
+```starlark
+pull = use_repo_rule("@rules_img//img:pull.bzl", "pull")
+
+pull(
+    name = "ubuntu",
+    digest = "sha256:1e622c5f073b4f6bfad6632f2616c7f59ef256e96fe78bf6a595d1dc4376ac02",
+    registry = "index.docker.io",
+    repository = "library/ubuntu",
+    tag = "24.04",
+)
+```
+
+The `digest` parameter is recommended for reproducible builds. If omitted, the rule
+will resolve the tag to a digest at fetch time and print a warning.
+""",
     attrs = {
-        "registry": attr.string(),
-        "registries": attr.string_list(),
+        "registry": attr.string(
+            doc = """Primary registry to pull from (e.g., "index.docker.io", "gcr.io").
+
+If not specified, defaults to Docker Hub. Can be overridden by entries in registries list.""",
+        ),
+        "registries": attr.string_list(
+            doc = """List of mirror registries to try in order.
+
+These registries will be tried in order before the primary registry. Useful for
+corporate environments with registry mirrors or air-gapped setups.""",
+        ),
         "repository": attr.string(
             mandatory = True,
+            doc = """The image repository within the registry (e.g., "library/ubuntu", "my-project/my-image").
+
+For Docker Hub, official images use "library/" prefix (e.g., "library/ubuntu").""",
         ),
         "tag": attr.string(
             mandatory = True,
+            doc = """The image tag to pull (e.g., "latest", "24.04", "v1.2.3").
+
+While required, it's recommended to also specify a digest for reproducible builds.""",
         ),
-        "digest": attr.string(),
+        "digest": attr.string(
+            doc = """The image digest for reproducible pulls (e.g., "sha256:abc123...").
+
+When specified, the image is pulled by digest instead of tag, ensuring reproducible
+builds. The digest must be a full SHA256 digest starting with "sha256:".""",
+        ),
     },
 )
 
