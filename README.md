@@ -293,13 +293,13 @@ image_layer(
 The same setting can be globally enabled using `--@rules_img//img/settings:estargz=enabled`.
 Read the [stargz-snapshotter documentation][stargz-snapshotter] for more information.
 
-## Contributing
+## Hacking & Contributing
 
-Contributions are welcome! Please read our contributing guidelines and submit pull requests to our repository.
+We invite external contributions and are eager to work together with the build systems community. Please refer to the [CONTRIBUTING](/CONTRIBUTING.md) guide to learn more. If you want to check out the code and run a development version, follow the [HACKING](/HACKING.md) guide to get started.
 
-## License
+## Acknowledgments
 
-This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+Special thanks to **Sushain Cherivirala** from Stripe for the inspiring BazelCon talk ["Building 1300 Container Images in 4 Minutes"](https://www.youtube.com/watch?v=c-yvIQooOSA). This talk introduced the groundbreaking idea of using the Build Event Service (BES) to sync container images between the remote cache and registry as a side effect. While their implementation was based on the now-archived rules_docker and was never published, it laid the conceptual foundation for our BES push strategy. Their work demonstrated how to achieve dramatic performance improvements in container image builds at scale, inspiring many of the optimizations in rules_img.
 
 [tweag-credential-helper]: https://github.com/tweag/credential-helper
 [stargz-snapshotter]: https://github.com/containerd/stargz-snapshotter
