@@ -28,7 +28,6 @@ func Run(ctx context.Context, args []string) {
 	var port int
 	var commitMode string
 	var casEndpoint string
-	var registryEndpoint string
 	var credentialHelperPath string
 
 	flagSet := flag.NewFlagSet("bes", flag.ExitOnError)
@@ -51,7 +50,6 @@ func Run(ctx context.Context, args []string) {
 	flagSet.IntVar(&port, "port", 9090, "Port to bind the BES gRPC server to")
 	flagSet.StringVar(&commitMode, "commit-mode", "background", "Commit mode: 'background' or 'per-stream'")
 	flagSet.StringVar(&casEndpoint, "cas-endpoint", "", "CAS gRPC endpoint (required)")
-	flagSet.StringVar(&registryEndpoint, "registry-endpoint", "", "Registry endpoint (optional, for direct registry push)")
 	flagSet.StringVar(&credentialHelperPath, "credential-helper", "", "Path to credential helper binary (optional, defaults to no helper)")
 
 	if err := flagSet.Parse(args[1:]); err != nil {
