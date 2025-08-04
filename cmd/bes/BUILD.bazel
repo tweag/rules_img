@@ -21,3 +21,9 @@ go_binary(
     embed = [":bes_lib"],
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

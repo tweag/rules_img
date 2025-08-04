@@ -92,3 +92,9 @@ bzl_library(
         "@bazel_skylib//rules:common_settings",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

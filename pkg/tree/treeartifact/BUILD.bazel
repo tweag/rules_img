@@ -6,3 +6,9 @@ go_library(
     importpath = "github.com/tweag/rules_img/pkg/tree/treeartifact",
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

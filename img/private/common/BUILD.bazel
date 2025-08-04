@@ -14,6 +14,12 @@ bzl_library(
     deps = [":build"],
 )
 
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)
+
 bzl_library(
     name = "build",
     srcs = ["build.bzl"],

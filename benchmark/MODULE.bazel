@@ -135,11 +135,6 @@ filegroup(
     urls = ["https://ghcr.io/v2/malt3/sysroots/llvm/blobs/sha256:" + sysroot_digest_arm64],
 )
 
-# register a source-built toolchain of the img tool.
-register_toolchains(
-    "@rules_img//img/source_toolchain:all",
-)
-
 protoc = use_extension("@toolchains_protoc//protoc:extensions.bzl", "protoc")
 use_repo(protoc, "toolchains_protoc_hub")
 

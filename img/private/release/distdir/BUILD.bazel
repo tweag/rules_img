@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "distdir_lib",
+    srcs = ["distdir.go"],
+    importpath = "github.com/tweag/rules_img/img/private/release/distdir",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "distdir",
+    embed = [":distdir_lib"],
+    visibility = ["//visibility:public"],
+)

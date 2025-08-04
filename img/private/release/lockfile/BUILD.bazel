@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "lockfile_lib",
+    srcs = ["lockfile.go"],
+    importpath = "github.com/tweag/rules_img/img/private/release/lockfile",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "lockfile",
+    embed = [":lockfile_lib"],
+    visibility = ["//visibility:public"],
+)

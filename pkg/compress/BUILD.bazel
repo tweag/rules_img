@@ -17,3 +17,9 @@ go_library(
         "@com_github_klauspost_compress//zstd",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

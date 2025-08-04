@@ -7,3 +7,9 @@ go_library(
     visibility = ["//visibility:public"],
     deps = ["//pkg/api"],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

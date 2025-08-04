@@ -1,6 +1,6 @@
 module(
     name = "rules_img",
-    version = "0.0.0",
+    version = "0.0.1",
     compatibility_level = 1,
 )
 
@@ -15,6 +15,33 @@ bazel_dep(name = "rules_proto", version = "7.0.2")
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.7.1", dev_dependency = True)
 bazel_dep(name = "buildifier_prebuilt", version = "8.0.3", dev_dependency = True)
 bazel_dep(name = "aspect_bazel_lib", version = "2.20.0", dev_dependency = True)
+bazel_dep(name = "rules_pkg", version = "1.1.0", dev_dependency = True)
+
+module_version = use_extension("//img/private/config:defs.bzl", "module_version", dev_dependency = True)
+use_repo(module_version, "rules_img_version")
+
+prebuilt_img_tool = use_extension("@rules_img//img/private/prebuilt:prebuilt.bzl", "prebuilt_img_tool")
+prebuilt_img_tool.collection(
+    name = "img_toolchain",
+)
+prebuilt_img_tool.from_file(
+    collection = "img_toolchain",
+    file = "@rules_img//:prebuilt_lockfile.json",
+)
+use_repo(
+    prebuilt_img_tool,
+    "img_toolchain",
+)
+
+# register a prebuilt toolchain of the img tool.
+register_toolchains(
+    "@img_toolchain//:all",
+)
+
+# register a source-built toolchain of the img tool.
+register_toolchains(
+    "@rules_img//img/source_toolchain:all",
+)
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.from_file(

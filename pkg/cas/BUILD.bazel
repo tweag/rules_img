@@ -15,3 +15,9 @@ go_library(
         "@org_golang_google_grpc//:grpc",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

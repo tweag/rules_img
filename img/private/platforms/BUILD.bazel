@@ -13,6 +13,12 @@ package(
     for name, info in PLATFORMS.items()
 ]
 
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)
+
 bzl_library(
     name = "platforms",
     srcs = ["platforms.bzl"],

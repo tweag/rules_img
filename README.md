@@ -23,11 +23,6 @@ Add to your `MODULE.bazel`:
 
 ```starlark
 bazel_dep(name = "rules_img", version = "0.0.0")
-
-# register a source-built toolchain of the img tool.
-register_toolchains(
-    "@rules_img//img/source_toolchain:all",
-)
 ```
 
 Configure default settings (optional) in `.bazelrc`:

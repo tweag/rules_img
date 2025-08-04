@@ -19,3 +19,9 @@ go_library(
         "//pkg/tree/treeartifact",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

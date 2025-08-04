@@ -1,1 +1,18 @@
 exports_files(["MODULE.bazel"])
+
+filegroup(
+    name = "all_files",
+    srcs = [
+        "BUILD.bazel",
+        "LICENSE",
+        "MODULE.bazel",
+        "go.mod",
+        "go.sum",
+    ],
+    visibility = ["//img/private/release:__subpackages__"],
+)
+
+exports_files([
+    ".bcr/metadata.template.json",
+    "prebuilt_lockfile.json",
+])

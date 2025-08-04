@@ -14,3 +14,9 @@ go_library(
         "@org_golang_x_sync//errgroup",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

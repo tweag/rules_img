@@ -1,0 +1,86 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load(":defs.bzl", "PLATFORMS", "go_to_constraint_value", "offline_bcr", "offline_bundle", "release_files", "release_platform_flag", "source_bundle", "versioned_filename_info", name = "platform_name")
+
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+[
+    platform(
+        name = name(p),
+        constraint_values = [go_to_constraint_value[goname] for goname in p],
+    )
+    for p in PLATFORMS
+]
+
+release_platform_flag(
+    name = "release_platform",
+    build_setting_default = "linux_amd64",
+)
+
+release_files(
+    name = "prebuilt_toolchain",
+    executable = "//cmd/img",
+    tags = ["manual"],
+)
+
+offline_bundle(
+    name = "airgapped",
+    distdir_contents = ":prebuilt_toolchain",
+)
+
+source_bundle(
+    name = "srcs",
+    srcs = ["//img/private/release/source_files:release_src_files"],
+    overrides = [":prebuilt_toolchain"],
+    tags = ["manual"],
+)
+
+pkg_tar(
+    name = "src_tar",
+    srcs = [":srcs"],
+    out = "rules_img.tar.gz",
+    extension = "tar.gz",
+    mode = "0755",
+    tags = ["manual"],
+)
+
+versioned_filename_info(
+    name = "versioned_src_tar",
+    src = ":src_tar",
+    extension = "tar.gz",
+    tags = ["manual"],
+)
+
+offline_bcr(
+    name = "bcr",
+    src_tar = ":versioned_src_tar",
+)
+
+pkg_tar(
+    name = "dist_tar",
+    srcs = [
+        ":prebuilt_toolchain",
+        ":versioned_src_tar",
+    ],
+    out = "rules_img-dist.tar",
+    mode = "0755",
+    tags = ["manual"],
+)
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["*"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    deps = [
+        "//img/private/config:defs",
+        "@rules_pkg//pkg:mappings",
+        "@rules_pkg//pkg:providers",
+    ],
+)

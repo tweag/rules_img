@@ -22,3 +22,9 @@ stardoc_with_diff_test(
 
 # Update all generated documentation
 update_docs(name = "update")
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

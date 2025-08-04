@@ -32,3 +32,9 @@ gazelle(
     name = "gazelle",
     gazelle = "gazelle_bin",
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

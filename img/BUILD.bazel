@@ -62,3 +62,9 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = ["//img/private/repository_rules:pull"],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)
