@@ -10,5 +10,6 @@ go_library(
 go_binary(
     name = "bcr",
     embed = [":bcr_lib"],
+    pure = "on",
     visibility = ["//visibility:public"],
 )

@@ -14,3 +14,12 @@ build --sandbox_default_allow_network=false
 test --test_output=errors
 # docs: https://bazel.build/reference/command-line-reference#flag--test_verbose_timeout_warnings
 test --test_verbose_timeout_warnings
+
+# make Bazel integration tests work on Windows
+# docs: https://bazel.build/reference/command-line-reference#flag--enable_runfiles
+common --enable_runfiles
+# docs: https://bazel.build/reference/command-line-reference#startup_options-flag--windows_enable_symlinks
+startup --windows_enable_symlinks
+
+# allow use of prebuilt protoc toolchain
+common --incompatible_enable_proto_toolchain_resolution

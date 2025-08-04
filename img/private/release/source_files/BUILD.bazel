@@ -18,6 +18,7 @@ release_files = [
     "//img/private/common:all_files",
     "//img/private/config:all_files",
     "//img/private/platforms:all_files",
+    "//img/private/prebuilt:all_files",
     "//img/private/providers:all_files",
     "//img/private/repository_rules:all_files",
     "//img/private/settings:all_files",
@@ -53,7 +54,10 @@ release_files = [
 filegroup(
     name = "release_src_files",
     srcs = release_files,
-    visibility = ["//img/private/release:__subpackages__"],
+    visibility = [
+        "//e2e:__pkg__",
+        "//img/private/release:__subpackages__",
+    ],
 )
 
 filegroup(

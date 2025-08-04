@@ -1,0 +1,47 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_img//img:image.bzl", "image_manifest")
+load("@rules_img//img:layer.bzl", "image_layer")
+load("@rules_img//img:push.bzl", "image_push")
+
+go_library(
+    name = "go_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/tweag/rules_img/e2e/simple/go",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "go",
+    embed = [":go_lib"],
+    pure = "on",
+    visibility = ["//visibility:public"],
+)
+
+image_layer(
+    name = "go_layer",
+    srcs = {
+        "/bin/app": ":go",
+    },
+)
+
+image_manifest(
+    name = "go_image",
+    entrypoint = ["/bin/app"],
+    layers = [
+        ":go_layer",
+    ],
+)
+
+image_push(
+    name = "push",
+    image = ":go_image",
+    registry = "ghcr.io",
+    repository = "malt3/rules_img_simple_go",
+    tag = "latest",
+)
+
+build_test(
+    name = "test",
+    targets = [":push"],
+)
