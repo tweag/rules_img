@@ -128,6 +128,22 @@ def _image_manifest_impl(ctx):
         inputs.append(ctx.file.config_fragment)
         args.add("--config-fragment", ctx.file.config_fragment.path)
 
+    # Add image config attributes
+    if ctx.attr.user:
+        args.add("--user", ctx.attr.user)
+    for key, value in ctx.attr.env.items():
+        args.add("--env", "%s=%s" % (key, value))
+    for entry in ctx.attr.entrypoint:
+        args.add("--entrypoint", entry)
+    for entry in ctx.attr.cmd:
+        args.add("--cmd", entry)
+    if ctx.attr.working_dir:
+        args.add("--working-dir", ctx.attr.working_dir)
+    for key, value in ctx.attr.labels.items():
+        args.add("--label", "%s=%s" % (key, value))
+    if ctx.attr.stop_signal:
+        args.add("--stop-signal", ctx.attr.stop_signal)
+
     structured_config = dict(
         architecture = arch,
         os = os,
@@ -194,6 +210,32 @@ image_manifest = rule(
         "platform": attr.string_dict(
             default = {},
             doc = "Dict containing additional runtime requirements of the image.",
+        ),
+        "user": attr.string(
+            doc = """The username or UID which is a platform-specific structure that allows specific control over which user the process run as.
+This acts as a default value to use when the value is not specified when creating a container.""",
+        ),
+        "env": attr.string_dict(
+            doc = "Default environment variables to set when starting a container based on this image.",
+            default = {},
+        ),
+        "entrypoint": attr.string_list(
+            doc = "A list of arguments to use as the command to execute when the container starts. These values act as defaults and may be replaced by an entrypoint specified when creating a container.",
+            default = [],
+        ),
+        "cmd": attr.string_list(
+            doc = "Default arguments to the entrypoint of the container. These values act as defaults and may be replaced by any specified when creating a container. If an Entrypoint value is not specified, then the first entry of the Cmd array SHOULD be interpreted as the executable to run.",
+            default = [],
+        ),
+        "working_dir": attr.string(
+            doc = "Sets the current working directory of the entrypoint process in the container. This value acts as a default and may be replaced by a working directory specified when creating a container.",
+        ),
+        "labels": attr.string_dict(
+            doc = "This field contains arbitrary metadata for the container.",
+            default = {},
+        ),
+        "stop_signal": attr.string(
+            doc = "This field contains the system call signal that will be sent to the container to exit. The signal can be a signal name in the format SIGNAME, for instance SIGKILL or SIGRTMIN+3.",
         ),
         "config_fragment": attr.label(
             doc = "Optional JSON file containing a partial image config, which will be used as a base for the final image config.",

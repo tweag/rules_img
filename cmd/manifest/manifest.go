@@ -14,6 +14,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	specv1 "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/tweag/rules_img/pkg/api"
 )
 
@@ -27,6 +28,13 @@ var (
 	manifestOutput        string
 	configOutput          string
 	descriptorOutput      string
+	user                  string
+	env                   stringMap
+	entrypoint            stringList
+	cmd                   stringList
+	workingDir            string
+	labels                stringMap
+	stopSignal            string
 )
 
 func ManifestProcess(_ context.Context, args []string) {
@@ -53,6 +61,13 @@ func ManifestProcess(_ context.Context, args []string) {
 	flagSet.StringVar(&manifestOutput, "manifest", "", `The output file for the final manifest.`)
 	flagSet.StringVar(&configOutput, "config", "", `The output file for the final config.`)
 	flagSet.StringVar(&descriptorOutput, "descriptor", "", `The output file for the descriptor of the manifest.`)
+	flagSet.StringVar(&user, "user", "", `The username or UID which the process in the container should run as.`)
+	flagSet.Var(&env, "env", `Environment variables to set in the container (can be specified multiple times as key=value).`)
+	flagSet.Var(&entrypoint, "entrypoint", `Command to execute when the container starts (can be specified multiple times).`)
+	flagSet.Var(&cmd, "cmd", `Default arguments to the entrypoint (can be specified multiple times).`)
+	flagSet.StringVar(&workingDir, "working-dir", "", `Working directory inside the container.`)
+	flagSet.Var(&labels, "label", `Metadata labels for the container (can be specified multiple times as key=value).`)
+	flagSet.StringVar(&stopSignal, "stop-signal", "", `Signal to stop the container.`)
 
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
@@ -328,5 +343,52 @@ func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor) error
 	for i, layer := range layers {
 		config.RootFS.DiffIDs[i] = digest.Digest(layer.DiffID)
 	}
+
+	// Apply command-line config values
+	if user != "" {
+		config.Config.User = user
+	}
+
+	// Apply environment variables
+	if len(env) > 0 {
+		// First, build a map of existing env vars
+		existingEnv := make(map[string]bool)
+		for i, envVar := range config.Config.Env {
+			key := strings.SplitN(envVar, "=", 2)[0]
+			if _, exists := env[key]; exists {
+				// Update existing env var
+				config.Config.Env[i] = fmt.Sprintf("%s=%s", key, env[key])
+				existingEnv[key] = true
+			}
+		}
+		// Add new env vars
+		for key, value := range env {
+			if !existingEnv[key] {
+				config.Config.Env = append(config.Config.Env, fmt.Sprintf("%s=%s", key, value))
+			}
+		}
+	}
+
+	if len(entrypoint) > 0 {
+		config.Config.Entrypoint = []string(entrypoint)
+	}
+
+	if len(cmd) > 0 {
+		config.Config.Cmd = []string(cmd)
+	}
+
+	if workingDir != "" {
+		config.Config.WorkingDir = workingDir
+	}
+
+	// Apply labels
+	if len(labels) > 0 {
+		config.Config.Labels = maps.Clone(config.Config.Labels)
+	}
+
+	if stopSignal != "" {
+		config.Config.StopSignal = stopSignal
+	}
+
 	return nil
 }
