@@ -110,13 +110,9 @@ def _image_manifest_impl(ctx):
         args.add("--base-manifest", base.manifest.path)
         args.add("--base-config", base.config.path)
     else:
-        if ctx.attr.os == "":
-            fail("no base image provided and no OS specified")
-        if ctx.attr.architecture == "":
-            fail("no base image provided and no architecture specified")
-        os = ctx.attr.os
-        arch = ctx.attr.architecture
-    if PullInfo in ctx.attr.base:
+        os = ctx.attr.os if ctx.attr.os != "" else "linux"
+        arch = ctx.attr.architecture if ctx.attr.architecture != "" else ctx.attr._os_cpu[TargetPlatformInfo].cpu
+    if ctx.attr.base != None and PullInfo in ctx.attr.base:
         providers.append(ctx.attr.base[PullInfo])
     for layer in ctx.attr.layers:
         layers.append(layer[LayerInfo])
@@ -171,7 +167,7 @@ def _image_manifest_impl(ctx):
             os = os,
             platform = ctx.attr.platform,
             layers = layers,
-            missing_blobs = base.missing_blobs,
+            missing_blobs = base.missing_blobs if base != None else [],
         ),
     ])
     return providers

@@ -309,13 +309,13 @@ func overlayConfigFromFile(config *specv1.Image, filePath string, isBase bool) e
 }
 
 func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor) error {
-	if config.OS == "" && operatingSystem != "" && config.OS != operatingSystem {
+	if config.OS != "" && operatingSystem != "" && config.OS != operatingSystem {
 		return fmt.Errorf("OS mismatch: %s != %s", config.OS, operatingSystem)
 	}
 	if config.OS == "" {
 		config.OS = operatingSystem
 	}
-	if config.Architecture == "" && architecture != "" && config.Architecture != architecture {
+	if config.Architecture != "" && architecture != "" && config.Architecture != architecture {
 		return fmt.Errorf("architecture mismatch: %s != %s", config.Architecture, architecture)
 	}
 	if config.Architecture == "" {
