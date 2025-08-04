@@ -22,7 +22,7 @@ jobs:
       with:
         repo_name: rules_img
     - name: Run buildifier
-      run: bazelisk run //:buildifier.check
+      run: bazelisk run //util:buildifier.check
   tidy_and_test_matrix:
     strategy:
       fail-fast: false

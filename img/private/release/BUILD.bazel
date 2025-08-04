@@ -80,7 +80,5 @@ bzl_library(
     srcs = ["defs.bzl"],
     deps = [
         "//img/private/config:defs",
-        "@rules_pkg//pkg:mappings",
-        "@rules_pkg//pkg:providers",
     ],
 )
