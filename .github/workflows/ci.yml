@@ -1,0 +1,64 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    # Every day at 10:09 UTC.
+    - cron: '9 10 * * *'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  buildifier_check:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+    - uses: cgrindel/gha_set_up_bazel@v1
+      with:
+        repo_name: rules_img
+    - name: Run buildifier
+      run: bazelisk run //:buildifier.check
+  tidy_and_test_matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-13, macos-15, ubuntu-22.04, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+    - uses: cgrindel/gha_set_up_bazel@v1
+      with:
+        repo_name: rules_img
+    - name: Execute Tests
+      run: bazelisk test //...
+  integration_test_matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-13, macos-15, ubuntu-22.04, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      id-token: write
+      contents: read
+      packages: read
+    steps:
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+    - uses: cgrindel/gha_set_up_bazel@v1
+      with:
+        repo_name: rules_img
+    - name: Execute Integration Tests
+      run: bazelisk test "//e2e:integration_tests"
+
+  all_ci_tests:
+    runs-on: ubuntu-22.04
+    needs: [tidy_and_test_matrix, integration_test_matrix]
+    if: ${{ always() }}
+    steps:
+      - uses: cgrindel/gha_join_jobs@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
