@@ -18,11 +18,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
-    - uses: cgrindel/gha_set_up_bazel@v1
-      with:
-        repo_name: rules_img
+    - name: Setup Bazel
+      uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8 # 0.15.0
     - name: Run buildifier
-      run: bazelisk run //:buildifier.check
+      run: bazelisk run //util:buildifier.check
   tidy_and_test_matrix:
     strategy:
       fail-fast: false
@@ -31,9 +30,12 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
-    - uses: cgrindel/gha_set_up_bazel@v1
+    - name: Setup Bazel
+      uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8 # 0.15.0
       with:
-        repo_name: rules_img
+        bazelisk-cache: true
+        disk-cache: ${{ github.workflow }}-${{ matrix.runner }}-tidy_and_test_matrix
+        repository-cache: true
     - name: Execute Tests
       run: bazelisk test //...
   integration_test_matrix:
@@ -48,9 +50,12 @@ jobs:
       packages: read
     steps:
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
-    - uses: cgrindel/gha_set_up_bazel@v1
+    - name: Setup Bazel
+      uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8 # 0.15.0
       with:
-        repo_name: rules_img
+        bazelisk-cache: true
+        disk-cache: ${{ github.workflow }}-${{ matrix.runner }}-integration_test_matrix
+        repository-cache: true
     - name: Execute Integration Tests
       run: bazelisk test "//e2e:integration_tests"
 

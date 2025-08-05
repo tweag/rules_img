@@ -13,7 +13,6 @@ GOOS_LINUX = "linux"
 GOOS_DARWIN = "darwin"
 GOOS_WINDOWS = "windows"
 
-GOARCH_386 = "386"
 GOARCH_AMD64 = "amd64"
 GOARCH_ARM64 = "arm64"
 GOARCH_RISCV64 = "riscv64"
@@ -22,7 +21,6 @@ go_to_constraint_value = {
     GOOS_LINUX: "@platforms//os:linux",
     GOOS_DARWIN: "@platforms//os:macos",
     GOOS_WINDOWS: "@platforms//os:windows",
-    GOARCH_386: "@platforms//cpu:x86_32",
     GOARCH_AMD64: "@platforms//cpu:x86_64",
     GOARCH_ARM64: "@platforms//cpu:arm64",
     GOARCH_RISCV64: "@platforms//cpu:riscv64",
@@ -36,7 +34,6 @@ _goos_list = [
 
 # buildifier: disable=unused-variable
 _goarch_list = [
-    GOARCH_386,
     GOARCH_AMD64,
     GOARCH_ARM64,
     # TODO: fix rules_go upstream:
@@ -45,7 +42,7 @@ _goarch_list = [
 ]
 
 _os_to_arches = {
-    GOOS_LINUX: [GOARCH_386, GOARCH_AMD64, GOARCH_ARM64],
+    GOOS_LINUX: [GOARCH_AMD64, GOARCH_ARM64],
     GOOS_DARWIN: [GOARCH_AMD64, GOARCH_ARM64],
     GOOS_WINDOWS: [GOARCH_AMD64, GOARCH_ARM64],
 }

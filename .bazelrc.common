@@ -20,6 +20,3 @@ test --test_verbose_timeout_warnings
 common --enable_runfiles
 # docs: https://bazel.build/reference/command-line-reference#startup_options-flag--windows_enable_symlinks
 startup --windows_enable_symlinks
-
-# allow use of prebuilt protoc toolchain
-common --incompatible_enable_proto_toolchain_resolution

@@ -112,7 +112,7 @@ func bazelCommands(bazel string, startupFlags []string) (setup []commandLine, te
 }
 
 func runBazelCommands(bazel, workspaceDir string) error {
-	var startupFlags []string
+	startupFlags := []string{"--nosystem_rc", "--nohome_rc"}
 
 	root, cleanupRoot := outputUserRoot()
 	defer cleanupRoot()

@@ -73,7 +73,7 @@ _prebuilt_attrs = {
     "version": attr.string(mandatory = True),
     "integrity": attr.string(mandatory = True),
     "os": attr.string(values = ["darwin", "linux", "windows"]),
-    "cpu": attr.string(values = ["386", "amd64", "arm64"]),
+    "cpu": attr.string(values = ["amd64", "arm64"]),
     "url_templates": attr.string_list(
         default = ["https://github.com/tweag/rules_img/releases/download/{version}/img_{os}_{cpu}{dot}{extension}"],
     ),
