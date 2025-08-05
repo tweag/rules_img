@@ -1,4 +1,4 @@
-module(name = "simple_e2e")
+module(name = "go_e2e")
 
 # BEGIN BAZEL_DEP
 bazel_dep(

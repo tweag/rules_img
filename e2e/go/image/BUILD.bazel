@@ -1,0 +1,36 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_img//img:image.bzl", "image_manifest")
+load("@rules_img//img:layer.bzl", "image_layer")
+load("@rules_img//img:push.bzl", "image_push")
+
+image_layer(
+    name = "go_layer",
+    srcs = {
+        "/bin/app": "//:app",
+    },
+)
+
+image_manifest(
+    name = "go_image",
+    entrypoint = ["/bin/app"],
+    layers = [
+        ":go_layer",
+    ],
+)
+
+image_push(
+    name = "push",
+    image = ":go_image",
+    registry = "ghcr.io",
+    repository = "malt3/rules_img/go",
+    tag = "native",
+)
+
+build_test(
+    name = "test",
+    targets = [
+        ":go_layer",
+        ":go_image",
+        ":push",
+    ],
+)

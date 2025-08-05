@@ -1,2 +1,6 @@
 .direnv
 benchmark
+e2e/go/bazel-bin
+e2e/go/bazel-go
+e2e/go/bazel-out
+e2e/go/bazel-testlogs

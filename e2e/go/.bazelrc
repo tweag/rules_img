@@ -1,0 +1,6 @@
+common --enable_platform_specific_config
+
+# enable pathmapping for supported platforms
+# this will speed up multi-platform builds
+common:macos --experimental_output_paths=strip
+common:linux --experimental_output_paths=strip
