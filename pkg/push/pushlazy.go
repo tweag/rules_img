@@ -173,7 +173,7 @@ func (p lazyPusher) pushableIndex(ctx context.Context, req registrytypes.PushReq
 
 	manifests := make([]*pushableImage, len(index.Manifests))
 	for i, manifestDesc := range index.Manifests {
-		manifest, err := p.pushableImage(ctx, req, toAPIDescriptor(manifestDesc), filepath.Join("manifest", strconv.Itoa(i)), knownMissing)
+		manifest, err := p.pushableImage(ctx, req, toAPIDescriptor(manifestDesc), filepath.Join("manifests", strconv.Itoa(i)), knownMissing)
 		if err != nil {
 			return nil, err
 		}
