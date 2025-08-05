@@ -1,7 +1,7 @@
 # To update these lines, execute
 # `bazel run @rules_bazel_integration_test//tools:update_deleted_packages`
-build --deleted_packages=e2e/simple,e2e/simple/go
-query --deleted_packages=e2e/simple,e2e/simple/go
+build --deleted_packages=e2e/go,e2e/go/cross,e2e/go/image,e2e/go/multiarch-manual,e2e/go/multiarch-transition
+query --deleted_packages=e2e/go,e2e/go/cross,e2e/go/image,e2e/go/multiarch-manual,e2e/go/multiarch-transition
 
 import %workspace%/.bazelrc.common
 
