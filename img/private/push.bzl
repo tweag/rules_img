@@ -38,7 +38,7 @@ def _encode_manifest_metadata(manifest_info):
     )
 
 def _layer_root_symlinks_for_manifest(manifest_info, index = None):
-    base_path = "layer" if index == None else "manifest/{}/layer".format(index)
+    base_path = "layer" if index == None else "manifests/{}/layer".format(index)
     return {
         "{base}/{layer_index}".format(base = base_path, layer_index = layer_index): layer.blob
         for (layer_index, layer) in enumerate(manifest_info.layers)
@@ -46,7 +46,7 @@ def _layer_root_symlinks_for_manifest(manifest_info, index = None):
     }
 
 def _metadata_symlinks_for_manifest(manifest_info, index = None):
-    base_path = "metadata" if index == None else "manifest/{}/metadata".format(index)
+    base_path = "metadata" if index == None else "manifests/{}/metadata".format(index)
     return {
         "{base}/{layer_index}".format(base = base_path, layer_index = layer_index): layer.metadata
         for (layer_index, layer) in enumerate(manifest_info.layers)
@@ -54,7 +54,7 @@ def _metadata_symlinks_for_manifest(manifest_info, index = None):
     }
 
 def _root_symlinks_for_manifest(manifest_info, index = None, *, include_layers):
-    base_path = "" if index == None else "manifest/{}/".format(index)
+    base_path = "" if index == None else "manifests/{}/".format(index)
     root_symlinks = {
         "{base}manifest.json".format(base = base_path): manifest_info.manifest,
         "{base}config.json".format(base = base_path): manifest_info.config,
@@ -124,7 +124,7 @@ def _image_push_upload_impl(ctx):
         push_request["index"] = dict(
             index = "index.json",
             manifests = [
-                _encode_manifest(manifest, "manifest/{}".format(i))
+                _encode_manifest(manifest, "manifests/{}".format(i))
                 for i, manifest in enumerate(index_info.manifests)
             ],
         )
