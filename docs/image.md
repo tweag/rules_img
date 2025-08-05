@@ -35,8 +35,8 @@ image_index(<a href="#image_index-name">name</a>, <a href="#image_index-annotati
 <pre>
 load("@rules_img//img:image.bzl", "image_manifest")
 
-image_manifest(<a href="#image_manifest-name">name</a>, <a href="#image_manifest-architecture">architecture</a>, <a href="#image_manifest-base">base</a>, <a href="#image_manifest-cmd">cmd</a>, <a href="#image_manifest-config_fragment">config_fragment</a>, <a href="#image_manifest-entrypoint">entrypoint</a>, <a href="#image_manifest-env">env</a>, <a href="#image_manifest-labels">labels</a>, <a href="#image_manifest-layers">layers</a>, <a href="#image_manifest-os">os</a>,
-               <a href="#image_manifest-platform">platform</a>, <a href="#image_manifest-stop_signal">stop_signal</a>, <a href="#image_manifest-user">user</a>, <a href="#image_manifest-working_dir">working_dir</a>)
+image_manifest(<a href="#image_manifest-name">name</a>, <a href="#image_manifest-annotations">annotations</a>, <a href="#image_manifest-architecture">architecture</a>, <a href="#image_manifest-base">base</a>, <a href="#image_manifest-cmd">cmd</a>, <a href="#image_manifest-config_fragment">config_fragment</a>, <a href="#image_manifest-entrypoint">entrypoint</a>, <a href="#image_manifest-env">env</a>, <a href="#image_manifest-labels">labels</a>,
+               <a href="#image_manifest-layers">layers</a>, <a href="#image_manifest-os">os</a>, <a href="#image_manifest-platform">platform</a>, <a href="#image_manifest-stop_signal">stop_signal</a>, <a href="#image_manifest-user">user</a>, <a href="#image_manifest-working_dir">working_dir</a>)
 </pre>
 
 
@@ -47,6 +47,7 @@ image_manifest(<a href="#image_manifest-name">name</a>, <a href="#image_manifest
 | Name  | Description | Type | Mandatory | Default |
 | :------------- | :------------- | :------------- | :------------- | :------------- |
 | <a id="image_manifest-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
+| <a id="image_manifest-annotations"></a>annotations |  This field contains arbitrary metadata for the manifest.   | <a href="https://bazel.build/rules/lib/dict">Dictionary: String -> String</a> | optional |  `{}`  |
 | <a id="image_manifest-architecture"></a>architecture |  The CPU architecture this image runs on.   | String | optional |  `""`  |
 | <a id="image_manifest-base"></a>base |  Base image to inherit layers from. Should provide ImageManifestInfo or ImageIndexInfo.   | <a href="https://bazel.build/concepts/labels">Label</a> | optional |  `None`  |
 | <a id="image_manifest-cmd"></a>cmd |  Default arguments to the entrypoint of the container. These values act as defaults and may be replaced by any specified when creating a container. If an Entrypoint value is not specified, then the first entry of the Cmd array SHOULD be interpreted as the executable to run.   | List of strings | optional |  `[]`  |
