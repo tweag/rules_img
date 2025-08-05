@@ -143,6 +143,8 @@ def _image_manifest_impl(ctx):
         args.add("--label", "%s=%s" % (key, value))
     if ctx.attr.stop_signal:
         args.add("--stop-signal", ctx.attr.stop_signal)
+    for key, value in ctx.attr.annotations.items():
+        args.add("--annotation", "%s=%s" % (key, value))
 
     structured_config = dict(
         architecture = arch,
@@ -232,6 +234,10 @@ This acts as a default value to use when the value is not specified when creatin
         ),
         "labels": attr.string_dict(
             doc = "This field contains arbitrary metadata for the container.",
+            default = {},
+        ),
+        "annotations": attr.string_dict(
+            doc = "This field contains arbitrary metadata for the manifest.",
             default = {},
         ),
         "stop_signal": attr.string(

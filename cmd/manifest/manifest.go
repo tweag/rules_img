@@ -34,6 +34,7 @@ var (
 	cmd                   stringList
 	workingDir            string
 	labels                stringMap
+	annotations           stringMap
 	stopSignal            string
 )
 
@@ -67,6 +68,7 @@ func ManifestProcess(_ context.Context, args []string) {
 	flagSet.Var(&cmd, "cmd", `Default arguments to the entrypoint (can be specified multiple times).`)
 	flagSet.StringVar(&workingDir, "working-dir", "", `Working directory inside the container.`)
 	flagSet.Var(&labels, "label", `Metadata labels for the container (can be specified multiple times as key=value).`)
+	flagSet.Var(&annotations, "annotation", `Metadata annotations for the manifest (can be specified multiple times as key=value).`)
 	flagSet.StringVar(&stopSignal, "stop-signal", "", `Signal to stop the container.`)
 
 	if err := flagSet.Parse(args); err != nil {
@@ -123,6 +125,10 @@ func ManifestProcess(_ context.Context, args []string) {
 			Size:      int64(len(configRaw)),
 		},
 		Layers: layerDescriptors,
+	}
+
+	if len(annotations) > 0 {
+		manifest.Annotations = annotations
 	}
 
 	manifestRaw, err := json.Marshal(manifest)
@@ -301,9 +307,7 @@ func overlayConfigFromFile(config *specv1.Image, filePath string, isBase bool) e
 		if config.Config.Labels == nil {
 			config.Config.Labels = maps.Clone(configFragment.Config.Labels)
 		} else {
-			for k, v := range configFragment.Config.Labels {
-				config.Config.Labels[k] = v
-			}
+			maps.Copy(config.Config.Labels, configFragment.Config.Labels)
 		}
 	}
 	if configFragment.Config.StopSignal != "" {
@@ -381,9 +385,12 @@ func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor) error
 		config.Config.WorkingDir = workingDir
 	}
 
-	// Apply labels
 	if len(labels) > 0 {
-		config.Config.Labels = maps.Clone(config.Config.Labels)
+		if config.Config.Labels == nil {
+			config.Config.Labels = maps.Clone(labels)
+		} else {
+			maps.Copy(config.Config.Labels, labels)
+		}
 	}
 
 	if stopSignal != "" {
