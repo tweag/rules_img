@@ -1,0 +1,55 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_img//img:image.bzl", "image_index", "image_manifest")
+load("@rules_img//img:layer.bzl", "image_layer")
+load("@rules_img//img:push.bzl", "image_push")
+
+cc_binary(
+    name = "app",
+    srcs = ["main.cc"],
+    visibility = ["//visibility:public"],
+)
+
+image_layer(
+    name = "cc_layer",
+    srcs = {
+        "/bin/app": "//:app",
+    },
+)
+
+image_manifest(
+    name = "cc_image",
+    base = "@distroless_cc",
+    entrypoint = ["/bin/app"],
+    layers = [
+        ":cc_layer",
+    ],
+)
+
+image_index(
+    name = "cc_index",
+    manifests = [":cc_image"],
+    platforms = [
+        "//platform:linux_amd64_libstdc++",
+        "//platform:linux_arm64_libstdc++",
+    ],
+)
+
+image_push(
+    name = "push",
+    image = ":cc_index",
+    registry = "ghcr.io",
+    repository = "malt3/rules_img/cc",
+    tag = "libstdcxx",
+)
+
+build_test(
+    name = "test",
+    targets = [
+        ":app",
+        ":cc_layer",
+        ":cc_image",
+        ":cc_index",
+        ":push",
+    ],
+)

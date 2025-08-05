@@ -1,0 +1,31 @@
+module(name = "cc_e2e")
+
+# BEGIN BAZEL_DEP
+bazel_dep(
+    name = "rules_img",
+    version = "0.0.0",
+)
+local_path_override(
+    module_name = "rules_img",
+    path = "../..",
+)
+# END BAZEL_DEP
+
+bazel_dep(name = "bazel_skylib", version = "1.8.1")
+bazel_dep(name = "platforms", version = "0.0.11")
+
+bazel_dep(name = "rules_cc", version = "0.1.1", dev_dependency = True)
+
+# All of the hermetic C++ toolchain setup is done in a separate MODULE.bazel file.
+# This setup is not important for the e2e tests and it is hard to read.
+include("//:toolchain.MODULE.bazel")
+
+pull = use_repo_rule("@rules_img//img/private/repository_rules:pull.bzl", "pull")
+
+pull(
+    name = "distroless_cc",
+    digest = "sha256:d1b8e4c52be1111aa108e959ef2a822299bb70fd1819dd250871a2601ca1e4b6",
+    registry = "gcr.io",
+    repository = "distroless/cc-debian12",
+    tag = "nonroot",
+)

@@ -20,11 +20,26 @@ bazel_integration_tests(
     workspace_path = "go",
 )
 
+bazel_integration_tests(
+    name = "cc",
+    bazel_versions = bazel_binaries.versions.all,
+    tags = TAGS,
+    target_compatible_with = ["@platforms//os:linux"],
+    test_runner = "//img/private/integration_test_runner",
+    workspace_files = integration_test_utils.glob_workspace_files("cc") + [
+        "//img/private/release/source_files:release_src_files",
+    ],
+    workspace_path = "cc",
+)
+
 test_suite(
     name = "integration_tests",
     tags = TAGS,
     tests = integration_test_utils.bazel_integration_test_names(
         "go",
+        bazel_binaries.versions.all,
+    ) + integration_test_utils.bazel_integration_test_names(
+        "cc",
         bazel_binaries.versions.all,
     ),
     visibility = ["//:__subpackages__"],
