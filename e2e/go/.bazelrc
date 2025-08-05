@@ -4,3 +4,7 @@ common --enable_platform_specific_config
 # this will speed up multi-platform builds
 common:macos --experimental_output_paths=strip
 common:linux --experimental_output_paths=strip
+
+import %workspace%/.bazelrc.common
+
+try-import %workspace%/.bazelrc.user
