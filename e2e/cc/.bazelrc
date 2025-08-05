@@ -1,0 +1,5 @@
+common --enable_platform_specific_config
+
+import %workspace%/.bazelrc.common
+
+try-import %workspace%/.bazelrc.user
