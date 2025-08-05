@@ -1,0 +1,54 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_img//img:image.bzl", "image_manifest")
+load("@rules_img//img:layer.bzl", "image_layer")
+load("@rules_img//img:push.bzl", "image_push")
+
+image_layer(
+    name = "go_layer",
+    srcs = {
+        "/bin/app": "//:app",
+    },
+)
+
+image_manifest(
+    name = "go_image",
+    annotations = {
+        "org.opencontainers.image.title": "Go Application with Customizations",
+        "org.opencontainers.image.description": "Your description goes here.",
+        "org.opencontainers.image.licenses": "Apache-2.0",
+    },
+    cmd = [
+        "--my-flag",
+        "value",
+    ],
+    entrypoint = ["/bin/app"],
+    env = {
+        "MY_ENV_VAR": "value",
+    },
+    labels = {
+        "org.label-schema.name": "Go Application with Customizations",
+        "org.label-schema.description": "Your description goes here.",
+    },
+    layers = [
+        ":go_layer",
+    ],
+    stop_signal = "SIGKILL",
+    user = "0",
+)
+
+image_push(
+    name = "push",
+    image = ":go_image",
+    registry = "ghcr.io",
+    repository = "malt3/rules_img/go",
+    tag = "customization",
+)
+
+build_test(
+    name = "test",
+    targets = [
+        ":go_layer",
+        ":go_image",
+        ":push",
+    ],
+)
