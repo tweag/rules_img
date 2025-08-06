@@ -4,7 +4,7 @@ This directory contains examples demonstrating different ways of building contai
 
 ## Examples
 
-### 1. [image/](./image/) - Basic Single-Platform Image
+### 1. [image/](./image/BUILD.bazel) - Basic Single-Platform Image
 
 The simplest example showing how to build a container image for a Go application:
 - Creates a single-platform container image with a Go binary
@@ -12,14 +12,14 @@ The simplest example showing how to build a container image for a Go application
 - Demonstrates basic `image_layer` and `image_manifest` usage
 - Shows how to push images to a registry
 
-### 2. [cross/](./cross/) - Cross-Platform Building
+### 2. [cross/](./cross/BUILD.bazel) - Cross-Platform Building
 
 Demonstrates cross-compilation capabilities:
 - Uses `go_cross_binary` to build for a specific target platform (Linux ARM64)
 - Shows how to build container images for different architectures than the host
 - Explicitly sets platform metadata in the image manifest
 
-### 3. [multiarch-transition/](./multiarch-transition/) - Automated Multi-Architecture Images
+### 3. [multiarch-transition/](./multiarch-transition/BUILD.bazel) - Automated Multi-Architecture Images
 
 The recommended approach for multi-platform container images:
 - Uses Bazel's platform transitions for automatic multi-platform builds
@@ -27,13 +27,23 @@ The recommended approach for multi-platform container images:
 - Minimal configuration - Bazel handles the platform-specific builds automatically
 - Best choice when you want the same build configuration for all platforms
 
-### 4. [multiarch-manual/](./multiarch-manual/) - Manual Multi-Architecture Images
+### 4. [multiarch-manual/](./multiarch-manual/BUILD.bazel) - Manual Multi-Architecture Images
 
 For cases requiring full control over each platform variant:
 - Explicitly defines separate binary targets for each architecture
 - Manually creates platform-specific layers and manifests
 - Assembles the multi-platform index from individual components
 - Useful when different platforms need different configurations or build flags
+
+### 5. [customization/](./customization/BUILD.bazel) - Image Metadata and Configuration
+
+Demonstrates comprehensive image customization options:
+- Sets custom entrypoint with command arguments
+- Configures environment variables for the container
+- Adds OCI annotations for image metadata
+- Applies labels for compatibility with label-schema
+- Customizes runtime behavior (user, stop signal)
+- Shows all available configuration options in `image_manifest`
 
 ## Running the Examples
 
