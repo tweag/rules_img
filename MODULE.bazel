@@ -17,6 +17,18 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.0.3", dev_dependency = True
 bazel_dep(name = "aspect_bazel_lib", version = "2.20.0", dev_dependency = True)
 bazel_dep(name = "rules_pkg", version = "1.1.0", dev_dependency = True)
 bazel_dep(name = "rules_bazel_integration_test", version = "0.33.2", dev_dependency = True)
+bazel_dep(name = "rules_python", version = "1.5.1", dev_dependency = True)
+single_version_override(
+    module_name = "rules_python",
+    patch_strip = 1,
+    patches = [
+        # On NixOS, I can't get the python from my $PATH to work.
+        # After some debugging, I noticed that `which` fails deep inside
+        # rules_python.
+        # Replacing it with `command -v` does the trick.
+        "//patches:rules_python_command_v.patch",
+    ],
+)
 
 module_version = use_extension("//img/private/config:defs.bzl", "module_version", dev_dependency = True)
 use_repo(module_version, "rules_img_version")
