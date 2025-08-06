@@ -32,6 +32,16 @@ string_flag(
     visibility = ["//visibility:public"],
 )
 
+string_flag(
+    name = "stamp",
+    build_setting_default = "disabled",
+    values = [
+        "enabled",
+        "disabled",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 filegroup(
     name = "all_files",
     srcs = glob(["**"]),

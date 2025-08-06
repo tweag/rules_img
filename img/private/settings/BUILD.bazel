@@ -1,6 +1,7 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@bazel_skylib//rules:common_settings.bzl", "string_setting")
 load(":settings.bzl", "push_settings")
+load(":stamp.bzl", "stamp_build_setting")
 
 string_setting(
     name = "original_platforms",
@@ -21,6 +22,30 @@ bzl_library(
         "//img/private/providers:push_settings_info",
         "@bazel_skylib//rules:common_settings",
     ],
+)
+
+config_setting(
+    name = "stamp_detect",
+    values = {"stamp": "1"},
+    visibility = ["//img:__subpackages__"],
+)
+
+config_setting(
+    name = "stamp_user_preference_enabled",
+    flag_values = {"//img/settings:stamp": "enabled"},
+)
+
+stamp_build_setting(
+    name = "stamp",
+    bazel_setting = select({
+        ":stamp_detect": True,
+        "//conditions:default": False,
+    }),
+    user_preference = select({
+        ":stamp_user_preference_enabled": True,
+        "//conditions:default": False,
+    }),
+    visibility = ["//visibility:public"],
 )
 
 filegroup(

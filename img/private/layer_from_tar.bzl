@@ -88,6 +88,7 @@ layer_from_tar = rule(
         "src": attr.label(
             mandatory = True,
             allow_single_file = allow_tar_files,
+            doc = """The tar file to convert into a layer. Must be a valid tar file (optionally compressed).""",
         ),
         "compress": attr.string(
             default = "auto",
