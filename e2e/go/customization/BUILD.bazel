@@ -41,7 +41,10 @@ image_push(
     image = ":go_image",
     registry = "ghcr.io",
     repository = "malt3/rules_img/go",
-    tag = "customization",
+    tag_list = [
+        "customization",
+        "another-tag-just-for-fun",
+    ],
 )
 
 build_test(

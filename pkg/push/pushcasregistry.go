@@ -40,6 +40,7 @@ func (p casRegistryPusher) Push(ctx context.Context, reference string, req regis
 		return "", errors.New("no blobs to push")
 	}
 
+	reference = fmt.Sprintf("%s@%s", reference, req.Blobs[0].Digest)
 	digestFunction := remoteexecution_proto.DigestFunction_SHA256
 	switch req.Blobs[0].Digest[:6] {
 	case "sha256":

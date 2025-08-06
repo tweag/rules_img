@@ -32,7 +32,7 @@ import (
 // a blob to a container registry.
 type uploadJob struct {
 	ctx        context.Context
-	ref        name.Reference
+	ref        name.Repository
 	desc       api.Descriptor
 	metadata   registrytypes.PushRequest
 	remoteOpts []remote.Option
@@ -43,10 +43,17 @@ type uploadJob struct {
 // The key combines registry, repository, and digest in container image reference format
 // to ensure proper deduplication per destination, as the same blob may be uploaded
 // to different registries or repositories.
-func makeUploadKey(digest string, ref name.Reference) string {
+func makeUploadKey(digest string, ref name.Repository) string {
 	// Format: registry/repository@digest (e.g., docker.io/library/ubuntu@sha256:abc123...)
 	// This ensures uniqueness across different destinations
-	return fmt.Sprintf("%s/%s@%s", ref.Context().RegistryStr(), ref.Context().RepositoryStr(), digest)
+	return fmt.Sprintf("%s/%s@%s", ref.RegistryStr(), ref.RepositoryStr(), digest)
+}
+
+// makeTagKey creates a composite key for tracking tagged manifests.
+// The key combines registry, repository, and tag to identify a specific tag.
+func makeTagKey(ref name.Repository, tag string) string {
+	// Format: registry/repository:tag (e.g., docker.io/library/ubuntu:latest)
+	return fmt.Sprintf("%s/%s:%s", ref.RegistryStr(), ref.RepositoryStr(), tag)
 }
 
 // Syncer handles container image synchronization from CAS to registries.
@@ -75,6 +82,11 @@ type Syncer struct {
 	// Track uploaded blobs to avoid duplicate uploads
 	uploadedBlobs map[string]struct{}
 	uploadMutex   sync.RWMutex
+
+	// Track uploaded tags to avoid duplicate tagging
+	// Maps registry/repository:tag to digest
+	uploadedTags map[string]string
+	tagMutex     sync.RWMutex
 
 	// Worker pool for blob uploads
 	workQueue   chan *uploadJob
@@ -107,6 +119,7 @@ func NewWithWorkers(casClient *cas.CAS, workerCount int) *Syncer {
 		metadataCache:    make(map[string][]byte),
 		ongoingTransfers: make(map[string]chan error),
 		uploadedBlobs:    make(map[string]struct{}),
+		uploadedTags:     make(map[string]string),
 		workQueue:        make(chan *uploadJob, workerCount*2), // Buffer for better performance
 		workerCount:      workerCount,
 		shutdown:         make(chan struct{}),
@@ -165,14 +178,14 @@ func (s *Syncer) Commit(ctx context.Context, digest string, sizeBytes int64) err
 		return fmt.Errorf("failed to parse push metadata: %w", err)
 	}
 
-	reference := fmt.Sprintf("%s/%s:%s",
+	// Parse base reference without tag for digest-based push
+	baseReference := fmt.Sprintf("%s/%s",
 		metadata.PushTarget.Registry,
-		metadata.PushTarget.Repository,
-		metadata.PushTarget.Tag)
+		metadata.PushTarget.Repository)
 
-	ref, err := name.ParseReference(reference)
+	ref, err := name.NewRepository(baseReference)
 	if err != nil {
-		return fmt.Errorf("invalid reference %s: %w", reference, err)
+		return fmt.Errorf("invalid repository %s: %w", baseReference, err)
 	}
 
 	remoteOpts := []remote.Option{
@@ -188,12 +201,71 @@ func (s *Syncer) Commit(ctx context.Context, digest string, sizeBytes int64) err
 	mediaType := types.MediaType(rootBlob.MediaType)
 
 	if mediaType.IsIndex() {
-		return s.pushIndex(ctx, ref, metadata, remoteOpts)
+		err = s.pushIndex(ctx, ref, metadata, remoteOpts)
 	} else if mediaType.IsImage() {
-		return s.pushImage(ctx, ref, metadata, remoteOpts)
+		err = s.pushImage(ctx, ref, metadata, remoteOpts)
 	} else {
 		return fmt.Errorf("unsupported root media type: %s", mediaType)
 	}
+
+	if err != nil {
+		return err
+	}
+
+	needsTagging := false
+	for _, tag := range metadata.PushTarget.Tags {
+		tagKey := makeTagKey(ref, tag)
+		s.tagMutex.RLock()
+		cachedDigest, exists := s.uploadedTags[tagKey]
+		s.tagMutex.RUnlock()
+		if !exists || cachedDigest != rootBlob.Digest {
+			needsTagging = true
+			break
+		}
+	}
+
+	if !needsTagging {
+		log.Printf("All tags already point to %s@%s, skipping tagging", ref.Name(), rootBlob.Digest)
+		return nil
+	}
+
+	digestRef, err := name.ParseReference(ref.String() + "@" + rootBlob.Digest)
+	if err != nil {
+		return fmt.Errorf("failed to parse digest reference: %w", err)
+	}
+
+	desc, err := remote.Get(digestRef, remoteOpts...)
+	if err != nil {
+		return fmt.Errorf("failed to get descriptor for digest %s: %w", rootBlob.Digest, err)
+	}
+
+	for _, tag := range metadata.PushTarget.Tags {
+		tagKey := makeTagKey(ref, tag)
+
+		// Check if tag already points to the correct digest
+		s.tagMutex.RLock()
+		cachedDigest, exists := s.uploadedTags[tagKey]
+		s.tagMutex.RUnlock()
+		if exists && cachedDigest == rootBlob.Digest {
+			log.Printf("Tag %s already points to %s@%s, skipping", tag, ref.Name(), rootBlob.Digest)
+			continue
+		}
+
+		tagRef := ref.Tag(tag)
+
+		if err := remote.Tag(tagRef, desc, remoteOpts...); err != nil {
+			return fmt.Errorf("failed to tag %s as %s: %w", rootBlob.Digest, tag, err)
+		}
+
+		// Update cache with the new digest for this tag
+		s.tagMutex.Lock()
+		s.uploadedTags[tagKey] = rootBlob.Digest
+		s.tagMutex.Unlock()
+
+		log.Printf("Tagged %s as %s", rootBlob.Digest, tagRef.String())
+	}
+
+	return nil
 }
 
 // getCachedOrFetch retrieves blob data from the in-memory cache or fetches it from CAS.
@@ -235,7 +307,7 @@ func (s *Syncer) getCachedOrFetch(ctx context.Context, digest cas.Digest) ([]byt
 //
 // The method uses the worker pool for concurrent layer uploads and deduplication
 // to avoid uploading the same blob multiple times.
-func (s *Syncer) pushImage(ctx context.Context, ref name.Reference, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
+func (s *Syncer) pushImage(ctx context.Context, ref name.Repository, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
 	log.Printf("Pushing image to %s", ref.Name())
 	manifestBlob := metadata.Blobs[0]
 
@@ -269,12 +341,13 @@ func (s *Syncer) pushImage(ctx context.Context, ref name.Reference, metadata reg
 		metadata:     metadata,
 	}
 
-	if err := remote.Write(ref, img, remoteOpts...); err != nil {
+	// Create a digest reference for pushing
+	digestRef := ref.Digest(manifestBlob.Digest)
+	if err := remote.Write(digestRef, img, remoteOpts...); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 
-	namedRef := ref.String() + "@" + manifestBlob.Digest
-	log.Println(namedRef)
+	log.Printf("Pushed image %s@%s", ref.Name(), manifestBlob.Digest)
 	return nil
 }
 
@@ -284,7 +357,7 @@ func (s *Syncer) pushImage(ctx context.Context, ref name.Reference, metadata reg
 //
 // The method uses errgroups to upload multiple platform manifests concurrently,
 // with each manifest upload handled by uploadManifestAndLayers.
-func (s *Syncer) pushIndex(ctx context.Context, ref name.Reference, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
+func (s *Syncer) pushIndex(ctx context.Context, ref name.Repository, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
 	log.Printf("Pushing index to %s", ref.Name())
 	indexBlob := metadata.Blobs[0]
 
@@ -320,12 +393,13 @@ func (s *Syncer) pushIndex(ctx context.Context, ref name.Reference, metadata reg
 		metadata:  metadata,
 	}
 
-	if err := remote.WriteIndex(ref, idx, remoteOpts...); err != nil {
+	// Create a digest reference for pushing
+	digestRef := ref.Digest(indexBlob.Digest)
+	if err := remote.WriteIndex(digestRef, idx, remoteOpts...); err != nil {
 		return fmt.Errorf("failed to write index: %w", err)
 	}
 
-	namedRef := ref.String() + "@" + indexBlob.Digest
-	log.Println(namedRef)
+	log.Printf("Pushed index %s@%s", ref.Name(), indexBlob.Digest)
 	return nil
 }
 
@@ -334,7 +408,7 @@ func (s *Syncer) pushIndex(ctx context.Context, ref name.Reference, metadata reg
 // manifest and layers before writing the index.
 //
 // It follows the proper upload order: layers, config, then the manifest blob itself.
-func (s *Syncer) uploadManifestAndLayers(ctx context.Context, ref name.Reference, manifestDesc v1.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
+func (s *Syncer) uploadManifestAndLayers(ctx context.Context, ref name.Repository, manifestDesc v1.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
 	// Find the manifest blob in metadata
 	var manifestBlob *api.Descriptor
 	for _, blob := range metadata.Blobs {
@@ -383,7 +457,7 @@ func (s *Syncer) uploadManifestAndLayers(ctx context.Context, ref name.Reference
 // Deduplication is handled automatically by queueBlobUpload.
 //
 // If any layer fails to upload, the method returns immediately with an error.
-func (s *Syncer) uploadLayers(ctx context.Context, ref name.Reference, layers []v1.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
+func (s *Syncer) uploadLayers(ctx context.Context, ref name.Repository, layers []v1.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
 	if len(layers) == 0 {
 		return nil
 	}
@@ -415,7 +489,7 @@ func (s *Syncer) uploadLayers(ctx context.Context, ref name.Reference, layers []
 //   - If blob is already uploaded: returns immediately with nil
 //   - If blob upload is in progress: waits for the ongoing upload to complete
 //   - If blob is not uploaded: queues a new upload job
-func (s *Syncer) queueBlobUpload(ctx context.Context, ref name.Reference, desc api.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) chan error {
+func (s *Syncer) queueBlobUpload(ctx context.Context, ref name.Repository, desc api.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) chan error {
 	digest := desc.Digest
 	uploadKey := makeUploadKey(digest, ref)
 	result := make(chan error, 1)
@@ -471,7 +545,7 @@ func (s *Syncer) queueBlobUpload(ctx context.Context, ref name.Reference, desc a
 // uploadBlob performs the actual blob upload to the registry.
 // This method is called by worker goroutines to process queued upload jobs.
 // It creates a layer wrapper and uploads it to the registry using go-containerregistry.
-func (s *Syncer) uploadBlob(ctx context.Context, ref name.Reference, desc api.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
+func (s *Syncer) uploadBlob(ctx context.Context, ref name.Repository, desc api.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
 	digest := desc.Digest
 	uploadKey := makeUploadKey(digest, ref)
 
@@ -509,7 +583,7 @@ func (s *Syncer) uploadBlob(ctx context.Context, ref name.Reference, desc api.De
 	}
 
 	// Upload to registry
-	if err := remote.WriteLayer(ref.Context(), layer, remoteOpts...); err != nil {
+	if err := remote.WriteLayer(ref, layer, remoteOpts...); err != nil {
 		return fmt.Errorf("failed to upload blob %s: %w", digest, err)
 	}
 

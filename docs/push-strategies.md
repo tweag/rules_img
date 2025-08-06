@@ -128,6 +128,7 @@ bazel-bin/cmd/registry/registry_/registry \
   --address localhost \
   --port 80 \
   --grpc-port 4444 \
+  --enable-blobcache \
   --blob-store reapi
 ```
 
@@ -184,7 +185,7 @@ bazel build //cmd/bes
 
 # Run with CAS backend
 bazel-bin/cmd/bes/bes_/bes \
-  --address your-bes-server \
+  --address localhost \
   --port 8080 \
   --cas-endpoint grpc://your-cas-server:9092 \
   --credential-helper tweag-credential-helper
@@ -193,7 +194,7 @@ bazel-bin/cmd/bes/bes_/bes \
 2. Configure Bazel to use your BES:
 ```bash
 # In .bazelrc
-build --bes_backend=grpc://your-bes-server:8080
+build --bes_backend=grpc://localhost:8080
 common --@rules_img//img/settings:push_strategy=bes
 ```
 

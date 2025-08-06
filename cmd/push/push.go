@@ -54,7 +54,7 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 	}
 
 	pusher := push.New()
-	reference := req.Registry + "/" + req.Repository + ":" + req.Tag
+	baseReference := req.Registry + "/" + req.Repository
 
 	var digest string
 	if req.Manifest.ManifestPath != "" {
@@ -66,7 +66,7 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 			RemoteBlobInfo: req.PullInfo,
 		}
 		var err error
-		digest, err = pusher.PushManifest(ctx, reference, manifestReq)
+		digest, err = pusher.PushManifest(ctx, baseReference, manifestReq)
 		if err != nil {
 			return fmt.Errorf("pushing manifest: %w", err)
 		}
@@ -85,7 +85,7 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 			}
 		}
 		var err error
-		digest, err = pusher.PushIndex(ctx, reference, indexReq)
+		digest, err = pusher.PushIndex(ctx, baseReference, indexReq)
 		if err != nil {
 			return fmt.Errorf("pushing index: %w", err)
 		}
@@ -97,7 +97,6 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 		if len(metadataRequest.Blobs) == 0 {
 			return fmt.Errorf("no descriptors provided for push metadata command")
 		}
-		digest = metadataRequest.Blobs[0].Digest
 		switch metadataRequest.Strategy {
 		case "lazy":
 			if reapiEndpoint == "" {
@@ -111,7 +110,7 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 			if err != nil {
 				return fmt.Errorf("creating CAS client: %w", err)
 			}
-			if _, err := push.NewLazy(casReader).Push(ctx, reference, metadataRequest.PushRequest); err != nil {
+			if digest, err = push.NewLazy(casReader).Push(ctx, baseReference, metadataRequest.PushRequest); err != nil {
 				return fmt.Errorf("pushing image with lazy strategy: %w", err)
 			}
 		case "cas_registry":
@@ -123,17 +122,29 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 				return fmt.Errorf("Failed to create gRPC client connection: %w", err)
 			}
 			blobcacheClient := blobcache.NewBlobsClient(grpcClientConn)
-			if _, err := push.NewCASRegistryPusher(blobcacheClient).Push(ctx, reference, metadataRequest.PushRequest); err != nil {
+			if digest, err = push.NewCASRegistryPusher(blobcacheClient).Push(ctx, baseReference, metadataRequest.PushRequest); err != nil {
 				return fmt.Errorf("pushing image with CAS registry strategy: %w", err)
 			}
 		case "bes":
 			fmt.Fprintln(os.Stderr, `You don't need to "bazel run" the target in this mode. Image is pushed as a side-effect of uploading BEP data to the BES service.`)
+			return nil
 		default:
 			return fmt.Errorf("unknown push strategy %q", req.Strategy)
 		}
 	} else {
 		return fmt.Errorf("no manifest or index path provided")
 	}
+
+	// Apply tags if any were specified
+	if len(req.Tags) > 0 {
+		if err := push.PushTags(ctx, baseReference, digest, req.Tags); err != nil {
+			return fmt.Errorf("applying tags: %w", err)
+		}
+		for _, tag := range req.Tags {
+			fmt.Printf("%s:%s\n", baseReference, tag)
+		}
+	}
+
 	fmt.Printf("%s/%s@%s\n", req.Registry, req.Repository, digest)
 	return nil
 }

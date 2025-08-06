@@ -43,6 +43,7 @@ func (p lazyPusher) Push(ctx context.Context, reference string, req registrytype
 		return "", errors.New("no blobs to push")
 	}
 
+	reference = fmt.Sprintf("%s@%s", reference, req.Blobs[0].Digest)
 	knownMissing := make(map[string]struct{}, len(req.MissingBlobs))
 	for _, hash := range req.MissingBlobs {
 		knownMissing[hash] = struct{}{}

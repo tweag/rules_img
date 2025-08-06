@@ -43,6 +43,11 @@ func (p *eagerPusher) PushManifest(ctx context.Context, reference string, req Pu
 	if err != nil {
 		return "", err
 	}
+	digest, err := manifest.Digest()
+	if err != nil {
+		return "", err
+	}
+	reference = fmt.Sprintf("%s@%s", reference, digest.String())
 	ref, err := name.ParseReference(reference)
 	if err != nil {
 		return "", err
@@ -57,10 +62,6 @@ func (p *eagerPusher) PushManifest(ctx context.Context, reference string, req Pu
 	if err := remote.Write(ref, manifest, opts...); err != nil {
 		return "", err
 	}
-	digest, err := manifest.Digest()
-	if err != nil {
-		return "", err
-	}
 	return digest.String(), nil
 }
 
@@ -69,6 +70,11 @@ func (p *eagerPusher) PushIndex(ctx context.Context, reference string, req PushI
 	if err != nil {
 		return "", err
 	}
+	digest, err := index.Digest()
+	if err != nil {
+		return "", err
+	}
+	reference = fmt.Sprintf("%s@%s", reference, digest.String())
 	ref, err := name.ParseReference(reference)
 	if err != nil {
 		return "", err
@@ -81,10 +87,6 @@ func (p *eagerPusher) PushIndex(ctx context.Context, reference string, req PushI
 		remote.WithProgress(updateChan),
 	}
 	if err := remote.WriteIndex(ref, index, opts...); err != nil {
-		return "", err
-	}
-	digest, err := index.Digest()
-	if err != nil {
 		return "", err
 	}
 	return digest.String(), nil

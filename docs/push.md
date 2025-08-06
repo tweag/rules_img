@@ -9,7 +9,7 @@ Public API for container image push rules.
 <pre>
 load("@rules_img//img:push.bzl", "image_push")
 
-image_push(<a href="#image_push-name">name</a>, <a href="#image_push-image">image</a>, <a href="#image_push-registry">registry</a>, <a href="#image_push-repository">repository</a>, <a href="#image_push-strategy">strategy</a>, <a href="#image_push-tag">tag</a>)
+image_push(<a href="#image_push-name">name</a>, <a href="#image_push-image">image</a>, <a href="#image_push-registry">registry</a>, <a href="#image_push-repository">repository</a>, <a href="#image_push-strategy">strategy</a>, <a href="#image_push-tag">tag</a>, <a href="#image_push-tag_list">tag_list</a>)
 </pre>
 
 
@@ -24,6 +24,7 @@ image_push(<a href="#image_push-name">name</a>, <a href="#image_push-image">imag
 | <a id="image_push-registry"></a>registry |  Registry to push the image to.   | String | optional |  `""`  |
 | <a id="image_push-repository"></a>repository |  Repository name of the image.   | String | optional |  `""`  |
 | <a id="image_push-strategy"></a>strategy |  Push strategy to use.   | String | optional |  `"auto"`  |
-| <a id="image_push-tag"></a>tag |  Tag of the image.   | String | optional |  `""`  |
+| <a id="image_push-tag"></a>tag |  Tag of the image. Optional - can be omitted for digest-only push.   | String | optional |  `""`  |
+| <a id="image_push-tag_list"></a>tag_list |  List of tags for the image. Cannot be used together with 'tag'.   | List of strings | optional |  `[]`  |
 
 

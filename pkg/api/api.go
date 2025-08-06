@@ -71,9 +71,9 @@ type Descriptor struct {
 }
 
 type PushTarget struct {
-	Registry   string `json:"registry,omitempty"`
-	Repository string `json:"repository,omitempty"`
-	Tag        string `json:"tag,omitempty"`
+	Registry   string   `json:"registry,omitempty"`
+	Repository string   `json:"repository,omitempty"`
+	Tags       []string `json:"tags,omitempty"`
 }
 
 type PullInfo struct {

@@ -93,6 +93,20 @@ def _target_info(ctx):
         original_digest = pull_info.digest,
     )
 
+def _get_tags(ctx):
+    """Get the list of tags from the context, validating mutual exclusivity."""
+    if ctx.attr.tag and ctx.attr.tag_list:
+        fail("Cannot specify both 'tag' and 'tag_list' attributes")
+
+    tags = []
+    if ctx.attr.tag:
+        tags = [ctx.attr.tag]
+    elif ctx.attr.tag_list:
+        tags = ctx.attr.tag_list
+
+    # Empty list is allowed for digest-only push
+    return tags
+
 def _image_push_upload_impl(ctx):
     """Regular image push rule (bazel run target)."""
 
@@ -115,7 +129,7 @@ def _image_push_upload_impl(ctx):
         command = "push",
         registry = ctx.attr.registry,
         repository = ctx.attr.repository,
-        tag = ctx.attr.tag,
+        tags = _get_tags(ctx),
     )
     push_request.update(_target_info(ctx))
     if manifest_info != None:
@@ -169,7 +183,7 @@ def _image_push_cas_impl(ctx):
         strategy = _push_strategy(ctx),
         registry = ctx.attr.registry,
         repository = ctx.attr.repository,
-        tag = ctx.attr.tag,
+        tags = _get_tags(ctx),
     )
     push_request.update(_target_info(ctx))
 
@@ -244,7 +258,10 @@ image_push = rule(
             doc = "Repository name of the image.",
         ),
         "tag": attr.string(
-            doc = "Tag of the image.",
+            doc = "Tag of the image. Optional - can be omitted for digest-only push.",
+        ),
+        "tag_list": attr.string_list(
+            doc = "List of tags for the image. Cannot be used together with 'tag'.",
         ),
         "image": attr.label(
             doc = "Image to push. Should provide ImageManifestInfo or ImageIndexInfo.",

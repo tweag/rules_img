@@ -12,6 +12,7 @@ go_library(
         "pushlazy.go",
         "remotelayer.go",
         "stublayer.go",
+        "tags.go",
     ],
     importpath = "github.com/tweag/rules_img/pkg/push",
     visibility = ["//visibility:public"],
