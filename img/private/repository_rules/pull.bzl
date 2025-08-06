@@ -56,6 +56,19 @@ def _pull_impl(rctx):
     if len(rctx.attr.registries) > 0:
         registries.extend(rctx.attr.registries)
 
+    name = getattr(rctx, "original_name", rctx.attr.name)
+    if not hasattr(rctx, "original_name"):
+        # we are on a Bazel version where `original_name` doesn't exist yet.
+        # we need to unmangle the name.
+        if "~" in name:
+            # this is a Bazel 7 or earlier name:
+            # _main~_repo_rules~distroless_cc
+            name = name.split("~")[len(name.split("~")) - 1]
+        elif "+" in name:
+            # this is a Bazel 8 or later name:
+            # _main+_repo_rules+distroless_cc
+            name = name.split("+")[len(name.split("+")) - 1]
+
     # write out the files
     rctx.file(
         "BUILD.bazel",
@@ -64,7 +77,7 @@ def _pull_impl(rctx):
 load("@rules_img//img/private:import.bzl", "image_import")
 
 image_import(
-    name = {name},
+    name = "image",
     digest = {digest},
     data = {data},
     files = {files},
@@ -74,8 +87,13 @@ image_import(
     visibility = ["//visibility:public"],
 )
 
+alias(
+    name = {name},
+    actual = ":image",
+    visibility = ["//visibility:public"],
+)
 """.format(
-            name = repr(rctx.original_name),
+            name = repr(name),
             digest = repr(rctx.attr.digest),
             data = json.encode_indent(
                 data,
