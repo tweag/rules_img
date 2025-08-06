@@ -1,6 +1,7 @@
 <div align="center">
 
-# rules_img
+![rules_img logo](/.github/logo/light_hero.jpg#gh-light-mode-only)
+![rules_img logo](/.github/logo/dark_hero.jpg#gh-dark-mode-only)
 
 **Modern Bazel rules for building OCI container images with advanced performance optimizations**
 
