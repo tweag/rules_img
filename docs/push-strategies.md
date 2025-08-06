@@ -32,7 +32,7 @@ The eager push strategy is the traditional approach where all image layers are d
 ### Setup Guide
 ```bash
 # Enable eager push strategy (this is the default)
-$ bazel run //your:push_target --//img/settings:push_strategy=eager
+$ bazel run //your:push_target --@rules_img//img/settings:push_strategy=eager
 
 # Or set in .bazelrc
 common --@rules_img//img/settings:push_strategy=eager
