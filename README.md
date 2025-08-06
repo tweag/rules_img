@@ -9,7 +9,7 @@
 
 ## Features
 
-- 🚀 **High Performance** - Mimizes data transfer and embraces *Build without the Bytes* from source code to container runtime.
+- 🚀 **High Performance** - Mimizes data transfer and embraces *Build without the Bytes* from source code to container runtime
 - 📦 **OCI Compliant** - Builds standard OCI images compatible with any container runtime
 - 🔧 **Bazel Native** - No Docker daemon required, fully hermetic builds
 - 🌍 **Multi-Platform** - Native cross-platform support through Bazel transitions
@@ -178,21 +178,6 @@ bazel run //:push
 * [C++](/e2e/cc/)
 * [Go](/e2e/go/)
 
-### Global Configuration
-
-Configure defaults via command-line flags:
-
-```bash
-# Set default compression
-bazel build //... --//img/settings:compress=zstd
-
-# Enable eStargz by default
-bazel build //... --//img/settings:estargz=enabled
-
-# Use CAS-based registry push
-bazel build //... --//img/settings:push_strategy=cas_registry
-```
-
 ## Comparison with rules_oci
 
 Both `rules_img` and `rules_oci` are modern Bazel rulesets for building OCI container images. While they share the goal of hermetic, reproducible container builds, they take fundamentally different architectural approaches.
@@ -219,10 +204,6 @@ This results in a more complex implementation, but also allows for interesting o
   - **Push and Pull Rules**
     - [`image_push`](docs/push.md#image_push) - Push images to registries
     - [`pull`](docs/pull.md#pull) - Push images to registries
-
-## Examples
-
-See the [benchmark/examples/](benchmark/examples/) directory for complete examples.
 
 ## Key Differences Explained
 
@@ -266,8 +247,6 @@ rules_img offers four sophisticated push strategies compared to rules_oci's trad
 - **Faster CI/CD** - Avoid unnecesary file transfer
 - **Build without the bytes** - Never materialize container layers on your local machine
 - **Scalability** - Designed for organizations with thousands of builds per day
-
-rules_img supports multiple push strategies optimized for different scenarios:
 
 | Strategy | Description | Use Case | Requirements |
 |----------|-------------|----------|--------------|
