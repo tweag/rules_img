@@ -33,6 +33,25 @@ func prepareWorkspace(workspaceDir, sourceDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to find bazel dep override: %v", err)
 	}
+	credentialHelper, err := runfiles.Rlocation("tweag-credential-helper/installer/installer.exe")
+	if err != nil {
+		return fmt.Errorf("failed to find credential helper: %v", err)
+	}
+	credentialHelper, err = filepath.EvalSymlinks(credentialHelper)
+	if err != nil {
+		return fmt.Errorf("failed to resolve credential helper symlink: %v", err)
+	}
+	if runtime.GOOS == "windows" {
+		// on Windows, absolute paths in .bazelrc are not supported, so we need to use a relative path
+		// to the credential helper binary that is inside the workspace directory
+		os.Symlink(credentialHelper, filepath.Join(workspaceDir, "credential-helper.exe"))
+		credentialHelper = "%workspace%/credential-helper.exe"
+
+		// work around issue with credential-helper agent on Windows
+		// by disabling the cache and running it in the foreground.
+		// see https://github.com/tweag/credential-helper/issues/22 for more details
+		os.Setenv("CREDENTIAL_HELPER_STANDALONE", "1")
+	}
 	if err := copyFSWithSymlinks(workspaceDir, sourceDir); err != nil {
 		return fmt.Errorf("failed to copy source dir: %v", err)
 	}
@@ -74,7 +93,8 @@ func prepareWorkspace(workspaceDir, sourceDir string) error {
 
 	bazelrc := fmt.Sprintf(`common --registry=%s --registry=https://bcr.bazel.build/
 common --distdir=%s
-`, localBCRUrlPath, filepath.ToSlash(distdir))
+common --credential_helper=%s
+`, localBCRUrlPath, filepath.ToSlash(distdir), credentialHelper)
 	return os.WriteFile(filepath.Join(workspaceDir, ".bazelrc.generated"), []byte(bazelrc), 0o644)
 }
 

@@ -14,6 +14,7 @@ go_binary(
         ":bazel_dep_rules_img",
         "//img/private/release:airgapped",
         "//img/private/release:bcr",
+        "@tweag-credential-helper//installer",
     ],
     embed = [":integration_test_runner_lib"],
     pure = "on",
