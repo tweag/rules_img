@@ -5,6 +5,10 @@ common --enable_platform_specific_config
 common:macos --experimental_output_paths=strip
 common:linux --experimental_output_paths=strip
 
+common:stamp --stamp
+common:stamp --@rules_img//img/settings:stamp=enabled
+common:stamp --workspace_status_command=tools/workspace_status.sh
+
 import %workspace%/.bazelrc.common
 
 try-import %workspace%/.bazelrc.user

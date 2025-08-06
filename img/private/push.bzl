@@ -1,5 +1,6 @@
 """Push rule for uploading images to a registry."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/common:transitions.bzl", "host_platform_transition", "reset_platform_transition")
 load("//img/private/providers:image_toolchain_info.bzl", "ImageToolchainInfo")
@@ -7,6 +8,7 @@ load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
 load("//img/private/providers:push_settings_info.bzl", "PushSettingsInfo")
+load("//img/private/providers:stamp_setting_info.bzl", "StampSettingInfo")
 
 def _encode_manifest(manifest_info, path_prefix = ""):
     layers = []
@@ -107,6 +109,95 @@ def _get_tags(ctx):
     # Empty list is allowed for digest-only push
     return tags
 
+def _get_build_settings(ctx):
+    """Extract build settings values from the context."""
+    settings = {}
+    for setting_name, setting_label in ctx.attr.build_settings.items():
+        settings[setting_name] = setting_label[BuildSettingInfo].value
+    return settings
+
+def _should_stamp(ctx):
+    """Get the stamp configuration from the context."""
+    stamp_settings = ctx.attr._stamp_settings[StampSettingInfo]
+    can_stamp = stamp_settings.bazel_setting
+    global_user_preference = stamp_settings.user_preference
+    target_stamp = ctx.attr.stamp
+
+    want_stamp = False
+    if target_stamp == "disabled":
+        want_stamp = False
+    elif target_stamp == "enabled":
+        want_stamp = True
+    elif target_stamp == "auto":
+        want_stamp = global_user_preference
+    return struct(
+        stamp = can_stamp and want_stamp,
+        can_stamp = can_stamp,
+        want_stamp = want_stamp,
+    )
+
+def _expand_or_write(ctx, push_request, output_name):
+    """Either expand templates or write JSON directly based on build_settings.
+
+    Args:
+        ctx: The rule context
+        push_request: The push request dictionary
+        output_name: The name for the output file
+
+    Returns:
+        The File object for the final JSON
+    """
+    build_settings = _get_build_settings(ctx)
+    stamp_settings = _should_stamp(ctx)
+
+    if build_settings or stamp_settings.want_stamp:
+        # Add build settings to the request for template expansion
+        push_request["build_settings"] = build_settings
+
+        # Write the template JSON
+        template_name = output_name.replace(".json", "_template.json")
+        template_json = ctx.actions.declare_file(template_name)
+        ctx.actions.write(
+            template_json,
+            json.encode(push_request),
+        )
+
+        # Run expand-template to create the final JSON
+        final_json = ctx.actions.declare_file(output_name)
+
+        # Build arguments for expand-template
+        args = []
+        inputs = [template_json]
+
+        # Add stamp files if stamping is enabled
+        if stamp_settings.stamp:
+            if ctx.version_file:
+                args.extend(["--stamp", ctx.version_file.path])
+                inputs.append(ctx.version_file)
+            if ctx.info_file:
+                args.extend(["--stamp", ctx.info_file.path])
+                inputs.append(ctx.info_file)
+
+        args.extend([template_json.path, final_json.path])
+
+        img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
+        ctx.actions.run(
+            inputs = inputs,
+            outputs = [final_json],
+            executable = img_toolchain_info.tool_exe,
+            arguments = ["expand-template"] + args,
+            mnemonic = "ExpandTemplate",
+        )
+        return final_json
+    else:
+        # No templates to expand, create JSON directly
+        final_json = ctx.actions.declare_file(output_name)
+        ctx.actions.write(
+            final_json,
+            json.encode(push_request),
+        )
+        return final_json
+
 def _image_push_upload_impl(ctx):
     """Regular image push rule (bazel run target)."""
 
@@ -125,6 +216,8 @@ def _image_push_upload_impl(ctx):
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
 
     root_symlinks = _root_symlinks(index_info, manifest_info, include_layers = True)
+
+    # Create push request
     push_request = dict(
         command = "push",
         registry = ctx.attr.registry,
@@ -143,11 +236,8 @@ def _image_push_upload_impl(ctx):
             ],
         )
 
-    request_json = ctx.actions.declare_file(ctx.label.name + ".json")
-    ctx.actions.write(
-        request_json,
-        json.encode(push_request),
-    )
+    # Either expand templates or write directly
+    request_json = _expand_or_write(ctx, push_request, ctx.label.name + ".json")
     root_symlinks["dispatch.json"] = request_json
     return [
         DefaultInfo(
@@ -178,6 +268,8 @@ def _image_push_cas_impl(ctx):
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
 
     root_symlinks = _root_symlinks(index_info, manifest_info, include_layers = False)
+
+    # Create push request
     push_request = dict(
         command = "push-metadata",
         strategy = _push_strategy(ctx),
@@ -201,12 +293,10 @@ def _image_push_cas_impl(ctx):
         inputs.append(index_info.index)
         inputs.extend([manifest.manifest for manifest in index_info.manifests])
 
-    request_metadata = ctx.actions.declare_file(ctx.label.name + "_request_metadata.json")
-    ctx.actions.write(
-        request_metadata,
-        json.encode(push_request),
-    )
+    # Either expand templates or write directly
+    request_metadata = _expand_or_write(ctx, push_request, ctx.label.name + "_request_metadata.json")
     inputs.append(request_metadata)
+
     metadata_out = ctx.actions.declare_file(ctx.label.name + ".json")
 
     img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
@@ -252,16 +342,16 @@ image_push = rule(
     implementation = _image_push_impl,
     attrs = {
         "registry": attr.string(
-            doc = "Registry to push the image to.",
+            doc = "Registry to push the image to. Subject to [template expansion](/docs/templating.md).",
         ),
         "repository": attr.string(
-            doc = "Repository name of the image.",
+            doc = "Repository name of the image. Subject to [template expansion](/docs/templating.md).",
         ),
         "tag": attr.string(
-            doc = "Tag of the image. Optional - can be omitted for digest-only push.",
+            doc = "Tag of the image. Optional - can be omitted for digest-only push. Subject to [template expansion](/docs/templating.md).",
         ),
         "tag_list": attr.string_list(
-            doc = "List of tags for the image. Cannot be used together with 'tag'.",
+            doc = "List of tags for the image. Cannot be used together with 'tag'. Subject to [template expansion](/docs/templating.md).",
         ),
         "image": attr.label(
             doc = "Image to push. Should provide ImageManifestInfo or ImageIndexInfo.",
@@ -272,9 +362,22 @@ image_push = rule(
             default = "auto",
             values = ["auto", "eager", "lazy", "cas_registry", "bes"],
         ),
+        "build_settings": attr.string_keyed_label_dict(
+            doc = "Build settings to use for [template expansion](/docs/templating.md). Keys are setting names, values are labels to string_flag targets.",
+            providers = [BuildSettingInfo],
+        ),
+        "stamp": attr.string(
+            doc = "Whether to use stamping for [template expansion](/docs/templating.md). If 'enabled', uses volatile-status.txt and version.txt if present. 'auto' uses the global default setting.",
+            default = "auto",
+            values = ["auto", "enabled", "disabled"],
+        ),
         "_push_settings": attr.label(
             default = Label("//img/private/settings:push"),
             providers = [PushSettingsInfo],
+        ),
+        "_stamp_settings": attr.label(
+            default = Label("//img/private/settings:stamp"),
+            providers = [StampSettingInfo],
         ),
         "_tool": attr.label(
             cfg = host_platform_transition,

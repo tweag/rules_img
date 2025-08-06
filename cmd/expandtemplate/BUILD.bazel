@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "expandtemplate",
+    srcs = ["expandtemplate.go"],
+    importpath = "github.com/tweag/rules_img/cmd/expandtemplate",
+    visibility = ["//cmd:__subpackages__"],
+)
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

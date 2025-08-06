@@ -1,0 +1,2 @@
+#!/bin/sh
+echo "STABLE_CONTAINER_VERSION_TAG v1.2.3.4"

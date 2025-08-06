@@ -41,3 +41,9 @@ bzl_library(
     srcs = ["push_settings_info.bzl"],
     visibility = ["//img:__subpackages__"],
 )
+
+bzl_library(
+    name = "stamp_setting_info",
+    srcs = ["stamp_setting_info.bzl"],
+    visibility = ["//img:__subpackages__"],
+)

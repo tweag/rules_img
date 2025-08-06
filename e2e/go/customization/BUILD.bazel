@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_img//img:image.bzl", "image_manifest")
 load("@rules_img//img:layer.bzl", "image_layer")
 load("@rules_img//img:push.bzl", "image_push")
@@ -38,13 +39,35 @@ image_manifest(
 
 image_push(
     name = "push",
+    build_settings = {
+        "registry": ":registry",
+        "repo": ":repo",
+        "tag": ":tag",
+    },
     image = ":go_image",
-    registry = "ghcr.io",
-    repository = "malt3/rules_img/go",
+    registry = "{{.registry}}",
+    repository = "{{.repo}}",
+    stamp = "enabled",
     tag_list = [
-        "customization",
+        "{{.tag}}",
+        "{{if .STABLE_CONTAINER_VERSION_TAG}}{{.STABLE_CONTAINER_VERSION_TAG}}{{else}}dev{{end}}",
         "another-tag-just-for-fun",
     ],
+)
+
+string_flag(
+    name = "registry",
+    build_setting_default = "ghcr.io",
+)
+
+string_flag(
+    name = "repo",
+    build_setting_default = "malt3/rules_img/go",
+)
+
+string_flag(
+    name = "tag",
+    build_setting_default = "customization",
 )
 
 build_test(
