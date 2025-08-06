@@ -1,3 +1,4 @@
+dist
 MODULE.bazel.lock
 bazel-*
 .bazelrc.user
