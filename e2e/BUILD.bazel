@@ -5,7 +5,9 @@ load(
     "integration_test_utils",
 )
 
+# gazelle:exclude cc
 # gazelle:exclude go
+# gazelle:exclude_from_release
 
 TAGS = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS + ["requires-network"]
 
@@ -42,11 +44,5 @@ test_suite(
         "cc",
         bazel_binaries.versions.all,
     ),
-    visibility = ["//:__subpackages__"],
-)
-
-filegroup(
-    name = "all_files",
-    srcs = glob(["*"]),
     visibility = ["//:__subpackages__"],
 )

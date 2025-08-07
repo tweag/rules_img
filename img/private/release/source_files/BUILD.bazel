@@ -1,3 +1,5 @@
+# gazelle:exclude_from_release
+
 # List of files to include in the release tarball
 release_files = [
     "//:all_files",
@@ -34,6 +36,16 @@ release_files = [
     "//pkg/compress/util:all_files",
     "//pkg/contentmanifest:all_files",
     "//pkg/fileopener:all_files",
+    "//pkg/internal/protodeps:all_files",
+    "//pkg/proto/bazel:all_files",
+    "//pkg/proto/bazel/src/main/java/com/google/devtools/build/lib/buildeventstream:all_files",
+    "//pkg/proto/bazel/src/main/java/com/google/devtools/build/lib/packages/metrics:all_files",
+    "//pkg/proto/bazel/src/main/protobuf:all_files",
+    "//pkg/proto/blobcache:all_files",
+    "//pkg/proto/build_event_service:all_files",
+    "//pkg/proto/remote-apis:all_files",
+    "//pkg/proto/remote-apis/build/bazel/remote/execution/v2:all_files",
+    "//pkg/proto/remote-apis/build/bazel/semver:all_files",
     "//pkg/push:all_files",
     "//pkg/serve/bes:all_files",
     "//pkg/serve/bes/syncer:all_files",
@@ -48,8 +60,6 @@ release_files = [
     "//pkg/tree/merkle:all_files",
     "//pkg/tree/runfiles:all_files",
     "//pkg/tree/treeartifact:all_files",
-    "//tools:all_files",
-    "//util:all_files",
 ]
 
 filegroup(

@@ -13,3 +13,9 @@
 # gazelle:resolve proto proto google/protobuf/timestamp.proto @protobuf//:timestamp_proto
 # gazelle:resolve proto proto google/protobuf/wrappers.proto @protobuf//:wrappers_proto
 # gazelle:resolve proto proto google/rpc/status.proto @googleapis//google/rpc:status_proto
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

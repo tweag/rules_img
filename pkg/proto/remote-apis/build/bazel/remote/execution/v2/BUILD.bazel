@@ -36,3 +36,9 @@ go_proto_library(
         "@org_golang_google_genproto_googleapis_rpc//status",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

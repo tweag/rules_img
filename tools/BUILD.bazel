@@ -1,5 +1,1 @@
-filegroup(
-    name = "all_files",
-    srcs = glob(["**"]),
-    visibility = ["//img/private/release:__subpackages__"],
-)
+# gazelle:exclude_from_release
