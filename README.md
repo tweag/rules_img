@@ -9,7 +9,7 @@
 
 ## Features
 
-- 🚀 **High Performance** - Mimizes data transfer and embraces *Build without the Bytes* from source code to container runtime
+- 🚀 **High Performance** - Minimizes data transfer and embraces *Build without the Bytes* from source code to container runtime
 - 📦 **OCI Compliant** - Builds standard OCI images compatible with any container runtime
 - 🔧 **Bazel Native** - No Docker daemon required, fully hermetic builds
 - 🌍 **Multi-Platform** - Native cross-platform support through Bazel transitions
