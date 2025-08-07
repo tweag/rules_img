@@ -39,6 +39,9 @@ common --@rules_img//img/settings:estargz=enabled
 # The push strategy to use (see below for more info).
 # "eager", "lazy", "cas_registry", or "bes"
 common --@rules_img//img/settings:push_strategy=eager
+
+# Opt-in to stamping of image_push rules
+common --@rules_img//img/settings:stamp=disabled
 ```
 
 You also need a credential helper to pull base images from container registries.
