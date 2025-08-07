@@ -21,3 +21,9 @@
 # gazelle:resolve proto proto src/main/protobuf/invocation_policy.proto //pkg/proto/bazel/src/main/protobuf:proto
 # gazelle:resolve proto proto src/main/protobuf/option_filters.proto //pkg/proto/bazel/src/main/protobuf:proto
 # gazelle:resolve proto proto src/main/protobuf/strategy_policy.proto //pkg/proto/bazel/src/main/protobuf:proto
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

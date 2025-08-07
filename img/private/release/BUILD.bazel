@@ -2,6 +2,8 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load(":defs.bzl", "PLATFORMS", "go_to_constraint_value", "offline_bcr", "offline_bundle", "release_files", "release_platform_flag", "source_bundle", "versioned_filename_info", name = "platform_name")
 
+# gazelle:exclude_from_release
+
 package(
     default_visibility = ["//visibility:public"],
 )
@@ -67,12 +69,6 @@ pkg_tar(
     out = "rules_img-dist.tar",
     mode = "0755",
     tags = ["manual"],
-)
-
-filegroup(
-    name = "all_files",
-    srcs = glob(["*"]),
-    visibility = ["//img/private/release:__subpackages__"],
 )
 
 bzl_library(

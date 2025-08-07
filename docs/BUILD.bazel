@@ -1,5 +1,7 @@
 load("@aspect_bazel_lib//lib:docs.bzl", "stardoc_with_diff_test", "update_docs")
 
+# gazelle:exclude_from_release
+
 stardoc_with_diff_test(
     name = "image",
     bzl_library_target = "//img:image",
@@ -22,9 +24,3 @@ stardoc_with_diff_test(
 
 # Update all generated documentation
 update_docs(name = "update")
-
-filegroup(
-    name = "all_files",
-    srcs = glob(["**"]),
-    visibility = ["//img/private/release:__subpackages__"],
-)

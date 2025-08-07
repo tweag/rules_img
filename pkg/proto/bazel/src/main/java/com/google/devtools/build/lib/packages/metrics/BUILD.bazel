@@ -16,3 +16,9 @@ go_proto_library(
     proto = ":devtools_build_lib_packages_metrics_proto",
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)

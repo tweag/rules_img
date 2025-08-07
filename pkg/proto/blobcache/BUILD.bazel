@@ -23,3 +23,9 @@ go_proto_library(
         "//pkg/proto/remote-apis/build/bazel/remote/execution/v2",
     ],
 )
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)
