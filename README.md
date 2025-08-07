@@ -23,7 +23,7 @@
 Add to your `MODULE.bazel`:
 
 ```starlark
-bazel_dep(name = "rules_img", version = "0.0.1")
+bazel_dep(name = "rules_img", version = "0.0.2")
 ```
 
 Configure default settings (optional) in `.bazelrc`:
