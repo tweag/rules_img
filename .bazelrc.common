@@ -20,3 +20,7 @@ test --test_verbose_timeout_warnings
 common --enable_runfiles
 # docs: https://bazel.build/reference/command-line-reference#startup_options-flag--windows_enable_symlinks
 startup --windows_enable_symlinks
+
+# ensure correct config_setting visibility
+# docs: https://bazel.build/reference/command-line-reference#build-flag--incompatible_config_setting_private_default_visibility
+build --incompatible_config_setting_private_default_visibility
