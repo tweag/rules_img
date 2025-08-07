@@ -21,13 +21,12 @@ on:
         type: string
 jobs:
   publish:
-    uses: bazel-contrib/publish-to-bcr/.github/workflows/publish.yaml@v0.1.0
+    uses: bazel-contrib/publish-to-bcr/.github/workflows/publish.yaml@v0.2.2
     with:
+      open_pull_request: false
       tag_name: ${{ inputs.tag_name }}
       # GitHub repository which is a fork of the upstream where the Pull Request will be opened.
       registry_fork: tweag/bazel-central-registry
-      # TODO: this is for testing purposes only - remove before doing a public release
-      registry: tweag/bazel-central-registry
     permissions:
       attestations: write
       contents: write
