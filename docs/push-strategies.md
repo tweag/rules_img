@@ -13,9 +13,8 @@ The eager push strategy is the traditional approach where all image layers are d
 3. Writes the manifest to the registry
 
 ### Diagram
-```
-[Placeholder: Diagram showing flow from Bazel -> Local Machine -> Registry]
-```
+![Eager Push Strategy](visuals/eager-push-light.svg#gh-light-mode-only)
+![Eager Push Strategy](visuals/eager-push-dark.svg#gh-dark-mode-only)
 
 ### Pros
 - ✅ Simple and straightforward
@@ -51,9 +50,8 @@ The lazy push strategy optimizes uploads by checking the registry first and only
 3. Writes the manifest to the registry
 
 ### Diagram
-```
-[Placeholder: Diagram showing flow from Remote Cache -> Bazel -> Registry with "check existing" step]
-```
+![Lazy Push Strategy](visuals/lazy-push-light.svg#gh-light-mode-only)
+![Lazy Push Strategy](visuals/lazy-push-dark.svg#gh-dark-mode-only)
 
 ### Pros
 - ✅ Work with huge container images without sacrificing local disk space
@@ -99,9 +97,8 @@ Also note that the regsitry doesn't offer TLS nor authentication, so it should o
 4. Registry serves blobs on-demand from CAS
 
 ### Diagram
-```
-[Placeholder: Diagram showing integrated CAS/Registry architecture with shared storage]
-```
+![CAS Registry Push Strategy](visuals/cas-registry-light.svg#gh-light-mode-only)
+![CAS Registry Push Strategy](visuals/cas-registry-dark.svg#gh-dark-mode-only)
 
 ### Pros
 - ✅ Fastest push performance possible
@@ -161,9 +158,8 @@ Note that the BES service doesn't offer TLS nor authentication, so it should onl
 4. No client-side push needed
 
 ### Diagram
-```
-[Placeholder: Diagram showing BES intercepting build events and triggering async pushes]
-```
+![BES Push Strategy](visuals/bes-light.svg#gh-light-mode-only)
+![BES Push Strategy](visuals/bes-dark.svg#gh-dark-mode-only)
 
 ### Pros
 - ✅ Zero client-side overhead
