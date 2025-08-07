@@ -1,6 +1,8 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier", "buildifier_test")
 load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 
+# gazelle:exclude_from_release
+
 buildifier(
     name = "buildifier.fix",
     diff_command = "diff",
@@ -25,16 +27,11 @@ gazelle_binary(
         "@gazelle//language/go",
         "@gazelle//language/proto",
         "@bazel_skylib_gazelle_plugin//bzl",
+        "//img/private/release/gazelle_plugin:gazelle_plugin",
     ],
 )
 
 gazelle(
     name = "gazelle",
     gazelle = "gazelle_bin",
-)
-
-filegroup(
-    name = "all_files",
-    srcs = glob(["**"]),
-    visibility = ["//img/private/release:__subpackages__"],
 )

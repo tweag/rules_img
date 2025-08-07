@@ -1,0 +1,40 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_go//go:def.bzl", "go_library")
+load(":release_files_updated.bzl", "release_files_test")
+
+# gazelle:exclude_from_release
+
+go_library(
+    name = "gazelle_plugin",
+    srcs = ["all_files.go"],
+    importpath = "github.com/tweag/rules_img/img/private/release/gazelle_plugin",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@gazelle//config",
+        "@gazelle//label",
+        "@gazelle//language",
+        "@gazelle//repo",
+        "@gazelle//resolve",
+        "@gazelle//rule",
+    ],
+)
+
+exports_files([
+    "test_wrapper.sh",
+])
+
+release_files_test(
+    name = "release_files_test",
+    target_compatible_with = select({
+        # skip windows, since we are using a bash script
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    update_release_files_binary = "//img/private/release/gazelle_plugin/cmd/update_release_files",
+)
+
+bzl_library(
+    name = "release_files_updated",
+    srcs = ["release_files_updated.bzl"],
+    visibility = ["//img:__subpackages__"],
+)
