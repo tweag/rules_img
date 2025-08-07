@@ -128,7 +128,10 @@ func bazelCommands(bazel string, startupFlags []string) (setup []commandLine, te
 	setupCommands = append(setupCommands, bazelCommand(bazel, []string{"info"}, startupFlags))
 	setupCommands = append(setupCommands, bazelCommand(bazel, []string{"build", "//..."}, startupFlags))
 
-	return setupCommands, []commandLine{bazelCommand(bazel, []string{"test", "//..."}, startupFlags)}, []commandLine{bazelCommand(bazel, []string{"shutdown"}, startupFlags)}
+	return setupCommands, []commandLine{
+		bazelCommand(bazel, []string{"query", "@rules_img//..."}, startupFlags), // ensure all referenced BUILD files are included in the release tar
+		bazelCommand(bazel, []string{"test", "//..."}, startupFlags),
+	}, []commandLine{bazelCommand(bazel, []string{"shutdown"}, startupFlags)}
 }
 
 func runBazelCommands(bazel, workspaceDir string) error {
