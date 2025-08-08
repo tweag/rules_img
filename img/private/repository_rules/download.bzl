@@ -1,11 +1,13 @@
 """Repository rules for downloading container image components."""
 
-def download_blob(rctx, *, digest, **kwargs):
+def download_blob(rctx, *, digest, wait_and_read = True, **kwargs):
     """Download a blob from a container registry.
 
     Args:
         rctx: Repository context.
         digest: The blob digest to download.
+        wait_and_read: If True, wait for the download to complete and read the data.
+                       If False, return a waiter that can be used to wait for the download.
         **kwargs: Additional arguments.
 
     Returns:
@@ -18,7 +20,7 @@ def download_blob(rctx, *, digest, **kwargs):
         registries.append(rctx.attr.registry)
     if len(registries) == 0:
         fail("need at least one registry to pull from")
-    rctx.download(
+    result = rctx.download(
         url = [
             "{protocol}://{registry}/v2/{repository}/blobs/{digest}".format(
                 protocol = "https",
@@ -30,12 +32,14 @@ def download_blob(rctx, *, digest, **kwargs):
         ],
         sha256 = sha256,
         output = output,
+        block = wait_and_read,
         **kwargs
     )
     return struct(
         digest = digest,
         path = output,
-        data = rctx.read(output),
+        data = rctx.read(output) if wait_and_read else None,
+        waiter = result,
     )
 
 def download_manifest(rctx, *, reference, **kwargs):
@@ -85,3 +89,21 @@ def download_manifest(rctx, *, reference, **kwargs):
         path = kwargs["output"],
         data = rctx.read(kwargs["output"]),
     )
+
+def download_layers(rctx, digests):
+    """Download all layers from a manifest.
+
+    Args:
+        rctx: Repository context.
+        digests: A list of layer digests to download.
+
+    Returns:
+        A list of structs containing digest, path, and data of the downloaded layers.
+    """
+    downloaded_layers = []
+    for digest in digests:
+        layer_info = download_blob(rctx, digest = digest, wait_and_read = False)
+        downloaded_layers.append(layer_info)
+    for layer in downloaded_layers:
+        layer.waiter.wait()
+    return [downloaded_layer for downloaded_layer in downloaded_layers]

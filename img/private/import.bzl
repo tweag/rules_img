@@ -6,18 +6,12 @@ load("//img/private/providers:layer_info.bzl", "LayerInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
 
-def _digest_to_path(digest):
-    """Convert a digest to a path in the OCI layout."""
-    sha256 = digest.removeprefix("sha256:")
-    return "blobs/sha256/" + sha256
-
 def _digest_to_file(ctx, digest):
     """Get a starlark File object for a digest."""
-    path = _digest_to_path(digest)
-    if not path in ctx.attr.files:
+    if not digest in ctx.attr.files:
         # this is a missing blob
         return None
-    label = ctx.attr.files[path]
+    label = ctx.attr.files[digest]
     files = label[DefaultInfo].files.to_list()
     if len(files) != 1:
         fail("invalid number of files for digest: {}".format(digest))
@@ -81,7 +75,7 @@ def _write_manifest_descriptor(ctx, digest, manifest, platform, descriptor = Non
         # let's build our own.
         descriptor = dict(
             mediaType = manifest["mediaType"],
-            size = len(ctx.attr.data[_digest_to_path(digest)]),
+            size = len(ctx.attr.data[digest]),
             digest = digest,
             platform = platform,
         )
@@ -89,17 +83,15 @@ def _write_manifest_descriptor(ctx, digest, manifest, platform, descriptor = Non
     return out
 
 def _build_manifest_info(ctx, digest, descriptor = None, index_position = None, platform = None):
-    path = _digest_to_path(digest)
-    if not path in ctx.attr.data:
+    if not digest in ctx.attr.data:
         fail("missing blob for digest: " + digest)
-    manifest = json.decode(ctx.attr.data[path])
+    manifest = json.decode(ctx.attr.data[digest])
     if not manifest.get("mediaType") in [MEDIA_TYPE_MANIFEST, DOCKER_MANIFEST_V2]:
         fail("invalid mediaType in manifest: {}".format(manifest.get("mediaType")))
     config_digest = manifest.get("config", {}).get("digest", "missing config digest")
-    config_path = _digest_to_path(config_digest)
-    if not config_path in ctx.attr.data:
+    if not config_digest in ctx.attr.data:
         fail("missing blob for config digest: " + config_digest)
-    config = json.decode(ctx.attr.data[config_path])
+    config = json.decode(ctx.attr.data[config_digest])
     if platform == None:
         platform = dict(
             architecture = config.get("architecture", "unknown"),
@@ -126,7 +118,7 @@ def _build_manifest_info(ctx, digest, descriptor = None, index_position = None, 
     )
 
 def _image_import_impl(ctx):
-    root_blob = json.decode(ctx.attr.data["blobs/sha256/" + ctx.attr.digest.removeprefix("sha256:")])
+    root_blob = json.decode(ctx.attr.data[ctx.attr.digest])
     if not root_blob.get("mediaType") in [MEDIA_TYPE_MANIFEST, DOCKER_MANIFEST_V2, MEDIA_TYPE_INDEX, DOCKER_MANIFEST_LIST_V2]:
         fail("invalid mediaType in root blob: {}".format(root_blob.get("mediaType")))
 
@@ -142,7 +134,7 @@ def _image_import_impl(ctx):
     if root_blob.get("mediaType") in [MEDIA_TYPE_MANIFEST, DOCKER_MANIFEST_V2]:
         # this is a single-platform manifest
         providers.append(_build_manifest_info(ctx, ctx.attr.digest))
-    else:
+    elif root_blob.get("mediaType") in [MEDIA_TYPE_INDEX, DOCKER_MANIFEST_LIST_V2]:
         # this is a multi-platform index
         manifests = [
             _build_manifest_info(ctx, manifest["digest"], descriptor = manifest, index_position = position, platform = manifest.get("platform"))
