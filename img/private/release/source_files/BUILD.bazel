@@ -6,6 +6,7 @@ release_files = [
     "//cmd:all_files",
     "//cmd/bes:all_files",
     "//cmd/compress:all_files",
+    "//cmd/downloadblob:all_files",
     "//cmd/expandtemplate:all_files",
     "//cmd/img:all_files",
     "//cmd/index:all_files",

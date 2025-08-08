@@ -9,6 +9,7 @@ import (
 	"github.com/bazelbuild/rules_go/go/runfiles"
 
 	"github.com/tweag/rules_img/cmd/compress"
+	"github.com/tweag/rules_img/cmd/downloadblob"
 	"github.com/tweag/rules_img/cmd/expandtemplate"
 	"github.com/tweag/rules_img/cmd/index"
 	"github.com/tweag/rules_img/cmd/layer"
@@ -23,6 +24,7 @@ const usage = `Usage: img [COMMAND] [ARGS...]
 
 Commands:
   compress        (re-)compresses a layer
+  download-blob   downloads a single blob from a registry
   expand-template expands Go templates in push request JSON
   layer           creates a layer from files
   layer-metadata  creates a layer metadata file from a layer
@@ -63,6 +65,8 @@ func Run(ctx context.Context, args []string) {
 		push.PushMetadataProcess(ctx, args[2:])
 	case "compress":
 		compress.CompressProcess(ctx, args[2:])
+	case "download-blob":
+		downloadblob.DownloadBlobProcess(ctx, args[2:])
 	case "expand-template":
 		expandtemplate.ExpandTemplateProcess(ctx, args[2:])
 	default:
