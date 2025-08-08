@@ -34,7 +34,7 @@ You can also [join our Discord][discord-join] server and talk to us directly.
 
 ## Setting up a development environment
 
-Please refer to [`HACKING.md`](/docs/HACKING.md) to set up a development environment, test the code on a Bazel project and run integration tests.
+Please refer to [`HACKING.md`](/HACKING.md) to set up a development environment, test the code on a Bazel project and run integration tests.
 
 [discussions]: https://github.com/tweag/rules_img/discussions
 [push-strategies]: /docs/push-strategies.md

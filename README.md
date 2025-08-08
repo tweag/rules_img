@@ -54,7 +54,7 @@ We recommend [tweag-credential-helper][tweag-credential-helper]. Refer to the [c
 Add base image to `MODULE.bazel`:
 
 ```starlark
-pull = use_repo_rule("@rules_img//img/private/repository_rules:pull.bzl", "pull")
+pull = use_repo_rule("@rules_img//img:pull.bzl", "pull")
 
 pull(
     name = "ubuntu",

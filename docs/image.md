@@ -25,7 +25,7 @@ image_index(<a href="#image_index-name">name</a>, <a href="#image_index-annotati
 | <a id="image_index-name"></a>name |  A unique name for this target.   | <a href="https://bazel.build/concepts/labels#target-names">Name</a> | required |  |
 | <a id="image_index-annotations"></a>annotations |  Arbitrary metadata for the image index.   | <a href="https://bazel.build/rules/lib/dict">Dictionary: String -> String</a> | optional |  `{}`  |
 | <a id="image_index-manifests"></a>manifests |  List of manifests for specific platforms.   | <a href="https://bazel.build/concepts/labels">List of labels</a> | optional |  `[]`  |
-| <a id="image_index-platforms"></a>platforms |  -   | <a href="https://bazel.build/concepts/labels">List of labels</a> | optional |  `[]`  |
+| <a id="image_index-platforms"></a>platforms |  (Optional) list of target platforms to build the manifest for. Uses a split transition. If specified, the 'manifests' attribute should contain exactly one manifest.   | <a href="https://bazel.build/concepts/labels">List of labels</a> | optional |  `[]`  |
 
 
 <a id="image_manifest"></a>

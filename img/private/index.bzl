@@ -40,6 +40,7 @@ image_index = rule(
         ),
         "platforms": attr.label_list(
             providers = [platform_common.PlatformInfo],
+            doc = "(Optional) list of target platforms to build the manifest for. Uses a split transition. If specified, the 'manifests' attribute should contain exactly one manifest.",
         ),
         "annotations": attr.string_dict(
             doc = "Arbitrary metadata for the image index.",
