@@ -206,7 +206,7 @@ This results in a more complex implementation, but also allows for interesting o
     - [`image_index`](docs/image.md#image_index) - Build multi-platform image indexes
   - **Push and Pull Rules**
     - [`image_push`](docs/push.md#image_push) - Push images to registries
-    - [`pull`](docs/pull.md#pull) - Push images to registries
+    - [`pull`](docs/pull.md#pull) - Pull base images
 
 ## Key Differences Explained
 
