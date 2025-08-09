@@ -15,7 +15,47 @@ load("@rules_img//img:image.bzl", "image_index")
 image_index(<a href="#image_index-name">name</a>, <a href="#image_index-annotations">annotations</a>, <a href="#image_index-manifests">manifests</a>, <a href="#image_index-platforms">platforms</a>)
 </pre>
 
+Creates a multi-platform OCI image index from platform-specific manifests.
 
+This rule combines multiple single-platform images (created by image_manifest) into
+a multi-platform image index. The index allows container runtimes to automatically
+select the appropriate image for their platform.
+
+The rule supports two usage patterns:
+1. Explicit manifests: Provide pre-built manifests for each platform
+2. Platform transitions: Provide one manifest target and a list of platforms
+
+The rule produces:
+- OCI image index JSON file
+- An optional OCI layout directory (via output groups)
+- ImageIndexInfo provider for use by image_push
+
+Example (explicit manifests):
+```python
+image_index(
+    name = "multiarch_app",
+    manifests = [
+        ":app_linux_amd64",
+        ":app_linux_arm64",
+        ":app_darwin_amd64",
+    ],
+)
+```
+
+Example (platform transitions):
+```python
+image_index(
+    name = "multiarch_app",
+    manifests = [":app"],
+    platforms = [
+        "@platforms//os-cpu:linux-x86_64",
+        "@platforms//os-cpu:linux-aarch64",
+    ],
+)
+```
+
+Output groups:
+- `oci_layout`: Complete OCI layout directory with all platform blobs
 
 **ATTRIBUTES**
 
@@ -39,7 +79,37 @@ image_manifest(<a href="#image_manifest-name">name</a>, <a href="#image_manifest
                <a href="#image_manifest-layers">layers</a>, <a href="#image_manifest-os">os</a>, <a href="#image_manifest-platform">platform</a>, <a href="#image_manifest-stop_signal">stop_signal</a>, <a href="#image_manifest-user">user</a>, <a href="#image_manifest-working_dir">working_dir</a>)
 </pre>
 
+Builds a single-platform OCI container image from a set of layers.
 
+This rule assembles container images by combining:
+- Optional base image layers (from another image_manifest or image_index)
+- Additional layers created by image_layer rules
+- Image configuration (entrypoint, environment, labels, etc.)
+
+The rule produces:
+- OCI manifest and config JSON files
+- An optional OCI layout directory (via output groups)
+- ImageManifestInfo provider for use by image_index or image_push
+
+Example:
+```python
+image_manifest(
+    name = "my_app",
+    base = "@distroless_cc",
+    layers = [
+        ":app_layer",
+        ":config_layer",
+    ],
+    entrypoint = ["/usr/bin/app"],
+    env = {
+        "APP_ENV": "production",
+    },
+)
+```
+
+Output groups:
+- `descriptor`: OCI descriptor JSON file
+- `oci_layout`: Complete OCI layout directory with blobs
 
 **ATTRIBUTES**
 

@@ -233,6 +233,38 @@ def _image_manifest_impl(ctx):
 
 image_manifest = rule(
     implementation = _image_manifest_impl,
+    doc = """Builds a single-platform OCI container image from a set of layers.
+
+This rule assembles container images by combining:
+- Optional base image layers (from another image_manifest or image_index)
+- Additional layers created by image_layer rules
+- Image configuration (entrypoint, environment, labels, etc.)
+
+The rule produces:
+- OCI manifest and config JSON files
+- An optional OCI layout directory (via output groups)
+- ImageManifestInfo provider for use by image_index or image_push
+
+Example:
+```python
+image_manifest(
+    name = "my_app",
+    base = "@distroless_cc",
+    layers = [
+        ":app_layer",
+        ":config_layer",
+    ],
+    entrypoint = ["/usr/bin/app"],
+    env = {
+        "APP_ENV": "production",
+    },
+)
+```
+
+Output groups:
+- `descriptor`: OCI descriptor JSON file
+- `oci_layout`: Complete OCI layout directory with blobs
+""",
     attrs = {
         "base": attr.label(
             doc = "Base image to inherit layers from. Should provide ImageManifestInfo or ImageIndexInfo.",
