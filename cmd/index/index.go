@@ -2,6 +2,7 @@ package index
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 var (
 	manifestDescriptorArgs manifestDescriptors
 	annotationArgs         annotations
+	digestOutput           string
 )
 
 func IndexProcess(ctx context.Context, args []string) {
@@ -33,6 +35,7 @@ func IndexProcess(ctx context.Context, args []string) {
 	}
 	flagSet.Var(&manifestDescriptorArgs, "manifest-descriptor", `File containing a descriptor for a manifest.`)
 	flagSet.Var(&annotationArgs, "annotation", `Key-value pair to add as an annotation`)
+	flagSet.StringVar(&digestOutput, "digest", "", `The (optional) output file for the digest of the manifest. This is useful for postprocessing.`)
 
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
@@ -64,6 +67,14 @@ func IndexProcess(ctx context.Context, args []string) {
 	if err := os.WriteFile(indexPath, rawIndex, 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to write image index to %s: %v\n", indexPath, err)
 		os.Exit(1)
+	}
 
+	if digestOutput != "" {
+		digest := sha256.Sum256(rawIndex)
+
+		if err := os.WriteFile(digestOutput, []byte(fmt.Sprintf("sha256:%x", digest[:])), 0o644); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to write digest to %s: %v\n", digestOutput, err)
+			os.Exit(1)
+		}
 	}
 }
