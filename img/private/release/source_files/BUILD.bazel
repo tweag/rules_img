@@ -13,6 +13,7 @@ release_files = [
     "//cmd/layer:all_files",
     "//cmd/layermeta:all_files",
     "//cmd/manifest:all_files",
+    "//cmd/ocilayout:all_files",
     "//cmd/push:all_files",
     "//cmd/registry:all_files",
     "//cmd/validate:all_files",

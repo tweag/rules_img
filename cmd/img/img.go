@@ -15,6 +15,7 @@ import (
 	"github.com/tweag/rules_img/cmd/layer"
 	"github.com/tweag/rules_img/cmd/layermeta"
 	"github.com/tweag/rules_img/cmd/manifest"
+	"github.com/tweag/rules_img/cmd/ocilayout"
 	"github.com/tweag/rules_img/cmd/push"
 	"github.com/tweag/rules_img/cmd/validate"
 	"github.com/tweag/rules_img/pkg/api"
@@ -29,6 +30,7 @@ Commands:
   layer           creates a layer from files
   layer-metadata  creates a layer metadata file from a layer
   manifest        creates an image manifest and config from layers
+  oci-layout      assembles an OCI layout directory from manifest and layers
   validate        validates layers and images
   push            pushes an image to a registry`
 
@@ -67,6 +69,8 @@ func Run(ctx context.Context, args []string) {
 		compress.CompressProcess(ctx, args[2:])
 	case "download-blob":
 		downloadblob.DownloadBlobProcess(ctx, args[2:])
+	case "oci-layout":
+		ocilayout.OCILayoutProcess(ctx, args[2:])
 	case "expand-template":
 		expandtemplate.ExpandTemplateProcess(ctx, args[2:])
 	default:
