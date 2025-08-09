@@ -1,0 +1,7 @@
+# gazelle:exclude_from_release
+
+filegroup(
+    name = "ubuntu_testdata",
+    srcs = glob(["ubuntu/**"]),
+    visibility = ["//visibility:public"],
+)
