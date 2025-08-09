@@ -1,0 +1,37 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+# gazelle:exclude_from_release
+
+go_library(
+    name = "img_toolchain",
+    srcs = ["framework.go"],
+    importpath = "github.com/tweag/rules_img/tests/img_toolchain",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@rules_go//go/runfiles",
+    ],
+)
+
+go_test(
+    name = "img_toolchain_test",
+    size = "medium",
+    srcs = ["img_toolchain_test.go"],
+    data = [
+        ":testdata",
+        "//cmd/img",
+        "//testdata:ubuntu_testdata",
+    ],
+    embed = [":img_toolchain"],
+)
+
+filegroup(
+    name = "testdata",
+    srcs = glob(["testdata/*.ini"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+    visibility = ["//img/private/release:__subpackages__"],
+)
