@@ -59,15 +59,18 @@ def _image_index_impl(ctx):
         if pull_info != other:
             fail("index rule called with images that are based on different external images. This is not yet supported.")
     index_out = ctx.actions.declare_file(ctx.attr.name + "_index.json")
+    digest_out = ctx.actions.declare_file(ctx.label.name + "_digest")
     manifests = [manifest[ImageManifestInfo] for manifest in ctx.attr.manifests]
     write_index_json(
         ctx,
         output = index_out,
+        digest = digest_out,
         manifests = manifests,
     )
     providers = [
         DefaultInfo(files = depset([index_out])),
         OutputGroupInfo(
+            digest = depset([digest_out]),
             oci_layout = depset([_build_oci_layout(ctx, index_out, manifests)]),
         ),
         ImageIndexInfo(
@@ -121,6 +124,7 @@ image_index(
 ```
 
 Output groups:
+- `digest`: Digest of the image (sha256:...)
 - `oci_layout`: Complete OCI layout directory with all platform blobs
 """,
     attrs = {

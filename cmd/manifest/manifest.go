@@ -28,6 +28,7 @@ var (
 	manifestOutput        string
 	configOutput          string
 	descriptorOutput      string
+	digestOutput          string
 	user                  string
 	env                   stringMap
 	entrypoint            stringList
@@ -62,6 +63,7 @@ func ManifestProcess(_ context.Context, args []string) {
 	flagSet.StringVar(&manifestOutput, "manifest", "", `The output file for the final manifest.`)
 	flagSet.StringVar(&configOutput, "config", "", `The output file for the final config.`)
 	flagSet.StringVar(&descriptorOutput, "descriptor", "", `The output file for the descriptor of the manifest.`)
+	flagSet.StringVar(&digestOutput, "digest", "", `The (optional) output file for the digest of the manifest. This is useful for postprocessing.`)
 	flagSet.StringVar(&user, "user", "", `The username or UID which the process in the container should run as.`)
 	flagSet.Var(&env, "env", `Environment variables to set in the container (can be specified multiple times as key=value).`)
 	flagSet.Var(&entrypoint, "entrypoint", `Command to execute when the container starts (can be specified multiple times).`)
@@ -168,6 +170,19 @@ func ManifestProcess(_ context.Context, args []string) {
 	if descriptorOutput != "" {
 		if err := os.WriteFile(descriptorOutput, descriptorRaw, 0o644); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to write manifest descriptor to %s: %v\n", descriptorOutput, err)
+			os.Exit(1)
+		}
+	}
+	if digestOutput != "" {
+		digestFile, err := os.Create(digestOutput)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create digest file %s: %v\n", digestOutput, err)
+			os.Exit(1)
+		}
+		defer digestFile.Close()
+
+		if _, err := fmt.Fprintf(digestFile, "%s", fmt.Sprintf("sha256:%x", manifestSHA256)); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to write digest to %s: %v\n", digestOutput, err)
 			os.Exit(1)
 		}
 	}

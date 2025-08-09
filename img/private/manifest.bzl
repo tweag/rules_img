@@ -195,14 +195,16 @@ def _image_manifest_impl(ctx):
     manifest_out = ctx.actions.declare_file(ctx.label.name + "_manifest.json")
     config_out = ctx.actions.declare_file(ctx.label.name + "_config.json")
     descriptor_out = ctx.actions.declare_file(ctx.label.name + "_descriptor.json")
+    digest_out = ctx.actions.declare_file(ctx.label.name + "_digest")
     args.add("--manifest", manifest_out.path)
     args.add("--config", config_out.path)
     args.add("--descriptor", descriptor_out.path)
+    args.add("--digest", digest_out.path)
 
     img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
     ctx.actions.run(
         inputs = inputs,
-        outputs = [manifest_out, config_out, descriptor_out],
+        outputs = [manifest_out, config_out, descriptor_out, digest_out],
         executable = img_toolchain_info.tool_exe,
         arguments = [args],
         mnemonic = "ImageManifest",
@@ -214,6 +216,7 @@ def _image_manifest_impl(ctx):
         ),
         OutputGroupInfo(
             descriptor = depset([descriptor_out]),
+            digest = depset([digest_out]),
             oci_layout = depset([_build_oci_layout(ctx, manifest_out, config_out, layers)]),
         ),
         ImageManifestInfo(
@@ -263,6 +266,7 @@ image_manifest(
 
 Output groups:
 - `descriptor`: OCI descriptor JSON file
+- `digest`: Digest of the image (sha256:...)
 - `oci_layout`: Complete OCI layout directory with blobs
 """,
     attrs = {

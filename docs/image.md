@@ -55,6 +55,7 @@ image_index(
 ```
 
 Output groups:
+- `digest`: Digest of the image (sha256:...)
 - `oci_layout`: Complete OCI layout directory with all platform blobs
 
 **ATTRIBUTES**
@@ -109,6 +110,7 @@ image_manifest(
 
 Output groups:
 - `descriptor`: OCI descriptor JSON file
+- `digest`: Digest of the image (sha256:...)
 - `oci_layout`: Complete OCI layout directory with blobs
 
 **ATTRIBUTES**
