@@ -86,6 +86,46 @@ def select_base(ctx):
             return manifest
     fail("no matching base image found for architecture {} and os {}".format(constraints_wanted["architecture"], constraints_wanted["os"]))
 
+def _build_oci_layout(ctx, manifest_out, config_out, layers):
+    """Build the OCI layout for the image.
+
+    Args:
+        ctx: Rule context.
+        manifest_out: The manifest file.
+        config_out: The config file.
+        layers: List of LayerInfo providers.
+
+    Returns:
+        The OCI layout directory (tree artifact).
+    """
+    oci_layout_dir = ctx.actions.declare_directory(ctx.label.name + "_oci_layout")
+
+    args = ctx.actions.args()
+    args.add("oci-layout")
+    args.add("--manifest", manifest_out.path)
+    args.add("--config", config_out.path)
+    args.add("--output", oci_layout_dir.path)
+
+    inputs = [manifest_out, config_out]
+
+    # Add layers with metadata=blob mapping
+    for layer in layers:
+        if layer.blob != None:
+            args.add("--layer", "{}={}".format(layer.metadata.path, layer.blob.path))
+            inputs.append(layer.metadata)
+            inputs.append(layer.blob)
+
+    img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
+    ctx.actions.run(
+        inputs = inputs,
+        outputs = [oci_layout_dir],
+        executable = img_toolchain_info.tool_exe,
+        arguments = [args],
+        mnemonic = "OCILayout",
+    )
+
+    return oci_layout_dir
+
 def _image_manifest_impl(ctx):
     inputs = []
     providers = []
@@ -174,6 +214,7 @@ def _image_manifest_impl(ctx):
         ),
         OutputGroupInfo(
             descriptor = depset([descriptor_out]),
+            oci_layout = depset([_build_oci_layout(ctx, manifest_out, config_out, layers)]),
         ),
         ImageManifestInfo(
             base_image = base,
