@@ -81,6 +81,48 @@ def _image_index_impl(ctx):
 
 image_index = rule(
     implementation = _image_index_impl,
+    doc = """Creates a multi-platform OCI image index from platform-specific manifests.
+
+This rule combines multiple single-platform images (created by image_manifest) into
+a multi-platform image index. The index allows container runtimes to automatically
+select the appropriate image for their platform.
+
+The rule supports two usage patterns:
+1. Explicit manifests: Provide pre-built manifests for each platform
+2. Platform transitions: Provide one manifest target and a list of platforms
+
+The rule produces:
+- OCI image index JSON file
+- An optional OCI layout directory (via output groups)
+- ImageIndexInfo provider for use by image_push
+
+Example (explicit manifests):
+```python
+image_index(
+    name = "multiarch_app",
+    manifests = [
+        ":app_linux_amd64",
+        ":app_linux_arm64",
+        ":app_darwin_amd64",
+    ],
+)
+```
+
+Example (platform transitions):
+```python
+image_index(
+    name = "multiarch_app",
+    manifests = [":app"],
+    platforms = [
+        "@platforms//os-cpu:linux-x86_64",
+        "@platforms//os-cpu:linux-aarch64",
+    ],
+)
+```
+
+Output groups:
+- `oci_layout`: Complete OCI layout directory with all platform blobs
+""",
     attrs = {
         "manifests": attr.label_list(
             providers = [ImageManifestInfo],
