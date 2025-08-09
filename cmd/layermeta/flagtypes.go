@@ -2,6 +2,7 @@ package layermeta
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -9,9 +10,14 @@ import (
 type annotationsFlag map[string]string
 
 func (a annotationsFlag) String() string {
+	var keys []string
+	for k := range a {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
 	var pairs []string
-	for k, v := range a {
-		pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
+	for _, k := range keys {
+		pairs = append(pairs, fmt.Sprintf("%s=%s", k, a[k]))
 	}
 	return strings.Join(pairs, ",")
 }

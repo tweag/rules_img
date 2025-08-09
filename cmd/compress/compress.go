@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 
 	"github.com/tweag/rules_img/pkg/api"
 	"github.com/tweag/rules_img/pkg/compress"
@@ -157,9 +158,14 @@ func writeMetadata(compressorState api.AppenderState, annotations map[string]str
 
 	// Merge user annotations with layer annotations from the appender state
 	mergedAnnotations := make(map[string]string)
-	// First add user annotations
-	for k, v := range annotations {
-		mergedAnnotations[k] = v
+	// First add user annotations in sorted order to ensure determinism
+	keys := make([]string, 0, len(annotations))
+	for k := range annotations {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		mergedAnnotations[k] = annotations[k]
 	}
 	// Then add layer annotations from AppenderState (e.g., estargz annotations)
 	for k, v := range compressorState.LayerAnnotations {

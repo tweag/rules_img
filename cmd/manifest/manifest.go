@@ -130,7 +130,16 @@ func ManifestProcess(_ context.Context, args []string) {
 	}
 
 	if len(annotations) > 0 {
-		manifest.Annotations = annotations
+		manifest.Annotations = make(map[string]string)
+		// Add annotations in sorted order to ensure determinism
+		keys := make([]string, 0, len(annotations))
+		for key := range annotations {
+			keys = append(keys, key)
+		}
+		slices.Sort(keys)
+		for _, key := range keys {
+			manifest.Annotations[key] = annotations[key]
+		}
 	}
 
 	manifestRaw, err := json.Marshal(manifest)
@@ -380,10 +389,15 @@ func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor) error
 				existingEnv[key] = true
 			}
 		}
-		// Add new env vars
-		for key, value := range env {
+		// Add new env vars in sorted order to ensure determinism
+		keys := make([]string, 0, len(env))
+		for key := range env {
+			keys = append(keys, key)
+		}
+		slices.Sort(keys)
+		for _, key := range keys {
 			if !existingEnv[key] {
-				config.Config.Env = append(config.Config.Env, fmt.Sprintf("%s=%s", key, value))
+				config.Config.Env = append(config.Config.Env, fmt.Sprintf("%s=%s", key, env[key]))
 			}
 		}
 	}
@@ -402,9 +416,16 @@ func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor) error
 
 	if len(labels) > 0 {
 		if config.Config.Labels == nil {
-			config.Config.Labels = maps.Clone(labels)
-		} else {
-			maps.Copy(config.Config.Labels, labels)
+			config.Config.Labels = make(map[string]string)
+		}
+		// Add labels in sorted order to ensure determinism
+		keys := make([]string, 0, len(labels))
+		for key := range labels {
+			keys = append(keys, key)
+		}
+		slices.Sort(keys)
+		for _, key := range keys {
+			config.Config.Labels[key] = labels[key]
 		}
 	}
 
