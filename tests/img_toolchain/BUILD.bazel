@@ -17,7 +17,7 @@ go_test(
     size = "medium",
     srcs = ["img_toolchain_test.go"],
     data = [
-        ":testdata",
+        ":testcases",
         "//cmd/img",
         "//testdata:ubuntu_testdata",
     ],
@@ -25,8 +25,8 @@ go_test(
 )
 
 filegroup(
-    name = "testdata",
-    srcs = glob(["testdata/*.ini"]),
+    name = "testcases",
+    srcs = glob(["testcases/*.ini"]),
     visibility = ["//visibility:public"],
 )
 
