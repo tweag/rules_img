@@ -1,0 +1,11 @@
+module(name = "generic_e2e")
+
+# BEGIN BAZEL_DEP
+bazel_dep(name = "rules_img")
+local_path_override(
+    module_name = "rules_img",
+    path = "../..",
+)
+# END BAZEL_DEP
+
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
