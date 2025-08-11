@@ -20,7 +20,7 @@ bazel_dep(name = "rules_cc", version = "0.1.1", dev_dependency = True)
 # This setup is not important for the e2e tests and it is hard to read.
 include("//:toolchain.MODULE.bazel")
 
-pull = use_repo_rule("@rules_img//img/private/repository_rules:pull.bzl", "pull")
+pull = use_repo_rule("@rules_img//img:pull.bzl", "pull")
 
 pull(
     name = "distroless_cc",
