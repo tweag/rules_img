@@ -292,6 +292,13 @@ func writeLayer(recorder tree.Recorder, addFiles addFiles, importTars importTars
 		}
 	}
 
+	// Verify that all file metadata entries were used
+	if layerMetadata != nil {
+		if err := layerMetadata.VerifyAllFileMetadataUsed(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

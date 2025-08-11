@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -24,12 +25,14 @@ type FileMetadata struct {
 type LayerMetadata struct {
 	Defaults      *FileMetadata
 	FileOverrides map[string]*FileMetadata
+	usageCounts   map[string]int // tracks how many times each FileOverride entry is used
 }
 
 // ParseLayerMetadata parses the default metadata and file-specific metadata
 func ParseLayerMetadata(defaultJSON string, fileMetadata map[string]string) (*LayerMetadata, error) {
 	result := &LayerMetadata{
 		FileOverrides: make(map[string]*FileMetadata),
+		usageCounts:   make(map[string]int),
 	}
 
 	// Parse default metadata if provided
@@ -51,6 +54,7 @@ func ParseLayerMetadata(defaultJSON string, fileMetadata map[string]string) (*La
 			return nil, fmt.Errorf("file path %s should not start with a slash", path)
 		}
 		result.FileOverrides[path] = &metadata
+		result.usageCounts[path] = 0 // initialize usage counter
 	}
 
 	return result, nil
@@ -68,8 +72,35 @@ func (lm *LayerMetadata) ApplyToHeader(hdr *tar.Header, pathInImage string) erro
 
 	// Then apply file-specific overrides
 	if fileMetadata, ok := lm.FileOverrides[pathInImage]; ok {
+		lm.usageCounts[pathInImage]++ // increment usage counter
 		if err := applyFileMetadata(hdr, fileMetadata); err != nil {
 			return fmt.Errorf("applying metadata for %s: %w", pathInImage, err)
+		}
+	}
+
+	return nil
+}
+
+// VerifyAllFileMetadataUsed checks if all file metadata entries have been used at least once
+// Returns an error if any entries are unused, listing all unused paths
+func (lm *LayerMetadata) VerifyAllFileMetadataUsed() error {
+	if lm == nil || len(lm.FileOverrides) == 0 {
+		return nil // no file metadata to verify
+	}
+
+	var unusedPaths []string
+	for path, count := range lm.usageCounts {
+		if count == 0 {
+			unusedPaths = append(unusedPaths, path)
+		}
+	}
+
+	if len(unusedPaths) > 0 {
+		slices.Sort(unusedPaths) // sort for consistent error messages
+		if len(unusedPaths) == 1 {
+			return fmt.Errorf("unused file metadata for path: %s", unusedPaths[0])
+		} else {
+			return fmt.Errorf("unused file metadata for paths: %s", strings.Join(unusedPaths, ", "))
 		}
 	}
 
