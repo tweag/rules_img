@@ -1,0 +1,266 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_img//img:image.bzl", "image_index", "image_manifest")
+load("@rules_img//img:layer.bzl", "file_metadata", "image_layer")
+
+# Test files for various scenarios
+write_file(
+    name = "empty_file",
+    out = "empty.txt",
+    content = [],
+)
+
+write_file(
+    name = "large_file",
+    out = "large.txt",
+    content = ["line %d\n" % i for i in range(1000)],
+)
+
+write_file(
+    name = "binary_file",
+    out = "binary.dat",
+    content = ["\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07"],
+    is_executable = False,
+)
+
+write_file(
+    name = "executable_script",
+    out = "script.sh",
+    content = ["#!/bin/bash\necho 'Hello World'\n"],
+    is_executable = True,
+)
+
+write_file(
+    name = "unicode_file",
+    out = "unicode.txt",
+    content = [
+        "Hello 世界\n",
+        "こんにちは\n",
+        "🚀🎉\n",
+    ],
+)
+
+# Edge case: Empty layer
+image_layer(
+    name = "empty_layer",
+    srcs = {},
+)
+
+# Edge case: Layer with only empty files
+image_layer(
+    name = "empty_files_layer",
+    srcs = {
+        "empty1.txt": ":empty_file",
+        "empty2.txt": ":empty_file",
+    },
+)
+
+# Edge case: Layer with mixed file types
+image_layer(
+    name = "mixed_layer",
+    srcs = {
+        "bin/script": ":executable_script",
+        "data/large.txt": ":large_file",
+        "data/binary.dat": ":binary_file",
+        "data/unicode.txt": ":unicode_file",
+        "empty.txt": ":empty_file",
+    },
+    symlinks = {
+        "script_link": "/bin/script",
+        "data_link": "/data",
+    },
+)
+
+# Edge case: Layer with deeply nested paths
+image_layer(
+    name = "deep_paths_layer",
+    srcs = {
+        "very/deeply/nested/directory/structure/file.txt": ":large_file",
+        "a/b/c/d/e/f/g/h/i/j/deep.txt": ":unicode_file",
+    },
+)
+
+# Edge case: Layer with special characters in paths
+image_layer(
+    name = "special_chars_layer",
+    srcs = {
+        "file with spaces.txt": ":large_file",
+        "file-with-dashes.txt": ":binary_file",
+        "file_with_underscores.txt": ":unicode_file",
+        "file.with.dots.txt": ":empty_file",
+    },
+)
+
+# Edge case: Layer with file metadata (testing the new feature)
+image_layer(
+    name = "metadata_layer",
+    srcs = {
+        "bin/app": ":executable_script",
+        "etc/config.txt": ":large_file",
+        "tmp/temp.txt": ":unicode_file",
+    },
+    default_metadata = file_metadata(
+        gid = 1000,
+        mode = "0644",
+        uid = 1000,
+    ),
+    file_metadata = {
+        "bin/app": file_metadata(
+            gid = 0,
+            mode = "0755",
+            uid = 0,
+        ),
+        "tmp/temp.txt": file_metadata(mode = "0666"),
+    },
+)
+
+# Edge case: Single layer manifest
+image_manifest(
+    name = "single_layer_manifest",
+    layers = [":mixed_layer"],
+)
+
+# Edge case: Multi-layer manifest with different types
+image_manifest(
+    name = "multi_layer_manifest",
+    entrypoint = ["/bin/script"],
+    env = {
+        "PATH": "/bin:/usr/bin",
+        "HOME": "/root",
+        "EMPTY_VAR": "",
+        "SPECIAL_CHARS": "hello world & friends",
+    },
+    labels = {
+        "version": "1.0.0",
+        "maintainer": "test@example.com",
+        "description": "Test image with edge cases",
+        "empty_label": "",
+        "special.label": "value-with-special_chars.123",
+    },
+    layers = [
+        ":empty_layer",
+        ":empty_files_layer",
+        ":mixed_layer",
+        ":deep_paths_layer",
+        ":special_chars_layer",
+    ],
+)
+
+# Edge case: Manifest with extensive annotations
+image_manifest(
+    name = "annotated_manifest",
+    annotations = {
+        "org.opencontainers.image.title": "Test Image",
+        "org.opencontainers.image.description": "A test image for rules_img edge cases",
+        "org.opencontainers.image.version": "1.0.0-test",
+        "org.opencontainers.image.created": "2023-01-01T00:00:00Z",
+        "custom.annotation": "custom value",
+        "empty.annotation": "",
+        "special/annotation": "value with / and spaces",
+    },
+    layers = [":mixed_layer"],
+)
+
+# Edge case: Multi-platform image index
+image_index(
+    name = "multi_platform_index",
+    manifests = [
+        ":single_layer_manifest",
+        ":multi_layer_manifest",
+        ":annotated_manifest",
+    ],
+)
+
+# Edge case: Layer with many annotations
+image_layer(
+    name = "heavily_annotated_layer",
+    srcs = {"test.txt": ":large_file"},
+    annotations = {
+        "layer.type": "application",
+        "layer.version": "1.0",
+        "layer.size": "large",
+        "layer.compressed": "true",
+        "custom.annotation.1": "value1",
+        "custom.annotation.2": "value2",
+        "custom.annotation.3": "value3",
+        "custom.annotation.4": "value4",
+        "custom.annotation.5": "value5",
+    },
+)
+
+# Edge case: Manifest with complex configuration
+image_manifest(
+    name = "complex_manifest",
+    architecture = "amd64",
+    cmd = [
+        "arg1",
+        "arg2",
+        "arg3",
+    ],
+    entrypoint = [
+        "/bin/app",
+        "--flag1",
+        "--flag2=value",
+    ],
+    env = {
+        "VAR1": "value1",
+        "VAR2": "value2",
+        "PATH": "/custom/bin:/bin:/usr/bin",
+        "LANG": "en_US.UTF-8",
+        "TZ": "UTC",
+    },
+    labels = {
+        "app.name": "test-app",
+        "app.version": "1.0.0",
+        "app.component": "backend",
+        "build.timestamp": "2023-01-01T12:00:00Z",
+        "build.commit": "abc123def456",
+    },
+    layers = [
+        ":heavily_annotated_layer",
+        ":metadata_layer",
+    ],
+    os = "linux",
+    user = "1000:1000",
+    working_dir = "/app",
+)
+
+# Build tests to ensure all targets can be built
+build_test(
+    name = "layer_tests",
+    targets = [
+        ":empty_layer",
+        ":empty_files_layer",
+        ":mixed_layer",
+        ":deep_paths_layer",
+        ":special_chars_layer",
+        ":metadata_layer",
+        ":heavily_annotated_layer",
+    ],
+)
+
+build_test(
+    name = "manifest_tests",
+    targets = [
+        ":single_layer_manifest",
+        ":multi_layer_manifest",
+        ":annotated_manifest",
+        ":complex_manifest",
+    ],
+)
+
+build_test(
+    name = "index_tests",
+    targets = [
+        ":multi_platform_index",
+    ],
+)
+
+build_test(
+    name = "all_tests",
+    targets = [
+        ":layer_tests",
+        ":manifest_tests",
+        ":index_tests",
+    ],
+)

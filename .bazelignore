@@ -8,3 +8,7 @@ e2e/cc/bazel-bin
 e2e/cc/bazel-cc
 e2e/cc/bazel-out
 e2e/cc/bazel-testlogs
+e2e/generic/bazel-bin
+e2e/generic/bazel-generic
+e2e/generic/bazel-out
+e2e/generic/bazel-testlogs
