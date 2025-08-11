@@ -1,6 +1,7 @@
 package img_toolchain
 
 import (
+	"archive/tar"
 	"bufio"
 	"compress/gzip"
 	"context"
@@ -8,10 +9,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -39,10 +42,14 @@ type CommandSpec struct {
 }
 
 type AssertionSpec struct {
-	Type    string
-	Path    string
-	Content string
-	Size    int64
+	Type       string
+	Path       string
+	Content    string
+	Size       int64
+	TarEntry   string // For tar-specific assertions, the entry path within the tar
+	Owner      string // For ownership assertions (uid:gid format)
+	Mode       string // For file mode assertions (octal format)
+	PaxKey     string // For pax extended attribute key
 }
 
 type TestFramework struct {
@@ -266,6 +273,62 @@ func parseAssertion(line string) *AssertionSpec {
 		}
 	case "stdout_matches_regex", "stderr_matches_regex":
 		assertion.Content = strings.Trim(value, `"`)
+	case "tar_entry_exists", "tar_entry_not_exists":
+		// Format: tar_entry_exists = tarfile.tar.gz, /path/in/tar
+		parts := strings.SplitN(value, ",", 2)
+		if len(parts) == 2 {
+			assertion.Path = strings.TrimSpace(parts[0])
+			assertion.TarEntry = strings.TrimSpace(parts[1])
+		}
+	case "tar_entry_type":
+		// Format: tar_entry_type = tarfile.tar.gz, /path/in/tar, regular|dir|symlink|link
+		parts := strings.SplitN(value, ",", 3)
+		if len(parts) == 3 {
+			assertion.Path = strings.TrimSpace(parts[0])
+			assertion.TarEntry = strings.TrimSpace(parts[1])
+			assertion.Content = strings.TrimSpace(parts[2])
+		}
+	case "tar_entry_size":
+		// Format: tar_entry_size = tarfile.tar.gz, /path/in/tar, 1024
+		parts := strings.SplitN(value, ",", 3)
+		if len(parts) == 3 {
+			assertion.Path = strings.TrimSpace(parts[0])
+			assertion.TarEntry = strings.TrimSpace(parts[1])
+			fmt.Sscanf(strings.TrimSpace(parts[2]), "%d", &assertion.Size)
+		}
+	case "tar_entry_sha256":
+		// Format: tar_entry_sha256 = tarfile.tar.gz, /path/in/tar, "hash"
+		parts := strings.SplitN(value, ",", 3)
+		if len(parts) == 3 {
+			assertion.Path = strings.TrimSpace(parts[0])
+			assertion.TarEntry = strings.TrimSpace(parts[1])
+			assertion.Content = strings.Trim(strings.TrimSpace(parts[2]), `"`)
+		}
+	case "tar_entry_owner":
+		// Format: tar_entry_owner = tarfile.tar.gz, /path/in/tar, 1000:1000
+		parts := strings.SplitN(value, ",", 3)
+		if len(parts) == 3 {
+			assertion.Path = strings.TrimSpace(parts[0])
+			assertion.TarEntry = strings.TrimSpace(parts[1])
+			assertion.Owner = strings.TrimSpace(parts[2])
+		}
+	case "tar_entry_mode":
+		// Format: tar_entry_mode = tarfile.tar.gz, /path/in/tar, 0644
+		parts := strings.SplitN(value, ",", 3)
+		if len(parts) == 3 {
+			assertion.Path = strings.TrimSpace(parts[0])
+			assertion.TarEntry = strings.TrimSpace(parts[1])
+			assertion.Mode = strings.TrimSpace(parts[2])
+		}
+	case "tar_entry_pax":
+		// Format: tar_entry_pax = tarfile.tar.gz, /path/in/tar, key, "expected_value"
+		parts := strings.SplitN(value, ",", 4)
+		if len(parts) == 4 {
+			assertion.Path = strings.TrimSpace(parts[0])
+			assertion.TarEntry = strings.TrimSpace(parts[1])
+			assertion.PaxKey = strings.TrimSpace(parts[2])
+			assertion.Content = strings.Trim(strings.TrimSpace(parts[3]), `"`)
+		}
 	}
 
 	return assertion
@@ -398,6 +461,67 @@ func (tf *TestFramework) CheckAssertions(assertions []AssertionSpec, result *Com
 		}
 	}
 	return nil
+}
+
+// TarEntryInfo holds information about a tar entry
+type TarEntryInfo struct {
+	Header  *tar.Header
+	Content []byte
+}
+
+// readTarEntries reads all entries from a tar file (optionally gzipped)
+func (tf *TestFramework) readTarEntries(tarPath string) (map[string]*TarEntryInfo, error) {
+	fullPath := filepath.Join(tf.tempDir, tarPath)
+	file, err := os.Open(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open tar file %s: %w", tarPath, err)
+	}
+	defer file.Close()
+
+	var reader io.Reader = file
+
+	// Try to detect if it's gzipped
+	file.Seek(0, 0)
+	gzHeader := make([]byte, 2)
+	file.Read(gzHeader)
+	file.Seek(0, 0)
+
+	if gzHeader[0] == 0x1f && gzHeader[1] == 0x8b {
+		gzReader, err := gzip.NewReader(file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gzip reader: %w", err)
+		}
+		defer gzReader.Close()
+		reader = gzReader
+	}
+
+	tarReader := tar.NewReader(reader)
+	entries := make(map[string]*TarEntryInfo)
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error reading tar: %w", err)
+		}
+
+		var content []byte
+		if header.Typeflag == tar.TypeReg {
+			content, err = io.ReadAll(tarReader)
+			if err != nil {
+				return nil, fmt.Errorf("error reading file content for %s: %w", header.Name, err)
+			}
+		}
+
+		entries[header.Name] = &TarEntryInfo{
+			Header:  header,
+			Content: content,
+		}
+	}
+
+	return entries, nil
 }
 
 func (tf *TestFramework) checkAssertion(assertion AssertionSpec, result *CommandResult) error {
@@ -552,6 +676,157 @@ func (tf *TestFramework) checkAssertion(assertion AssertionSpec, result *Command
 		}
 		if !matched {
 			return fmt.Errorf("text does not match regex %s", assertion.Content)
+		}
+	case "tar_entry_exists":
+		entries, err := tf.readTarEntries(assertion.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read tar file %s: %w", assertion.Path, err)
+		}
+		if _, exists := entries[assertion.TarEntry]; !exists {
+			return fmt.Errorf("tar entry %s does not exist in %s", assertion.TarEntry, assertion.Path)
+		}
+	case "tar_entry_not_exists":
+		entries, err := tf.readTarEntries(assertion.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read tar file %s: %w", assertion.Path, err)
+		}
+		if _, exists := entries[assertion.TarEntry]; exists {
+			return fmt.Errorf("tar entry %s exists in %s but should not", assertion.TarEntry, assertion.Path)
+		}
+	case "tar_entry_type":
+		entries, err := tf.readTarEntries(assertion.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read tar file %s: %w", assertion.Path, err)
+		}
+		entry, exists := entries[assertion.TarEntry]
+		if !exists {
+			return fmt.Errorf("tar entry %s does not exist in %s", assertion.TarEntry, assertion.Path)
+		}
+
+		switch assertion.Content {
+		case "regular":
+			if entry.Header.Typeflag != tar.TypeReg {
+				return fmt.Errorf("tar entry %s is not a regular file (typeflag: %d)", assertion.TarEntry, entry.Header.Typeflag)
+			}
+		case "dir":
+			if entry.Header.Typeflag != tar.TypeDir {
+				return fmt.Errorf("tar entry %s is not a directory (typeflag: %d)", assertion.TarEntry, entry.Header.Typeflag)
+			}
+		case "symlink":
+			if entry.Header.Typeflag != tar.TypeSymlink {
+				return fmt.Errorf("tar entry %s is not a symlink (typeflag: %d)", assertion.TarEntry, entry.Header.Typeflag)
+			}
+		case "link":
+			if entry.Header.Typeflag != tar.TypeLink {
+				return fmt.Errorf("tar entry %s is not a hardlink (typeflag: %d)", assertion.TarEntry, entry.Header.Typeflag)
+			}
+		default:
+			return fmt.Errorf("unknown tar entry type: %s", assertion.Content)
+		}
+	case "tar_entry_size":
+		entries, err := tf.readTarEntries(assertion.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read tar file %s: %w", assertion.Path, err)
+		}
+		entry, exists := entries[assertion.TarEntry]
+		if !exists {
+			return fmt.Errorf("tar entry %s does not exist in %s", assertion.TarEntry, assertion.Path)
+		}
+		if entry.Header.Size != assertion.Size {
+			return fmt.Errorf("tar entry %s size mismatch: expected %d, got %d", assertion.TarEntry, assertion.Size, entry.Header.Size)
+		}
+	case "tar_entry_sha256":
+		entries, err := tf.readTarEntries(assertion.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read tar file %s: %w", assertion.Path, err)
+		}
+		entry, exists := entries[assertion.TarEntry]
+		if !exists {
+			return fmt.Errorf("tar entry %s does not exist in %s", assertion.TarEntry, assertion.Path)
+		}
+		if entry.Header.Typeflag != tar.TypeReg {
+			return fmt.Errorf("tar entry %s is not a regular file, cannot check SHA256", assertion.TarEntry)
+		}
+		hash := sha256.Sum256(entry.Content)
+		actualHash := hex.EncodeToString(hash[:])
+		expectedHash := strings.ToLower(assertion.Content)
+		if actualHash != expectedHash {
+			return fmt.Errorf("tar entry %s SHA256 mismatch: expected %s, got %s", assertion.TarEntry, expectedHash, actualHash)
+		}
+	case "tar_entry_owner":
+		entries, err := tf.readTarEntries(assertion.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read tar file %s: %w", assertion.Path, err)
+		}
+		entry, exists := entries[assertion.TarEntry]
+		if !exists {
+			return fmt.Errorf("tar entry %s does not exist in %s", assertion.TarEntry, assertion.Path)
+		}
+
+		parts := strings.SplitN(assertion.Owner, ":", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid owner format: %s (expected uid:gid)", assertion.Owner)
+		}
+
+		expectedUID, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return fmt.Errorf("invalid UID in owner: %s", parts[0])
+		}
+		expectedGID, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return fmt.Errorf("invalid GID in owner: %s", parts[1])
+		}
+
+		if entry.Header.Uid != expectedUID {
+			return fmt.Errorf("tar entry %s UID mismatch: expected %d, got %d", assertion.TarEntry, expectedUID, entry.Header.Uid)
+		}
+		if entry.Header.Gid != expectedGID {
+			return fmt.Errorf("tar entry %s GID mismatch: expected %d, got %d", assertion.TarEntry, expectedGID, entry.Header.Gid)
+		}
+	case "tar_entry_mode":
+		entries, err := tf.readTarEntries(assertion.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read tar file %s: %w", assertion.Path, err)
+		}
+		entry, exists := entries[assertion.TarEntry]
+		if !exists {
+			return fmt.Errorf("tar entry %s does not exist in %s", assertion.TarEntry, assertion.Path)
+		}
+
+		expectedMode, err := strconv.ParseInt(assertion.Mode, 8, 64)
+		if err != nil {
+			return fmt.Errorf("invalid mode format: %s (expected octal)", assertion.Mode)
+		}
+
+		// Compare only the permission bits (lower 12 bits)
+		actualMode := int64(entry.Header.Mode) & 0o7777
+		expectedMode = expectedMode & 0o7777
+
+		if actualMode != expectedMode {
+			return fmt.Errorf("tar entry %s mode mismatch: expected %o, got %o", assertion.TarEntry, expectedMode, actualMode)
+		}
+	case "tar_entry_pax":
+		entries, err := tf.readTarEntries(assertion.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read tar file %s: %w", assertion.Path, err)
+		}
+		entry, exists := entries[assertion.TarEntry]
+		if !exists {
+			return fmt.Errorf("tar entry %s does not exist in %s", assertion.TarEntry, assertion.Path)
+		}
+
+		if entry.Header.PAXRecords == nil {
+			return fmt.Errorf("tar entry %s has no PAX extended attributes", assertion.TarEntry)
+		}
+
+		actualValue, exists := entry.Header.PAXRecords[assertion.PaxKey]
+		if !exists {
+			return fmt.Errorf("tar entry %s does not have PAX attribute %s", assertion.TarEntry, assertion.PaxKey)
+		}
+
+		if actualValue != assertion.Content {
+			return fmt.Errorf("tar entry %s PAX attribute %s mismatch: expected %q, got %q",
+				assertion.TarEntry, assertion.PaxKey, assertion.Content, actualValue)
 		}
 	default:
 		return fmt.Errorf("unknown assertion type: %s", assertion.Type)
