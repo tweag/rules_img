@@ -34,6 +34,8 @@ func LayerProcess(ctx context.Context, args []string) {
 	var estargzFlag bool
 	var metadataOutputFlag string
 	var contentManifestOutputFlag string
+	var defaultMetadataFlag string
+	fileMetadataFlags := make(fileMetadataFlag)
 
 	flagSet := flag.NewFlagSet("layer", flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -68,6 +70,8 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 	flagSet.Var(&annotations, "annotation", `Add an annotation as key=value. Can be specified multiple times.`)
 	flagSet.StringVar(&metadataOutputFlag, "metadata", "", `Write the metadata to the specified file. The metadata is a JSON file containing info needed to use the layer as part of an OCI image.`)
 	flagSet.StringVar(&contentManifestOutputFlag, "content-manifest", "", `Write a manifest of the contents of the layer to the specified file. The manifest uses a custom binary format listing all blobs, nodes, and trees in the layer after deduplication.`)
+	flagSet.StringVar(&defaultMetadataFlag, "default-metadata", "", `JSON-encoded default metadata to apply to all files in the layer. Can include fields like mode, uid, gid, uname, gname, mtime, and pax_records.`)
+	flagSet.Var(&fileMetadataFlags, "file-metadata", `Per-file metadata override in the format path=json. Can be specified multiple times. Overrides any defaults from --default-metadata.`)
 
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
@@ -110,6 +114,13 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 		os.Exit(1)
 	}
 	defer outputFile.Close()
+
+	// Parse layer metadata
+	layerMetadata, err := ParseLayerMetadata(defaultMetadataFlag, fileMetadataFlags)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing metadata: %v\n", err)
+		os.Exit(1)
+	}
 
 	// read the addFromFile parameter file and create a list of operations
 	for _, paramFile := range addFromFile {
@@ -176,7 +187,7 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 
 	compressorState, err := handleLayerState(
 		compressionAlgorithm, estargzFlag, addFiles, importTarFlags, executableFlags, symlinkFlags,
-		casImporter, casExporter, outputFile,
+		casImporter, casExporter, outputFile, layerMetadata,
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Writing layer: %v\n", err)
@@ -200,7 +211,7 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 
 func handleLayerState(
 	compressionAlgorithm api.CompressionAlgorithm, useEstargz bool, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks,
-	casImporter api.CASStateSupplier, casExporter api.CASStateExporter, outputFile io.Writer,
+	casImporter api.CASStateSupplier, casExporter api.CASStateExporter, outputFile io.Writer, layerMetadata *LayerMetadata,
 ) (compressorState api.AppenderState, err error) {
 	compressor, err := compress.TarAppenderFactory("sha256", string(compressionAlgorithm), useEstargz, outputFile)
 	if err != nil {
@@ -229,14 +240,17 @@ func handleLayerState(
 	}
 
 	recorder := tree.NewRecorder(tw)
-	if err := writeLayer(recorder, addFiles, importTars, addExecutables, addSymlinks); err != nil {
+	if layerMetadata != nil {
+		recorder = recorder.WithMetadata(layerMetadata)
+	}
+	if err := writeLayer(recorder, addFiles, importTars, addExecutables, addSymlinks, layerMetadata); err != nil {
 		return compressorState, err
 	}
 
 	return compressorState, tw.Export(casExporter)
 }
 
-func writeLayer(recorder tree.Recorder, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks) error {
+func writeLayer(recorder tree.Recorder, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks, layerMetadata *LayerMetadata) error {
 	for _, tarFile := range importTars {
 		if err := recorder.ImportTar(tarFile); err != nil {
 			return fmt.Errorf("importing tar file: %w", err)

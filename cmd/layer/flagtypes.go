@@ -282,3 +282,33 @@ func (a annotationsFlag) Set(value string) error {
 	a[key] = val
 	return nil
 }
+
+// fileMetadataFlag implements flag.Value for path=json metadata pairs
+type fileMetadataFlag map[string]string
+
+func (f fileMetadataFlag) String() string {
+	var keys []string
+	for k := range f {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	var pairs []string
+	for _, k := range keys {
+		pairs = append(pairs, fmt.Sprintf("%s=%s", k, f[k]))
+	}
+	return strings.Join(pairs, ",")
+}
+
+func (f fileMetadataFlag) Set(value string) error {
+	parts := strings.SplitN(value, "=", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("file metadata must be in format path=json, got: %s", value)
+	}
+	path := strings.TrimSpace(parts[0])
+	jsonMetadata := strings.TrimSpace(parts[1])
+	if path == "" {
+		return fmt.Errorf("file path cannot be empty")
+	}
+	f[path] = jsonMetadata
+	return nil
+}
