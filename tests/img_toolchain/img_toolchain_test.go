@@ -15,13 +15,13 @@ func TestImgToolchain(t *testing.T) {
 	}
 	defer tf.Cleanup()
 
-	testFiles, err := filepath.Glob("testdata/*.ini")
+	testFiles, err := filepath.Glob("testcases/*.ini")
 	if err != nil {
 		t.Fatalf("Failed to find test files: %v", err)
 	}
 
 	if len(testFiles) == 0 {
-		t.Skip("No test files found in testdata/")
+		t.Skip("No test files found in testcases/")
 	}
 
 	for _, testFile := range testFiles {
