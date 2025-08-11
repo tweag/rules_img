@@ -201,6 +201,7 @@ This results in a more complex implementation, but also allows for interesting o
   - **Layer Rules**
     - [`image_layer`](docs/layer.md#image_layer) - Create layers from files
     - [`layer_from_tar`](docs/layer.md#layer_from_tar) - Create layers from tar archives
+    - [`file_metadata`](docs/layer.md#file_metadata) - Helper for specifying file attributes of `image_layer` rule.
   - **Image Rules**
     - [`image_manifest`](docs/image.md#image_manifest) - Build single-platform images
     - [`image_index`](docs/image.md#image_index) - Build multi-platform image indexes

@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "flagtypes.go",
         "layer.go",
+        "metadata.go",
         "paramfile.go",
     ],
     importpath = "github.com/tweag/rules_img/cmd/layer",

@@ -44,6 +44,7 @@ bzl_library(
     srcs = ["layer.bzl"],
     visibility = ["//visibility:public"],
     deps = [
+        "//img/private:file_metadata",
         "//img/private:layer",
         "//img/private:layer_from_tar",
     ],

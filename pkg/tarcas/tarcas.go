@@ -214,7 +214,7 @@ func (c *CAS[HM]) StoreNode(r io.Reader, hdr *tar.Header) (linkPath string, blob
 	}
 	blobHash = h.Sum(nil)
 	linkPath, err = c.StoreNodeKnownHash(&buf, hdr, blobHash)
-	return linkPath, blobHash, size, err
+	return linkPath, blobHash, n, err
 }
 
 func (c *CAS[HM]) StoreNodeKnownHash(r io.Reader, hdr *tar.Header, blobHash []byte) (linkPath string, err error) {

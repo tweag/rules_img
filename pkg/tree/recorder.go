@@ -20,13 +20,26 @@ import (
 type Recorder struct {
 	tf          api.TarCAS
 	deduplicate bool
+	metadata    MetadataProvider
+}
+
+// MetadataProvider is an interface for applying metadata to tar headers
+type MetadataProvider interface {
+	ApplyToHeader(hdr *tar.Header, pathInImage string) error
 }
 
 func NewRecorder(tf api.TarCAS) Recorder {
 	return Recorder{
 		tf:          tf,
 		deduplicate: true,
+		metadata:    nil,
 	}
+}
+
+// WithMetadata returns a new Recorder with the given metadata provider
+func (r Recorder) WithMetadata(metadata MetadataProvider) Recorder {
+	r.metadata = metadata
+	return r
 }
 
 func (r Recorder) ImportTar(tarFile string) error {
@@ -99,6 +112,13 @@ func (r Recorder) RegularFile(f io.Reader, info fs.FileInfo, target string) erro
 		Mode:     0o755,
 		// leave out any extra metadata (for better reproducibility)
 	}
+
+	// Apply metadata if provider is set
+	if r.metadata != nil {
+		if err := r.metadata.ApplyToHeader(hdr, target); err != nil {
+			return fmt.Errorf("applying metadata: %w", err)
+		}
+	}
 	if r.deduplicate {
 		err = r.tf.WriteRegularDeduplicated(hdr, f)
 	} else {
@@ -137,11 +157,20 @@ func (r Recorder) Executable(binaryPath, target string, accessor runfilesSupplie
 		return err
 	}
 	// Next, record the root directory of the runfiles tree.
-	if err := r.tf.WriteHeader(&tar.Header{
+	runfilesHdr := &tar.Header{
 		Typeflag: tar.TypeDir,
 		Name:     target + ".runfiles/",
 		Mode:     0o755,
-	}); err != nil {
+	}
+
+	// Apply metadata if provider is set
+	if r.metadata != nil {
+		if err := r.metadata.ApplyToHeader(runfilesHdr, runfilesHdr.Name); err != nil {
+			return fmt.Errorf("applying metadata: %w", err)
+		}
+	}
+
+	if err := r.tf.WriteHeader(runfilesHdr); err != nil {
 		return err
 	}
 

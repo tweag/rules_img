@@ -62,13 +62,19 @@ def _image_layer_impl(ctx):
         args.append("--estargz")
     for key, value in ctx.attr.annotations.items():
         args.extend(["--annotation", "{}={}".format(key, value)])
+    if ctx.attr.default_metadata:
+        args.extend(["--default-metadata", ctx.attr.default_metadata])
+    for path, metadata in ctx.attr.file_metadata.items():
+        path = path.removeprefix("/")  # the "/" is not included in the tar file.
+        args.extend(["--file-metadata", "{}={}".format(path, metadata)])
     files_args = ctx.actions.args()
     files_args.set_param_file_format("multiline")
     files_args.use_param_file("--add-from-file=%s", use_always = True)
 
     inputs = []
 
-    for (pathInImage, files) in ctx.attr.srcs.items():
+    for (path_in_image, files) in ctx.attr.srcs.items():
+        path_in_image = path_in_image.removeprefix("/")  # the "/" is not included in the tar file.
         default_info = files[DefaultInfo]
         files_to_run = default_info.files_to_run
         executable = None
@@ -79,7 +85,7 @@ def _image_layer_impl(ctx):
             # Add the executable with the runfiles tree, but ignore any other files.
             executable = files_to_run.executable
             runfiles = default_info.default_runfiles
-            args.append("--executable={}={}".format(pathInImage, executable.path))
+            args.append("--executable={}={}".format(path_in_image, executable.path))
             executable_runfiles_args = ctx.actions.args()
             executable_runfiles_args.set_param_file_format("multiline")
             executable_runfiles_args.use_param_file("--runfiles={}=%s".format(executable.path), use_always = True)
@@ -95,8 +101,8 @@ def _image_layer_impl(ctx):
         # This isn't an executable.
         # Let's add all files instead.
         if default_info.files == None:
-            fail("Expected {} ({}) to contain an executable or files, got None".format(pathInImage, files))
-        files_args.add_all(default_info.files, map_each = _files_arg, format_each = "{}\0%s".format(pathInImage), expand_directories = False)
+            fail("Expected {} ({}) to contain an executable or files, got None".format(path_in_image, files))
+        files_args.add_all(default_info.files, map_each = _files_arg, format_each = "{}\0%s".format(path_in_image), expand_directories = False)
 
     if len(ctx.attr.symlinks) > 0:
         symlink_args = ctx.actions.args()
@@ -153,6 +159,17 @@ When enabled, the layer will be optimized for lazy pulling and will be compatibl
         "annotations": attr.string_dict(
             default = {},
             doc = """Annotations to add to the layer metadata as key-value pairs.""",
+        ),
+        "default_metadata": attr.string(
+            default = "",
+            doc = """JSON-encoded default metadata to apply to all files in the layer.
+Can include fields like mode, uid, gid, uname, gname, mtime, and pax_records.""",
+        ),
+        "file_metadata": attr.string_dict(
+            default = {},
+            doc = """Per-file metadata overrides as a dict mapping file paths to JSON-encoded metadata.
+The path should match the path in the image (the key in srcs attribute).
+Metadata specified here overrides any defaults from default_metadata.""",
         ),
         "_default_compression": attr.label(
             default = Label("//img/settings:compress"),
