@@ -1,0 +1,19 @@
+schemaVersion: 2.0.0
+metadataTest:
+  entrypoint: ["/bin/app"]
+  cmd: ["--my-flag", "value"]
+  user: "0"
+  envVars:
+    - key: "MY_ENV_VAR"
+      value: "value"
+  labels:
+    - key: "org.label-schema.name"
+      value: "Go Application with Customizations"
+    - key: "org.label-schema.description"
+      value: "Your description goes here."
+
+fileExistenceTests:
+  - name: "Check Go application binary"
+    path: "/bin/app"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"

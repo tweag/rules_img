@@ -1,0 +1,30 @@
+schemaVersion: 2.0.0
+metadataTest:
+  # Note: annotations are typically not exposed in the runtime container config,
+  # but we can still test the layer contents
+  labels: []
+
+fileExistenceTests:
+  # Files from mixed_layer
+  - name: "Check executable script"
+    path: "/bin/script"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"
+  - name: "Check large file"
+    path: "/data/large.txt"
+    shouldExist: true
+  - name: "Check binary file"
+    path: "/data/binary.dat"
+    shouldExist: true
+  - name: "Check unicode file"
+    path: "/data/unicode.txt"
+    shouldExist: true
+  - name: "Check empty file"
+    path: "/empty.txt"
+    shouldExist: true
+  - name: "Check script symlink"
+    path: "/script_link"
+    shouldExist: true
+  - name: "Check data symlink"
+    path: "/data_link"
+    shouldExist: true

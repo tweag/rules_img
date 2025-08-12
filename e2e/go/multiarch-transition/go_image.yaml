@@ -1,0 +1,9 @@
+schemaVersion: 2.0.0
+metadataTest:
+  entrypoint: ["/bin/app"]
+
+fileExistenceTests:
+  - name: "Check Go binary"
+    path: "/bin/app"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"

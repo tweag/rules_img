@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@container_structure_test//:defs.bzl", "container_structure_test")
 load("@rules_go//go:def.bzl", "go_cross_binary")
 load("@rules_img//img:image.bzl", "image_index", "image_manifest")
 load("@rules_img//img:layer.bzl", "image_layer")
@@ -40,6 +41,19 @@ image_manifest(
     os = "linux",
 )
 
+filegroup(
+    name = "arm64_image_oci_layout",
+    srcs = [":arm64_image"],
+    output_group = "oci_layout",
+)
+
+container_structure_test(
+    name = "arm64_image_test",
+    configs = ["arm64_image.yaml"],
+    image = ":arm64_image_oci_layout",
+    target_compatible_with = ["@platforms//cpu:arm64"],
+)
+
 image_manifest(
     name = "amd64_image",
     architecture = "amd64",
@@ -48,6 +62,19 @@ image_manifest(
         ":amd64_layer",
     ],
     os = "linux",
+)
+
+filegroup(
+    name = "amd64_image_oci_layout",
+    srcs = [":amd64_image"],
+    output_group = "oci_layout",
+)
+
+container_structure_test(
+    name = "amd64_image_test",
+    configs = ["amd64_image.yaml"],
+    image = ":amd64_image_oci_layout",
+    target_compatible_with = ["@platforms//cpu:x86_64"],
 )
 
 image_index(

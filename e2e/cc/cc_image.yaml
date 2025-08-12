@@ -1,0 +1,16 @@
+schemaVersion: 2.0.0
+metadataTest:
+  entrypoint: ["/bin/app"]
+
+fileExistenceTests:
+  - name: "Check C++ application binary"
+    path: "/bin/app"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"
+  # Files from distroless base image
+  - name: "Check distroless base libraries exist"
+    path: "/lib"
+    shouldExist: true
+  - name: "Check distroless etc directory"
+    path: "/etc"
+    shouldExist: true

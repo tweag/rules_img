@@ -9,3 +9,4 @@ local_path_override(
 # END BAZEL_DEP
 
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
+bazel_dep(name = "container_structure_test", version = "1.19.1")

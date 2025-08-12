@@ -1,0 +1,16 @@
+schemaVersion: 2.0.0
+metadataTest:
+  entrypoint: ["/bin/app"]
+
+fileExistenceTests:
+  - name: "Check C++ application binary"
+    path: "/bin/app"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"
+  # Files from custom base image with C++ standard library
+  - name: "Check lib directory from base"
+    path: "/lib"
+    shouldExist: true
+  - name: "Check usr/lib directory"
+    path: "/usr/lib"
+    shouldExist: true

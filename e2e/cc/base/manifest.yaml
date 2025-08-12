@@ -1,0 +1,14 @@
+schemaVersion: 2.0.0
+# This manifest provides a base layer with C++ standard libraries
+fileExistenceTests:
+  - name: "Check lib directory exists"
+    path: "/lib"
+    shouldExist: true
+  - name: "Check lib64 directory or symlink"
+    path: "/lib64"
+    shouldExist: true
+  # The exact libraries will depend on whether libc++ or libstdc++ is selected
+  # but we can check for some common directories
+  - name: "Check usr/lib exists"
+    path: "/usr/lib"
+    shouldExist: true

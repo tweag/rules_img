@@ -1,0 +1,66 @@
+schemaVersion: 2.0.0
+metadataTest:
+  entrypoint: ["/bin/script"]
+  envVars:
+    - key: "PATH"
+      value: "/bin:/usr/bin"
+    - key: "HOME"
+      value: "/root"
+    - key: "EMPTY_VAR"
+      value: ""
+    - key: "SPECIAL_CHARS"
+      value: "hello world & friends"
+  labels:
+    - key: "version"
+      value: "1.0.0"
+    - key: "maintainer"
+      value: "test@example.com"
+    - key: "description"
+      value: "Test image with edge cases"
+    - key: "empty_label"
+      value: ""
+    - key: "special.label"
+      value: "value-with-special_chars.123"
+
+fileExistenceTests:
+  # Files from mixed_layer
+  - name: "Check executable script"
+    path: "/bin/script"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"
+  - name: "Check large file"
+    path: "/data/large.txt"
+    shouldExist: true
+  - name: "Check binary file"
+    path: "/data/binary.dat"
+    shouldExist: true
+  - name: "Check unicode file"
+    path: "/data/unicode.txt"
+    shouldExist: true
+  # Files from deep_paths_layer
+  - name: "Check deeply nested file 1"
+    path: "/very/deeply/nested/directory/structure/file.txt"
+    shouldExist: true
+  - name: "Check deeply nested file 2"
+    path: "/a/b/c/d/e/f/g/h/i/j/deep.txt"
+    shouldExist: true
+  # Files from special_chars_layer
+  - name: "Check file with spaces"
+    path: "/file with spaces.txt"
+    shouldExist: true
+  - name: "Check file with dashes"
+    path: "/file-with-dashes.txt"
+    shouldExist: true
+  - name: "Check file with underscores"
+    path: "/file_with_underscores.txt"
+    shouldExist: true
+  - name: "Check file with dots"
+    path: "/file.with.dots.txt"
+    shouldExist: true
+  # Files from empty_files_layer
+  - name: "Check empty files"
+    path: "/empty1.txt"
+    shouldExist: true
+  - name: "Check empty files 2"
+    path: "/empty2.txt"
+    shouldExist: true

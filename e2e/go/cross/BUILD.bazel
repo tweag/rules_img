@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@container_structure_test//:defs.bzl", "container_structure_test")
 load("@rules_go//go:def.bzl", "go_cross_binary")
 load("@rules_img//img:image.bzl", "image_manifest")
 load("@rules_img//img:layer.bzl", "image_layer")
@@ -25,6 +26,19 @@ image_manifest(
         ":go_layer",
     ],
     os = "linux",
+)
+
+filegroup(
+    name = "go_image_oci_layout",
+    srcs = [":go_image"],
+    output_group = "oci_layout",
+)
+
+container_structure_test(
+    name = "go_image_test",
+    configs = ["go_image.yaml"],
+    image = ":go_image_oci_layout",
+    target_compatible_with = ["@platforms//cpu:arm64"],
 )
 
 image_push(
