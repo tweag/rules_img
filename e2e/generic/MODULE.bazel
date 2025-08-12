@@ -9,3 +9,23 @@ local_path_override(
 # END BAZEL_DEP
 
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
+bazel_dep(name = "platforms", version = "0.0.11")
+
+# Pull Alpine Linux as base image
+pull = use_repo_rule("@rules_img//img:pull.bzl", "pull")
+
+pull(
+    name = "alpine",
+    digest = "sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1",
+    registry = "index.docker.io",
+    repository = "library/alpine",
+    tag = "3.22",
+)
+
+pull(
+    name = "cuda",
+    digest = "sha256:198208c45877a84c8fb35a06956e7fbef4ffabfa36f9c82148dc7bac454ba02a",
+    registry = "index.docker.io",
+    repository = "nvidia/cuda",
+    tag = "13.0.0-tensorrt-runtime-ubuntu24.04",
+)

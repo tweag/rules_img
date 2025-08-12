@@ -44,6 +44,14 @@ common --@rules_img//img/settings:stamp=disabled
 # "eager", "lazy", "cas_registry", or "bes"
 common --@rules_img//img/settings:push_strategy=eager
 
+# The load strategy to use.
+# "eager" or "lazy"
+common --@rules_img//img/settings:load_strategy=eager
+
+# The daemon to target with image_load
+# "docker" or "containerd"
+common --@rules_img//img/settings:load_daemon=docker
+
 # Bazel remote cache to use for lazy pushing of container images.
 # Uses the same format as Bazel's --remote_cache flag.
 # Falls back to $IMG_REAPI_ENDPOINT env var.
@@ -209,6 +217,7 @@ This results in a more complex implementation, but also allows for interesting o
 - ✅ [Deduplication of layer contents](#layer-optimization)
 - ✅ [Advanced push strategies](#advanced-push-strategies)
 - ✅ [eStargz support for lazy pulling](#estargz-lazy-pulling)
+- ✅ [Incremental loading into daemons](#incremental-loading)
 
 ## Documentation
 
@@ -220,8 +229,9 @@ This results in a more complex implementation, but also allows for interesting o
   - **Image Rules**
     - [`image_manifest`](docs/image.md#image_manifest) - Build single-platform images
     - [`image_index`](docs/image.md#image_index) - Build multi-platform image indexes
-  - **Push and Pull Rules**
+  - **Push, Pull and Load Rules**
     - [`image_push`](docs/push.md#image_push) - Push images to registries
+    - [`image_load`](docs/load.md#image_load) - Load images into container daemons
     - [`pull`](docs/pull.md#pull) - Pull base images
 
 ## Key Differences Explained
@@ -296,6 +306,32 @@ image_layer(
 
 The same setting can be globally enabled using `--@rules_img//img/settings:estargz=enabled`.
 Read the [stargz-snapshotter documentation][stargz-snapshotter] for more information.
+
+### Incremental Loading
+
+rules_img loads images incrementally and efficiently by directly interfacing with the containerd API. This provides significant performance advantages over traditional approaches:
+
+- **Direct containerd integration** - When Docker is configured with containerd storage, rules_img bypasses `docker load` entirely
+- **Incremental blob loading** - Only new or changed layers are loaded, existing blobs are skipped
+- **Streaming architecture** - No temporary tar files or buffering entire images in memory
+- **Platform selection** - Load only the platforms you need from multi-platform images
+
+The performance difference is dramatic, especially for large images:
+
+```bash
+# Load only the platform you need
+bazel run //my:image_load -- --platform linux/amd64
+
+# Incremental loading: only new layers are transferred
+# Second load of a slightly modified image is near-instant
+bazel run //my:image_load  # Only changed layers loaded!
+```
+
+When Docker doesn't support containerd storage, rules_img automatically falls back to `docker load` with a clear warning about the performance impact.
+
+This is particularly powerful in development workflows where you're iterating on application layers while keeping large base images (like CUDA) unchanged - subsequent loads only transfer your small application layers.
+
+**Future Docker Support**: Docker is planning to expose its contentstore API in version 29.0.0, which will enable native incremental loading ([moby/moby#44369](https://github.com/moby/moby/issues/44369)). Once this ships, rules_img will adopt it to provide incremental loading performance even when the containerd socket isn't directly accesible by users. This will bring the same efficiency benefits to all Docker users, regardless of their platform or configuration.
 
 ## Hacking & Contributing
 

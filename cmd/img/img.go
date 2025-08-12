@@ -14,6 +14,7 @@ import (
 	"github.com/tweag/rules_img/cmd/index"
 	"github.com/tweag/rules_img/cmd/layer"
 	"github.com/tweag/rules_img/cmd/layermeta"
+	"github.com/tweag/rules_img/cmd/load"
 	"github.com/tweag/rules_img/cmd/manifest"
 	"github.com/tweag/rules_img/cmd/ocilayout"
 	"github.com/tweag/rules_img/cmd/push"
@@ -29,13 +30,14 @@ Commands:
   expand-template expands Go templates in push request JSON
   layer           creates a layer from files
   layer-metadata  creates a layer metadata file from a layer
+  load            loads an image into a container daemon
   manifest        creates an image manifest and config from layers
   oci-layout      assembles an OCI layout directory from manifest and layers
   validate        validates layers and images
   push            pushes an image to a registry`
 
 func Run(ctx context.Context, args []string) {
-	if runfilesDispatch(ctx) {
+	if runfilesDispatch(ctx, args[1:]) {
 		// Check if we got a special command
 		// via runfiels root symlinks.
 		// If so, we don't need to
@@ -73,13 +75,15 @@ func Run(ctx context.Context, args []string) {
 		ocilayout.OCILayoutProcess(ctx, args[2:])
 	case "expand-template":
 		expandtemplate.ExpandTemplateProcess(ctx, args[2:])
+	case "load":
+		load.LoadProcess(ctx, args[2:])
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
 	}
 }
 
-func runfilesDispatch(ctx context.Context) bool {
+func runfilesDispatch(ctx context.Context, args []string) bool {
 	// Check if the command is run from a Bazel runfiles context
 	// with a special root symlink indicating that this binary is used
 	// to push an image.
@@ -115,6 +119,11 @@ func runfilesDispatch(ctx context.Context) bool {
 	case api.PushCommand, api.PushMetadata:
 		if err := push.PushFromFile(ctx, requestPath); err != nil {
 			fmt.Fprintf(os.Stderr, "pushing image based on request file %s: %v\n", requestPath, err)
+			os.Exit(1)
+		}
+	case api.LoadCommand:
+		if err := load.LoadFromFile(ctx, requestPath, args); err != nil {
+			fmt.Fprintf(os.Stderr, "loading image based on request file %s: %v\n", requestPath, err)
 			os.Exit(1)
 		}
 	default:

@@ -13,6 +13,7 @@ go_library(
         "//cmd/index",
         "//cmd/layer",
         "//cmd/layermeta",
+        "//cmd/load",
         "//cmd/manifest",
         "//cmd/ocilayout",
         "//cmd/push",

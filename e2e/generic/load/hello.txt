@@ -1,0 +1,1 @@
+Hello from rules_img load test!
