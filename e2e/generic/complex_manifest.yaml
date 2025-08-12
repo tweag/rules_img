@@ -1,0 +1,53 @@
+schemaVersion: 2.0.0
+metadataTest:
+  entrypoint: ["/bin/app", "--flag1", "--flag2=value"]
+  cmd: ["arg1", "arg2", "arg3"]
+  workdir: "/app"
+  user: "1000:1000"
+  envVars:
+    - key: "VAR1"
+      value: "value1"
+    - key: "VAR2"
+      value: "value2"
+    - key: "PATH"
+      value: "/custom/bin:/bin:/usr/bin"
+    - key: "LANG"
+      value: "en_US.UTF-8"
+    - key: "TZ"
+      value: "UTC"
+  labels:
+    - key: "app.name"
+      value: "test-app"
+    - key: "app.version"
+      value: "1.0.0"
+    - key: "app.component"
+      value: "backend"
+    - key: "build.timestamp"
+      value: "2023-01-01T12:00:00Z"
+    - key: "build.commit"
+      value: "abc123def456"
+
+fileExistenceTests:
+  # Files from heavily_annotated_layer
+  - name: "Check test.txt from annotated layer"
+    path: "/test.txt"
+    shouldExist: true
+  # Files from metadata_layer
+  - name: "Check app binary"
+    path: "/bin/app"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"
+    uid: 0
+    gid: 0
+  - name: "Check config file"
+    path: "/etc/config.txt"
+    shouldExist: true
+    permissions: "-rw-r--r--"
+    uid: 1000
+    gid: 1000
+  - name: "Check temp file"
+    path: "/tmp/temp.txt"
+    shouldExist: true
+    permissions: "-rw-rw-rw-"
+    uid: 1000
+    gid: 1000

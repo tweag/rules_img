@@ -1,0 +1,37 @@
+schemaVersion: 2.0.0
+fileExistenceTests:
+  - name: "Check executable script exists"
+    path: "/bin/script"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"
+  - name: "Check large file exists"
+    path: "/data/large.txt"
+    shouldExist: true
+  - name: "Check binary file exists"
+    path: "/data/binary.dat"
+    shouldExist: true
+  - name: "Check unicode file exists"
+    path: "/data/unicode.txt"
+    shouldExist: true
+  - name: "Check empty file exists"
+    path: "/empty.txt"
+    shouldExist: true
+  - name: "Check script symlink"
+    path: "/script_link"
+    shouldExist: true
+  - name: "Check data symlink"
+    path: "/data_link"
+    shouldExist: true
+
+fileContentTests:
+  - name: "Check script content"
+    path: "/bin/script"
+    expectedContents:
+      - "#!/bin/bash"
+      - "echo 'Hello World'"
+  - name: "Check unicode content"
+    path: "/data/unicode.txt"
+    expectedContents:
+      - "Hello 世界"
+      - "こんにちは"
+      - "🚀🎉"

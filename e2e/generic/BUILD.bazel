@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@container_structure_test//:defs.bzl", "container_structure_test")
 load("@rules_img//img:image.bzl", "image_index", "image_manifest")
 load("@rules_img//img:layer.bzl", "file_metadata", "image_layer")
 
@@ -120,6 +121,18 @@ image_manifest(
     layers = [":mixed_layer"],
 )
 
+filegroup(
+    name = "single_layer_manifest_oci_layout",
+    srcs = [":single_layer_manifest"],
+    output_group = "oci_layout",
+)
+
+container_structure_test(
+    name = "single_layer_manifest_test",
+    configs = ["single_layer_manifest.yaml"],
+    image = ":single_layer_manifest_oci_layout",
+)
+
 # Edge case: Multi-layer manifest with different types
 image_manifest(
     name = "multi_layer_manifest",
@@ -146,6 +159,18 @@ image_manifest(
     ],
 )
 
+filegroup(
+    name = "multi_layer_manifest_oci_layout",
+    srcs = [":multi_layer_manifest"],
+    output_group = "oci_layout",
+)
+
+container_structure_test(
+    name = "multi_layer_manifest_test",
+    configs = ["multi_layer_manifest.yaml"],
+    image = ":multi_layer_manifest_oci_layout",
+)
+
 # Edge case: Manifest with extensive annotations
 image_manifest(
     name = "annotated_manifest",
@@ -159,6 +184,18 @@ image_manifest(
         "special/annotation": "value with / and spaces",
     },
     layers = [":mixed_layer"],
+)
+
+filegroup(
+    name = "annotated_manifest_oci_layout",
+    srcs = [":annotated_manifest"],
+    output_group = "oci_layout",
+)
+
+container_structure_test(
+    name = "annotated_manifest_test",
+    configs = ["annotated_manifest.yaml"],
+    image = ":annotated_manifest_oci_layout",
 )
 
 # Edge case: Multi-platform image index
@@ -223,6 +260,18 @@ image_manifest(
     os = "linux",
     user = "1000:1000",
     working_dir = "/app",
+)
+
+filegroup(
+    name = "complex_manifest_oci_layout",
+    srcs = [":complex_manifest"],
+    output_group = "oci_layout",
+)
+
+container_structure_test(
+    name = "complex_manifest_test",
+    configs = ["complex_manifest.yaml"],
+    image = ":complex_manifest_oci_layout",
 )
 
 # Build tests to ensure all targets can be built
