@@ -8,6 +8,7 @@ load(
 # gazelle:exclude cc
 # gazelle:exclude go
 # gazelle:exclude generic
+# gazelle:exclude load
 # gazelle:exclude_from_release
 
 TAGS = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS + ["requires-network"]

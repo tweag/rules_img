@@ -53,6 +53,23 @@ bzl_library(
 )
 
 bzl_library(
+    name = "load",
+    srcs = ["load.bzl"],
+    visibility = ["//img:__subpackages__"],
+    deps = [
+        "//img/private/common:build",
+        "//img/private/common:transitions",
+        "//img/private/providers:image_toolchain_info",
+        "//img/private/providers:index_info",
+        "//img/private/providers:load_settings_info",
+        "//img/private/providers:manifest_info",
+        "//img/private/providers:pull_info",
+        "//img/private/providers:stamp_setting_info",
+        "@bazel_skylib//rules:common_settings",
+    ],
+)
+
+bzl_library(
     name = "manifest",
     srcs = ["manifest.bzl"],
     visibility = ["//img:__subpackages__"],

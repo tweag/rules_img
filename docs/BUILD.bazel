@@ -13,6 +13,11 @@ stardoc_with_diff_test(
 )
 
 stardoc_with_diff_test(
+    name = "load",
+    bzl_library_target = "//img:load",
+)
+
+stardoc_with_diff_test(
     name = "push",
     bzl_library_target = "//img:push",
 )

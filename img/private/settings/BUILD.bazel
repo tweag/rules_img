@@ -1,5 +1,6 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@bazel_skylib//rules:common_settings.bzl", "string_setting")
+load(":load.bzl", "load_settings")
 load(":settings.bzl", "push_settings")
 load(":stamp.bzl", "stamp_build_setting")
 
@@ -11,6 +12,11 @@ string_setting(
 
 push_settings(
     name = "push",
+    visibility = ["//visibility:public"],
+)
+
+load_settings(
+    name = "load",
     visibility = ["//visibility:public"],
 )
 

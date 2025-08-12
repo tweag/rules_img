@@ -19,6 +19,8 @@ def _pull_impl(rctx):
     manifest_kwargs = dict(
         canonical_id = rctx.attr.repository + ":" + rctx.attr.tag,
     )
+    if rctx.attr.registry == "docker.io":
+        print("Specified docker.io as registry. Did you mean \"index.docker.io\"?")  # buildifier: disable=print
     root_blob_info = _download_manifest(rctx, reference = reference, **manifest_kwargs)
     data = {root_blob_info.digest: root_blob_info.data}
     root_blob = json.decode(root_blob_info.data)

@@ -43,6 +43,26 @@ string_flag(
 )
 
 string_flag(
+    name = "load_strategy",
+    build_setting_default = "eager",
+    values = [
+        "eager",
+        "lazy",
+    ],
+    visibility = ["//img/private:__subpackages__"],
+)
+
+string_flag(
+    name = "load_daemon",
+    build_setting_default = "docker",
+    values = [
+        "docker",
+        "containerd",
+    ],
+    visibility = ["//img/private:__subpackages__"],
+)
+
+string_flag(
     name = "remote_cache",
     build_setting_default = "",
     visibility = ["//img/private:__subpackages__"],
