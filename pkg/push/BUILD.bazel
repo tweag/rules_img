@@ -7,6 +7,7 @@ go_library(
         "index.go",
         "layer.go",
         "manifest.go",
+        "progress.go",
         "pushcasregistry.go",
         "pusheager.go",
         "pushlazy.go",
