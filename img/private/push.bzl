@@ -318,12 +318,12 @@ def _image_push_cas_impl(ctx):
         ),
         RunEnvironmentInfo(
             environment = {
-                # TODO: Make the default configurable.
-                "IMG_CREDENTIAL_HELPER": "tweag-credential-helper",
+                "IMG_REAPI_ENDPOINT": ctx.attr._push_settings[PushSettingsInfo].remote_cache,
+                "IMG_CREDENTIAL_HELPER": ctx.attr._push_settings[PushSettingsInfo].credential_helper,
             },
             inherited_environment = [
-                "IMG_CREDENTIAL_HELPER",
                 "IMG_REAPI_ENDPOINT",
+                "IMG_CREDENTIAL_HELPER",
             ],
         ),
     ]

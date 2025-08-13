@@ -74,13 +74,21 @@ build --remote_cache=grpc://your-cache-server:9092
 ```bash
 # In .bazelrc
 common --@rules_img//img/settings:push_strategy=lazy
+
+# Optionally, configure remote cache and credential helper via rules_img settings
+# instead of environment variables:
+common --@rules_img//img/settings:remote_cache=grpc://your-cache-server:9092
+common --@rules_img//img/settings:credential_helper=tweag-credential-helper
 ```
 
 3. Run your push target:
 ```bash
-# configure the push utility:
+# Configure the push utility via environment variables:
 export IMG_REAPI_ENDPOINT=grpc://your-cache-server:9092
 export IMG_CREDENTIAL_HELPER=tweag-credential-helper
+bazel run //your:push_target
+
+# Or use the settings flags (if configured above):
 bazel run //your:push_target
 ```
 
@@ -135,6 +143,9 @@ bazel-bin/cmd/registry/registry_/registry \
 common --@rules_img//img/settings:push_strategy=cas_registry
 # This also works with --remote_executor
 build --remote_cache=grpc://your-cache-server:9092
+
+# Optionally, configure credential helper via rules_img settings:
+common --@rules_img//img/settings:credential_helper=tweag-credential-helper
 ```
 
 3. Push to your CAS registry:

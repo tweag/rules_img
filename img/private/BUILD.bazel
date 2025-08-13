@@ -105,14 +105,14 @@ bzl_library(
     ],
 )
 
-bzl_library(
-    name = "file_metadata",
-    srcs = ["file_metadata.bzl"],
-    visibility = ["//img:__subpackages__"],
-)
-
 filegroup(
     name = "all_files",
     srcs = glob(["**"]),
     visibility = ["//img/private/release:__subpackages__"],
+)
+
+bzl_library(
+    name = "file_metadata",
+    srcs = ["file_metadata.bzl"],
+    visibility = ["//img:__subpackages__"],
 )

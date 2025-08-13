@@ -26,7 +26,8 @@ Add to your `MODULE.bazel`:
 bazel_dep(name = "rules_img", version = "0.1.4")
 ```
 
-Configure default settings (optional) in `.bazelrc`:
+<details>
+<summary>Configure default settings (optional) in <code>.bazelrc</code></summary>
 
 ```
 # The compression algorithm to use ("gzip" or "zstd")
@@ -36,13 +37,27 @@ common --@rules_img//img/settings:compress=zstd
 # with the containerd stargz-snapshotter
 common --@rules_img//img/settings:estargz=enabled
 
+# Opt-in to stamping of image_push rules
+common --@rules_img//img/settings:stamp=disabled
+
 # The push strategy to use (see below for more info).
 # "eager", "lazy", "cas_registry", or "bes"
 common --@rules_img//img/settings:push_strategy=eager
 
-# Opt-in to stamping of image_push rules
-common --@rules_img//img/settings:stamp=disabled
+# Bazel remote cache to use for lazy pushing of container images.
+# Uses the same format as Bazel's --remote_cache flag.
+# Falls back to $IMG_REAPI_ENDPOINT env var.
+common --@rules_img//img/settings:remote_cache=grpcs://remote.buildbuddy.io
+
+# Credential helper to use for authenticating gRPC connections during push operations
+# in some push strategies.
+# This can be the same as Bazel's credential helper.
+# Falls back to $IMG_CREDENTIAL_HELPER env var.
+common --@rules_img//img/settings:credential_helper=grpcs://remote.buildbuddy.io
 ```
+
+</details>
+<br/>
 
 You also need a credential helper to pull base images from container registries.
 We recommend [tweag-credential-helper][tweag-credential-helper]. Refer to the [container registry setup][tweag-credential-helper-oci-setup] for more information.

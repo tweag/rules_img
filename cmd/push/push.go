@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
 
@@ -45,7 +48,7 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 
 	reapiEndpoint := os.Getenv("IMG_REAPI_ENDPOINT")
 	blobcacheEndpoint := os.Getenv("IMG_BLOB_CACHE_ENDPOINT")
-	credentialHelperPath := os.Getenv("IMG_CREDENTIAL_HELPER")
+	credentialHelperPath := credentialHelperPath()
 	var credentialHelper credential.Helper
 	if credentialHelperPath != "" {
 		credentialHelper = credential.New(credentialHelperPath)
@@ -151,6 +154,27 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 
 func pushFromArgs(ctx context.Context, args []string) {
 	panic("not implemented")
+}
+
+func credentialHelperPath() string {
+	credentialHelper := os.Getenv("IMG_CREDENTIAL_HELPER")
+	if credentialHelper != "" {
+		return credentialHelper
+	}
+	workingDirectory := os.Getenv("BUILD_WORKSPACE_DIRECTORY")
+	defaultPathHelper, defaultPathHelperErr := exec.LookPath(filepath.FromSlash(path.Join(workingDirectory, "tools", "credential-helper")))
+	tweagCredentialHelper, tweagErr := exec.LookPath("tweag-credential-helper")
+
+	if defaultPathHelper != "" && defaultPathHelperErr == nil {
+		// If IMG_CREDENTIAL_HELPER is not set, we look for a credential helper in the workspace.
+		// This is useful for local development.
+		return defaultPathHelper
+	} else if tweagCredentialHelper != "" && tweagErr == nil {
+		// If there is no credential helper in %workspace%/tools/credential_helper,
+		// we look for the tweag-credential-helper in the PATH.
+		return tweagCredentialHelper
+	}
+	return ""
 }
 
 type request struct {
