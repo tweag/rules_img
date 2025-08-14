@@ -41,19 +41,36 @@ func prepareWorkspace(workspaceDir, sourceDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to resolve credential helper symlink: %v", err)
 	}
+	if err := copyFSWithSymlinks(workspaceDir, sourceDir); err != nil {
+		return fmt.Errorf("failed to copy source dir: %v", err)
+	}
 	if runtime.GOOS == "windows" {
 		// on Windows, absolute paths in .bazelrc are not supported, so we need to use a relative path
 		// to the credential helper binary that is inside the workspace directory
-		os.Symlink(credentialHelper, filepath.Join(workspaceDir, "credential-helper.exe"))
+		destinationCredentialHelper := filepath.Join(workspaceDir, "credential-helper.exe")
+		destination, err := os.Create(destinationCredentialHelper)
+		if err != nil {
+			return fmt.Errorf("failed to create destination for copying: %v", err)
+		}
+		defer destination.Close()
+		source, err := os.Open(credentialHelper)
+		if err != nil {
+			return fmt.Errorf("failed to open credential helper for copying: %v", err)
+		}
+
+		if _, err := io.Copy(destination, source); err != nil {
+			return fmt.Errorf("failed to copy credential helper: %v", err)
+		}
+		// mark executable
+		if err := os.Chmod(destinationCredentialHelper, 0o755); err != nil {
+			return fmt.Errorf("failed to chmod credential helper: %v", err)
+		}
 		credentialHelper = "%workspace%/credential-helper.exe"
 
 		// work around issue with credential-helper agent on Windows
 		// by disabling the cache and running it in the foreground.
 		// see https://github.com/tweag/credential-helper/issues/22 for more details
 		os.Setenv("CREDENTIAL_HELPER_STANDALONE", "1")
-	}
-	if err := copyFSWithSymlinks(workspaceDir, sourceDir); err != nil {
-		return fmt.Errorf("failed to copy source dir: %v", err)
 	}
 
 	// replace parts of MODULE.bazel with dep override:
