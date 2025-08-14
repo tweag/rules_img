@@ -1,4 +1,4 @@
-load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "int_flag", "string_flag")
 
 string_flag(
     name = "compress",
@@ -72,6 +72,38 @@ string_flag(
     name = "credential_helper",
     build_setting_default = "",
     visibility = ["//img/private:__subpackages__"],
+)
+
+string_flag(
+    name = "soci",
+    build_setting_default = "disabled",
+    values = [
+        "enabled",
+        "disabled",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+int_flag(
+    name = "soci_span_size",
+    build_setting_default = 4194304,  # 4 MiB
+    visibility = ["//visibility:public"],
+)
+
+int_flag(
+    name = "soci_min_layer_size",
+    build_setting_default = 10485760,  # 10 MiB
+    visibility = ["//visibility:public"],
+)
+
+string_flag(
+    name = "soci_require_gzip",
+    build_setting_default = "true",
+    values = [
+        "true",
+        "false",
+    ],
+    visibility = ["//visibility:public"],
 )
 
 filegroup(

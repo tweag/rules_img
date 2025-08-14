@@ -17,6 +17,9 @@ FIELDS = dict(
     missing_blobs = """List of hex-encoded sha256 hashes.
 Used to convey information lost during shallow image pulling, where the base image layers are referenced, but never materialized.
 """,
+    soci_enabled = "Boolean indicating whether SOCI is enabled for this image.",
+    soci_index = "File containing the SOCI index manifest (optional).",
+    soci_binding_index = "File containing the SOCI v2 binding image index (optional).",
 )
 
 ImageManifestInfo = provider(

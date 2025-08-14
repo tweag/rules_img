@@ -46,6 +46,28 @@ def _image_layer_impl(ctx):
         estargz = ctx.attr._default_estargz[BuildSettingInfo].value
     estargz_enabled = estargz == "enabled"
 
+    soci = ctx.attr.soci
+    if soci == "inherit":
+        soci = ctx.attr._default_soci[BuildSettingInfo].value
+    soci_enabled = soci == "enabled"
+
+    # SOCI settings
+    soci_span_size = ctx.attr._soci_span_size[BuildSettingInfo].value
+    soci_min_layer_size = ctx.attr._soci_min_layer_size[BuildSettingInfo].value
+    soci_require_gzip = ctx.attr._soci_require_gzip[BuildSettingInfo].value == "true"
+
+    # Validate SOCI compatibility
+    if soci_enabled and compression != "gzip":
+        if soci_require_gzip:
+            fail("SOCI is enabled but compression is '{}' (not 'gzip'). SOCI currently supports gzip layers only.".format(compression))
+        else:
+            # Disable SOCI silently
+            soci_enabled = False
+
+    # Cannot use both estargz and SOCI
+    if estargz_enabled and soci_enabled:
+        fail("Cannot enable both estargz and SOCI for the same layer")
+
     if compression == "gzip":
         out_ext = ".tgz"
         media_type = "application/vnd.oci.image.layer.v1.tar+gzip"
@@ -57,9 +79,17 @@ def _image_layer_impl(ctx):
 
     out = ctx.actions.declare_file(ctx.attr.name + out_ext)
     metadata_out = ctx.actions.declare_file(ctx.attr.name + "_metadata.json")
+    ztoc_out = None
+
     args = ["layer", "--name", str(ctx.label), "--metadata", metadata_out.path, "--format", compression]
+
     if estargz_enabled:
         args.append("--estargz")
+    elif soci_enabled:
+        args.append("--soci")
+        args.extend(["--soci-span-size", str(soci_span_size)])
+        args.extend(["--soci-min-layer-size", str(soci_min_layer_size)])
+        ztoc_out = ctx.actions.declare_file(ctx.attr.name + ".ztoc")
     for key, value in ctx.attr.annotations.items():
         args.extend(["--annotation", "{}={}".format(key, value)])
     if ctx.attr.default_metadata:
@@ -114,25 +144,40 @@ def _image_layer_impl(ctx):
     args.append(out.path)
 
     img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
+
+    outputs = [out, metadata_out]
+    if ztoc_out:
+        outputs.append(ztoc_out)
+        args.extend(["--soci-ztoc", ztoc_out.path])
+
     ctx.actions.run(
-        outputs = [out, metadata_out],
+        outputs = outputs,
         inputs = depset(transitive = inputs),
         executable = img_toolchain_info.tool_exe,
         arguments = args,
         mnemonic = "LayerTar",
     )
+
+    output_groups = {
+        "layer": depset([out]),
+        "metadata": depset([metadata_out]),
+    }
+    if ztoc_out:
+        output_groups["ztoc"] = depset([ztoc_out])
+
+    layer_info_kwargs = {
+        "blob": out,
+        "metadata": metadata_out,
+        "media_type": media_type,
+        "estargz": estargz_enabled,
+        "soci": soci_enabled,
+        "ztoc": ztoc_out,
+    }
+
     return [
         DefaultInfo(files = depset([out])),
-        OutputGroupInfo(
-            layer = depset([out]),
-            metadata = depset([metadata_out]),
-        ),
-        LayerInfo(
-            blob = out,
-            metadata = metadata_out,
-            media_type = media_type,
-            estargz = estargz_enabled,
-        ),
+        OutputGroupInfo(**output_groups),
+        LayerInfo(**layer_info_kwargs),
     ]
 
 image_layer = rule(
@@ -210,6 +255,12 @@ values are the targets they point to.""",
             doc = """Whether to use estargz format. If set to 'auto', uses the global default estargz setting.
 When enabled, the layer will be optimized for lazy pulling and will be compatible with the estargz format.""",
         ),
+        "soci": attr.string(
+            default = "inherit",
+            values = ["inherit", "enabled", "disabled"],
+            doc = """Whether to generate SOCI ztoc for this layer. If set to 'inherit', uses the global SOCI setting.
+SOCI is only supported with gzip compression. If enabled with zstd, it will fail or be skipped based on soci_require_gzip setting.""",
+        ),
         "annotations": attr.string_dict(
             default = {},
             doc = """Annotations to add to the layer metadata as key-value pairs.""",
@@ -231,6 +282,22 @@ Metadata specified here overrides any defaults from default_metadata.""",
         ),
         "_default_estargz": attr.label(
             default = Label("//img/settings:estargz"),
+            providers = [BuildSettingInfo],
+        ),
+        "_default_soci": attr.label(
+            default = Label("//img/settings:soci"),
+            providers = [BuildSettingInfo],
+        ),
+        "_soci_span_size": attr.label(
+            default = Label("//img/settings:soci_span_size"),
+            providers = [BuildSettingInfo],
+        ),
+        "_soci_min_layer_size": attr.label(
+            default = Label("//img/settings:soci_min_layer_size"),
+            providers = [BuildSettingInfo],
+        ),
+        "_soci_require_gzip": attr.label(
+            default = Label("//img/settings:soci_require_gzip"),
             providers = [BuildSettingInfo],
         ),
     },

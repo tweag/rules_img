@@ -18,6 +18,8 @@ FIELDS = dict(
     metadata = _metadata_doc,
     media_type = "The media type of the layer as a string. Example: application/vnd.oci.image.layer.v1.tar+gzip.",
     estargz = "Boolean indicating whether the layer is an estargz layer.",
+    soci = "Boolean indicating whether the layer has a SOCI ztoc.",
+    ztoc = "File containing the SOCI ztoc data for this layer (optional).",
 )
 
 LayerInfo = provider(

@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "compress",
@@ -7,15 +7,25 @@ go_library(
         "estargz.go",
         "factory.go",
         "options.go",
+        "ztoc.go",
     ],
     importpath = "github.com/tweag/rules_img/pkg/compress",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",
+        "@com_github_awslabs_soci_snapshotter//ztoc",
+        "@com_github_awslabs_soci_snapshotter//ztoc/compression",
         "@com_github_containerd_stargz_snapshotter_estargz//:estargz",
         "@com_github_containerd_stargz_snapshotter_estargz//zstdchunked",
         "@com_github_klauspost_compress//zstd",
+        "@com_github_opencontainers_go_digest//:go-digest",
     ],
+)
+
+go_test(
+    name = "compress_test",
+    srcs = ["ztoc_test.go"],
+    embed = [":compress"],
 )
 
 filegroup(

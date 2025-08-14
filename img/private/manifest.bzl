@@ -1,5 +1,6 @@
 """Image rule for assembling OCI images based on a set of layers."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/common:transitions.bzl", "normalize_layer_transition")
 load("//img/private/config:defs.bzl", "TargetPlatformInfo")
@@ -132,6 +133,13 @@ def _image_manifest_impl(ctx):
     args = ctx.actions.args()
     args.add("manifest")
     base = select_base(ctx)
+
+    # Check if SOCI is enabled
+    soci = ctx.attr.soci
+    if soci == "inherit":
+        soci = ctx.attr._default_soci[BuildSettingInfo].value
+    soci_enabled = soci == "enabled"
+
     os = None
     arch = None
     history = []
@@ -156,6 +164,14 @@ def _image_manifest_impl(ctx):
         providers.append(ctx.attr.base[PullInfo])
     for layer in ctx.attr.layers:
         layers.append(layer[LayerInfo])
+
+    # Collect SOCI ztocs if SOCI is enabled
+    ztocs = []
+    if soci_enabled:
+        for layer in layers:
+            if hasattr(layer, "soci") and layer.soci and hasattr(layer, "ztoc") and layer.ztoc:
+                ztocs.append(layer.ztoc)
+                inputs.append(layer.ztoc)
 
     args.add("--os", os)
     args.add("--architecture", arch)
@@ -210,15 +226,34 @@ def _image_manifest_impl(ctx):
         mnemonic = "ImageManifest",
     )
 
+    # Generate SOCI artifacts if enabled and we have ztocs
+    soci_index_out = None
+    soci_binding_index_out = None
+    if soci_enabled and len(ztocs) > 0:
+        soci_index_out = ctx.actions.declare_file(ctx.label.name + "_soci_index.json")
+        soci_binding_index_out = ctx.actions.declare_file(ctx.label.name + "_soci_binding_index.json")
+
+        # TODO: Add actions to generate SOCI index and binding index
+        # For now, create empty files as placeholders
+        ctx.actions.write(soci_index_out, "{}")
+        ctx.actions.write(soci_binding_index_out, "{}")
+
+    output_groups = {
+        "descriptor": depset([descriptor_out]),
+        "digest": depset([digest_out]),
+        "oci_layout": depset([_build_oci_layout(ctx, manifest_out, config_out, layers)]),
+    }
+
+    if soci_index_out:
+        output_groups["soci_index"] = depset([soci_index_out])
+    if soci_binding_index_out:
+        output_groups["soci_binding_index"] = depset([soci_binding_index_out])
+
     providers.extend([
         DefaultInfo(
             files = depset([manifest_out, config_out]),
         ),
-        OutputGroupInfo(
-            descriptor = depset([descriptor_out]),
-            digest = depset([digest_out]),
-            oci_layout = depset([_build_oci_layout(ctx, manifest_out, config_out, layers)]),
-        ),
+        OutputGroupInfo(**output_groups),
         ImageManifestInfo(
             base_image = base,
             descriptor = descriptor_out,
@@ -230,6 +265,9 @@ def _image_manifest_impl(ctx):
             platform = ctx.attr.platform,
             layers = layers,
             missing_blobs = base.missing_blobs if base != None else [],
+            soci_enabled = soci_enabled,
+            soci_index = soci_index_out,
+            soci_binding_index = soci_binding_index_out,
         ),
     ])
     return providers
@@ -325,9 +363,19 @@ This acts as a default value to use when the value is not specified when creatin
             doc = "Optional JSON file containing a partial image config, which will be used as a base for the final image config.",
             allow_single_file = True,
         ),
+        "soci": attr.string(
+            default = "inherit",
+            values = ["inherit", "enabled", "disabled"],
+            doc = """Whether to generate SOCI index for this manifest. If set to 'inherit', uses the global SOCI setting.
+When enabled, SOCI ztocs from layers will be collected and a SOCI index manifest will be generated.""",
+        ),
         "_os_cpu": attr.label(
             default = Label("//img/private/config:target_os_cpu"),
             providers = [TargetPlatformInfo],
+        ),
+        "_default_soci": attr.label(
+            default = Label("//img/settings:soci"),
+            providers = [BuildSettingInfo],
         ),
     },
     provides = [ImageManifestInfo],

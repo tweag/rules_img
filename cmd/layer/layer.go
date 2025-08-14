@@ -32,6 +32,10 @@ func LayerProcess(ctx context.Context, args []string) {
 	var contentManifestCollection string
 	var formatFlag string
 	var estargzFlag bool
+	var sociFlag bool
+	var sociSpanSize int64
+	var sociMinLayerSize int64
+	var sociZtocOutputFlag string
 	var metadataOutputFlag string
 	var contentManifestOutputFlag string
 	var defaultMetadataFlag string
@@ -67,6 +71,10 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 	flagSet.StringVar(&contentManifestCollection, "deduplicate-collection", "", `Path of a content manifest collection file that can be used for deduplication.`)
 	flagSet.StringVar(&formatFlag, "format", "", `The compression format of the output layer. Can be "gzip" or "none". Default is to guess the algorithm based on the filename, but fall back to "gzip".`)
 	flagSet.BoolVar(&estargzFlag, "estargz", false, `Use estargz format for compression. This creates seekable gzip streams optimized for lazy pulling.`)
+	flagSet.BoolVar(&sociFlag, "soci", false, `Use SOCI format for compression. This creates gzip streams with ztoc for lazy pulling. Only supported with gzip compression.`)
+	flagSet.Int64Var(&sociSpanSize, "soci-span-size", 4*1024*1024, `Span size for SOCI ztoc generation in bytes. Default is 4 MiB.`)
+	flagSet.Int64Var(&sociMinLayerSize, "soci-min-layer-size", 10*1024*1024, `Minimum layer size for SOCI ztoc generation in bytes. Default is 10 MiB.`)
+	flagSet.StringVar(&sociZtocOutputFlag, "soci-ztoc", "", `Write the SOCI ztoc data to the specified file.`)
 	flagSet.Var(&annotations, "annotation", `Add an annotation as key=value. Can be specified multiple times.`)
 	flagSet.StringVar(&metadataOutputFlag, "metadata", "", `Write the metadata to the specified file. The metadata is a JSON file containing info needed to use the layer as part of an OCI image.`)
 	flagSet.StringVar(&contentManifestOutputFlag, "content-manifest", "", `Write a manifest of the contents of the layer to the specified file. The manifest uses a custom binary format listing all blobs, nodes, and trees in the layer after deduplication.`)
@@ -185,13 +193,43 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 		casExporter = contentmanifest.NopExporter()
 	}
 
-	compressorState, err := handleLayerState(
-		compressionAlgorithm, estargzFlag, addFiles, importTarFlags, executableFlags, symlinkFlags,
+	// Validate SOCI compatibility
+	if sociFlag && compressionAlgorithm != api.Gzip {
+		fmt.Fprintf(os.Stderr, "Error: SOCI is only supported with gzip compression, got %s\n", compressionAlgorithm)
+		os.Exit(1)
+	}
+	if sociFlag && estargzFlag {
+		fmt.Fprintf(os.Stderr, "Error: Cannot enable both estargz and SOCI for the same layer\n")
+		os.Exit(1)
+	}
+
+	sociOpts := compress.SOCIOptions{
+		SpanSize:     sociSpanSize,
+		MinLayerSize: sociMinLayerSize,
+	}
+
+	compressorState, ztocInfo, err := handleLayerState(
+		compressionAlgorithm, estargzFlag, sociFlag, sociOpts, addFiles, importTarFlags, executableFlags, symlinkFlags,
 		casImporter, casExporter, outputFile, layerMetadata,
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Writing layer: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Write SOCI ztoc if requested
+	if sociFlag && len(sociZtocOutputFlag) > 0 && ztocInfo != nil {
+		ztocFile, err := os.OpenFile(sociZtocOutputFlag, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error opening ztoc output file: %v\n", err)
+			os.Exit(1)
+		}
+		defer ztocFile.Close()
+
+		if _, err := ztocFile.Write(ztocInfo.Bytes); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing ztoc: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	if len(metadataOutputFlag) > 0 {
@@ -210,12 +248,20 @@ The type is either 'f' for regular files, 'd' for directories. The parameter fil
 }
 
 func handleLayerState(
-	compressionAlgorithm api.CompressionAlgorithm, useEstargz bool, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks,
+	compressionAlgorithm api.CompressionAlgorithm, useEstargz bool, useSOCI bool, sociOpts compress.SOCIOptions, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks,
 	casImporter api.CASStateSupplier, casExporter api.CASStateExporter, outputFile io.Writer, layerMetadata *LayerMetadata,
-) (compressorState api.AppenderState, err error) {
-	compressor, err := compress.TarAppenderFactory("sha256", string(compressionAlgorithm), useEstargz, outputFile)
+) (compressorState api.AppenderState, ztocInfo *compress.ZtocInfo, err error) {
+	var compressor api.TarAppender
+
+	if useSOCI {
+		seekableMode := compress.SeekableSOCI
+		compressor, err = compress.TarAppenderFactoryWithSeekableMode("sha256", string(compressionAlgorithm), seekableMode, outputFile)
+	} else {
+		compressor, err = compress.TarAppenderFactory("sha256", string(compressionAlgorithm), useEstargz, outputFile)
+	}
+
 	if err != nil {
-		return compressorState, fmt.Errorf("creating compressor: %w", err)
+		return compressorState, nil, fmt.Errorf("creating compressor: %w", err)
 	}
 	defer func() {
 		var compressorCloseErr error
@@ -224,11 +270,20 @@ func handleLayerState(
 			fmt.Fprintf(os.Stderr, "Error closing compressor: %v\n", compressorCloseErr)
 			os.Exit(1)
 		}
+
+		// Extract ztoc info if SOCI was used
+		if useSOCI {
+			if sociCompressor, ok := compressor.(*compress.TarAppender[*compress.SOCIGzipWriter]); ok {
+				if writer := sociCompressor.Writer(); writer != nil {
+					ztocInfo = writer.ZtocInfo()
+				}
+			}
+		}
 	}()
 
 	tw, err := tarcas.CASFactory("sha256", compressor)
 	if err != nil {
-		return compressorState, fmt.Errorf("creating Content-addressable storage inside tar file: %w", err)
+		return compressorState, nil, fmt.Errorf("creating Content-addressable storage inside tar file: %w", err)
 	}
 	defer func() {
 		if err := tw.Close(); err != nil {
@@ -236,7 +291,7 @@ func handleLayerState(
 		}
 	}()
 	if err := tw.Import(casImporter); err != nil {
-		return compressorState, fmt.Errorf("importing content manifests for deduplication: %w", err)
+		return compressorState, nil, fmt.Errorf("importing content manifests for deduplication: %w", err)
 	}
 
 	recorder := tree.NewRecorder(tw)
@@ -244,10 +299,14 @@ func handleLayerState(
 		recorder = recorder.WithMetadata(layerMetadata)
 	}
 	if err := writeLayer(recorder, addFiles, importTars, addExecutables, addSymlinks, layerMetadata); err != nil {
-		return compressorState, err
+		return compressorState, nil, err
 	}
 
-	return compressorState, tw.Export(casExporter)
+	if err := tw.Export(casExporter); err != nil {
+		return compressorState, nil, err
+	}
+
+	return compressorState, ztocInfo, nil
 }
 
 func writeLayer(recorder tree.Recorder, addFiles addFiles, importTars importTars, addExecutables executables, addSymlinks symlinks, layerMetadata *LayerMetadata) error {

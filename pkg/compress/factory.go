@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/klauspost/compress/zstd"
@@ -173,6 +174,48 @@ func TarAppenderFactory(hashAlgorithm, compressionAlgorithm string, seekable boo
 		return appender.TarAppender(), nil
 	}
 	return nil, errors.New("unsupported hash or compression algorithm")
+}
+
+func TarAppenderFactoryWithSeekableMode(hashAlgorithm, compressionAlgorithm string, seekableMode SeekableMode, w io.Writer, options ...Option) (api.TarAppender, error) {
+	switch seekableMode {
+	case SeekableNone:
+		return TarAppenderFactory(hashAlgorithm, compressionAlgorithm, false, w, options...)
+	case SeekableEStargz:
+		return TarAppenderFactory(hashAlgorithm, compressionAlgorithm, true, w, options...)
+	case SeekableSOCI:
+		if compressionAlgorithm != "gzip" {
+			return nil, fmt.Errorf("SOCI only supports gzip compression, got %s", compressionAlgorithm)
+		}
+		return NewSHA256SOCIGzipTarAppender(w, options...)
+	default:
+		return nil, fmt.Errorf("unknown seekable mode: %v", seekableMode)
+	}
+}
+
+func NewSHA256SOCIGzipTarAppender(w io.Writer, options ...Option) (*TarAppender[*SOCIGzipWriter], error) {
+	opts := defaultOptions()
+	for _, opt := range options {
+		opt(opts)
+	}
+
+	sociOpts := SOCIOptions{
+		SpanSize:     4 * 1024 * 1024, // 4 MiB default
+		MinLayerSize: 10 * 1024 * 1024, // 10 MiB default
+	}
+
+	appender, err := NewTar[*SOCIGzipWriter, SHA256Maker, SOCIGzipMaker](w, options...)
+	if err != nil {
+		return nil, err
+	}
+	return &appender, nil
+}
+
+func ResumeSHA256SOCIGzipTarAppender(state api.AppenderState, w io.Writer, options ...Option) (*TarAppender[*SOCIGzipWriter], error) {
+	appender, err := ResumeTar[*SOCIGzipWriter, SHA256Maker, SOCIGzipMaker](state, w, options...)
+	if err != nil {
+		return nil, err
+	}
+	return &appender, nil
 }
 
 func ResumeTarFactory(hashAlgorithm, compressionAlgorithm string, seekable bool, state api.AppenderState, w io.Writer, options ...Option) (api.TarAppender, error) {

@@ -14,6 +14,7 @@
 - 🔧 **Bazel Native** - No Docker daemon required, fully hermetic builds
 - 🌍 **Multi-Platform** - Native cross-platform support through Bazel transitions
 - ⚡ **eStargz Support** - Lazy pulling optimization for faster container starts
+- 🚀 **SOCI Support** - AWS Seekable OCI (SOCI) for lazy loading with existing gzip layers
 - 🪶 **Smaller layers** - Deduplicates files using hardlinks
 - 🎯 **Shallow Base Images** - Avoid downloading layers from huge base images like CUDA
 - 🏢 **Enterprise Ready** - Remote Build Execution and Content Addressable Storage integration
@@ -36,6 +37,13 @@ common --@rules_img//img/settings:compress=zstd
 # Support for seekable eStargz layers
 # with the containerd stargz-snapshotter
 common --@rules_img//img/settings:estargz=enabled
+
+# Support for AWS Seekable OCI (SOCI) format
+# Generates ztoc for gzip layers enabling lazy loading
+common --@rules_img//img/settings:soci=disabled
+common --@rules_img//img/settings:soci_span_size=4194304
+common --@rules_img//img/settings:soci_min_layer_size=10485760
+common --@rules_img//img/settings:soci_require_gzip=true
 
 # Opt-in to stamping of image_push rules
 common --@rules_img//img/settings:stamp=disabled
@@ -204,6 +212,46 @@ bazel run //:push
 * [C++](/e2e/cc/)
 * [Go](/e2e/go/)
 
+### SOCI (Seekable OCI) Support
+
+SOCI enables lazy loading of container images by creating an index (ztoc) that allows pulling specific file portions on-demand. This significantly reduces container startup time for large images.
+
+```starlark
+# Enable SOCI globally in .bazelrc
+common --@rules_img//img/settings:soci=enabled
+common --@rules_img//img/settings:compress=gzip  # SOCI requires gzip
+
+# Or enable per-layer
+image_layer(
+    name = "large_model_layer",
+    srcs = {
+        "/models/llm.bin": ":large_model",  # 10GB model file
+    },
+    compress = "gzip",
+    soci = "enabled",  # Generate ztoc for this layer
+)
+
+# Or enable per-image
+image_manifest(
+    name = "ml_app",
+    base = "@pytorch",
+    layers = [":large_model_layer"],
+    soci = "enabled",  # Generate SOCI index for all eligible layers
+)
+```
+
+**Important Notes:**
+- SOCI only works with gzip compression (not zstd)
+- Layers smaller than `soci_min_layer_size` (default 10MB) won't get ztocs
+- SOCI and eStargz are mutually exclusive
+- The runtime must support SOCI (e.g., AWS ECS/Fargate with SOCI enabled)
+
+When pushed, SOCI-enabled images include:
+- The standard OCI image manifest and layers
+- SOCI ztoc files for each eligible layer
+- A SOCI index manifest referencing all ztocs
+- A v2 binding image index that ties everything together
+
 ## Comparison with rules_oci
 
 Both `rules_img` and `rules_oci` are modern Bazel rulesets for building OCI container images. While they share the goal of hermetic, reproducible container builds, they take fundamentally different architectural approaches.
@@ -217,6 +265,7 @@ This results in a more complex implementation, but also allows for interesting o
 - ✅ [Deduplication of layer contents](#layer-optimization)
 - ✅ [Advanced push strategies](#advanced-push-strategies)
 - ✅ [eStargz support for lazy pulling](#estargz-lazy-pulling)
+- ✅ [SOCI support for lazy loading](#soci-lazy-loading)
 - ✅ [Incremental loading into daemons](#incremental-loading)
 
 ## Documentation
@@ -307,6 +356,35 @@ image_layer(
 The same setting can be globally enabled using `--@rules_img//img/settings:estargz=enabled`.
 Read the [stargz-snapshotter documentation][stargz-snapshotter] for more information.
 
+### SOCI Lazy Loading
+
+SOCI (Seekable OCI) is AWS's solution for lazy container loading that works with existing gzip-compressed layers. Unlike eStargz which creates modified layer formats, SOCI generates separate index files (ztocs) that enable on-demand loading of specific file portions from standard OCI layers.
+
+```starlark
+image_layer(
+    name = "ml_model_layer",
+    srcs = {
+        "/models/llama-7b.bin": ":model",  # Large ML model
+    },
+    compress = "gzip",  # SOCI requires gzip
+    soci = "enabled",   # Generate ztoc index
+)
+```
+
+SOCI is particularly effective for:
+- **Large ML models** - Load multi-GB model files on demand
+- **Data-heavy containers** - Datasets, embeddings, and other large files
+- **AWS deployments** - Native support in ECS/Fargate with SOCI enabled
+
+The SOCI snapshotter only downloads the portions of files actually accessed by your application, dramatically reducing cold start times. For a 10GB model where your app only reads the header initially, SOCI might download just a few MB instead of the full 10GB.
+
+**Limitations**:
+- Only works with gzip compression (zstd not supported)
+- Requires SOCI-enabled runtime (AWS Fargate, or containerd with SOCI snapshotter)
+- Cannot be used together with eStargz on the same layer
+
+Read the [AWS SOCI documentation][aws-soci] for runtime setup and performance benchmarks.
+
 ### Incremental Loading
 
 rules_img loads images incrementally and efficiently by directly interfacing with the containerd API. This provides significant performance advantages over traditional approaches:
@@ -345,3 +423,4 @@ Special thanks to **Sushain Cherivirala** from Stripe for the inspiring BazelCon
 [tweag-credential-helper-oci-setup]: https://github.com/tweag/credential-helper/blob/main/docs/providers/oci.md
 [stargz-snapshotter]: https://github.com/containerd/stargz-snapshotter
 [oci-image-layout]: https://github.com/opencontainers/image-spec/blob/v1.1.1/image-layout.md
+[aws-soci]: https://docs.aws.amazon.com/AmazonECS/latest/userguide/container-considerations.html#soci-considerations

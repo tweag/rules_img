@@ -17,20 +17,40 @@ def _encode_manifest(manifest_info, path_prefix = ""):
         blob_path = blob_path.removeprefix("/")
         metadata = "{path_prefix}/metadata/{i}".format(path_prefix = path_prefix, i = i)
         metadata = metadata.removeprefix("/")
-        layers.append(dict(
+        layer_dict = dict(
             metadata = metadata,
             blob_path = blob_path,
-        ))
+        )
+
+        # Add ztoc path if available
+        if hasattr(layer, "ztoc") and layer.ztoc:
+            ztoc_path = "{path_prefix}/ztoc/{i}".format(path_prefix = path_prefix, i = i)
+            ztoc_path = ztoc_path.removeprefix("/")
+            layer_dict["ztoc_path"] = ztoc_path
+        layers.append(layer_dict)
     manifest = "{}/manifest.json".format(path_prefix)
     manifest = manifest.removeprefix("/")
     config = "{}/config.json".format(path_prefix)
     config = config.removeprefix("/")
-    return dict(
+    result = dict(
         manifest = manifest,
         config = config,
         layers = layers,
         missing_blobs = manifest_info.missing_blobs,
     )
+
+    # Add SOCI artifacts if available
+    if hasattr(manifest_info, "soci_enabled") and manifest_info.soci_enabled:
+        result["soci_enabled"] = True
+        if hasattr(manifest_info, "soci_index") and manifest_info.soci_index:
+            soci_index_path = "{}/soci_index.json".format(path_prefix)
+            soci_index_path = soci_index_path.removeprefix("/")
+            result["soci_index"] = soci_index_path
+        if hasattr(manifest_info, "soci_binding_index") and manifest_info.soci_binding_index:
+            soci_binding_path = "{}/soci_binding_index.json".format(path_prefix)
+            soci_binding_path = soci_binding_path.removeprefix("/")
+            result["soci_binding_index"] = soci_binding_path
+    return result
 
 def _encode_manifest_metadata(manifest_info):
     manifest = manifest_info.manifest.path
@@ -41,11 +61,18 @@ def _encode_manifest_metadata(manifest_info):
 
 def _layer_root_symlinks_for_manifest(manifest_info, index = None):
     base_path = "layer" if index == None else "manifests/{}/layer".format(index)
-    return {
+    symlinks = {
         "{base}/{layer_index}".format(base = base_path, layer_index = layer_index): layer.blob
         for (layer_index, layer) in enumerate(manifest_info.layers)
         if layer.blob != None
     }
+
+    # Add ztoc symlinks if available
+    ztoc_base_path = "ztoc" if index == None else "manifests/{}/ztoc".format(index)
+    for layer_index, layer in enumerate(manifest_info.layers):
+        if hasattr(layer, "ztoc") and layer.ztoc:
+            symlinks["{base}/{layer_index}".format(base = ztoc_base_path, layer_index = layer_index)] = layer.ztoc
+    return symlinks
 
 def _metadata_symlinks_for_manifest(manifest_info, index = None):
     base_path = "metadata" if index == None else "manifests/{}/metadata".format(index)
@@ -61,6 +88,12 @@ def _root_symlinks_for_manifest(manifest_info, index = None, *, include_layers):
         "{base}manifest.json".format(base = base_path): manifest_info.manifest,
         "{base}config.json".format(base = base_path): manifest_info.config,
     }
+
+    # Add SOCI artifacts if available
+    if hasattr(manifest_info, "soci_index") and manifest_info.soci_index:
+        root_symlinks["{base}soci_index.json".format(base = base_path)] = manifest_info.soci_index
+    if hasattr(manifest_info, "soci_binding_index") and manifest_info.soci_binding_index:
+        root_symlinks["{base}soci_binding_index.json".format(base = base_path)] = manifest_info.soci_binding_index
     if include_layers:
         root_symlinks.update(_layer_root_symlinks_for_manifest(manifest_info, index))
         root_symlinks.update(_metadata_symlinks_for_manifest(manifest_info, index))
