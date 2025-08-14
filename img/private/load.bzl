@@ -254,6 +254,67 @@ def _image_load_impl(ctx):
 
 image_load = rule(
     implementation = _image_load_impl,
+    doc = """Loads container images into a local daemon (Docker or containerd).
+
+This rule creates an executable target that imports OCI images into your local
+container runtime. It supports both Docker and containerd, with intelligent
+detection of the best loading method for optimal performance.
+
+Key features:
+- **Incremental loading**: Skips blobs that already exist in the daemon
+- **Multi-platform support**: Can load entire image indexes or specific platforms
+- **Direct containerd integration**: Bypasses Docker for faster imports when possible
+- **Platform filtering**: Use `--platform` flag at runtime to select specific platforms
+
+The rule produces an executable that can be run with `bazel run`.
+
+Example:
+
+```python
+load("@rules_img//img:load.bzl", "image_load")
+
+# Load a single-platform image
+image_load(
+    name = "load_app",
+    image = ":my_app",  # References an image_manifest
+    tag = "my-app:latest",
+)
+
+# Load a multi-platform image
+image_load(
+    name = "load_multiarch",
+    image = ":my_app_index",  # References an image_index
+    tag = "my-app:latest",
+    daemon = "containerd",  # Explicitly use containerd
+)
+
+# Load with dynamic tagging
+image_load(
+    name = "load_dynamic",
+    image = ":my_app",
+    tag = "my-app:{{.BUILD_USER}}",  # Template expansion
+    build_settings = {
+        "BUILD_USER": "//settings:username",
+    },
+)
+```
+
+Runtime usage:
+```bash
+# Load all platforms
+bazel run //path/to:load_app
+
+# Load specific platform only
+bazel run //path/to:load_multiarch -- --platform linux/arm64
+```
+
+Performance notes:
+- When Docker uses containerd storage (Docker 23.0+), images are loaded directly
+  into containerd for better performance if the containerd socket is accessible.
+- For older Docker versions, falls back to `docker load` which requires building
+  a tar file (slower and limited to single-platform images)
+- The `--platform` flag filters which platforms are loaded from multi-platform images
+""",
     attrs = {
         "image": attr.label(
             doc = "Image to load. Should provide ImageManifestInfo or ImageIndexInfo.",
@@ -262,15 +323,17 @@ image_load = rule(
         "daemon": attr.string(
             doc = """Container daemon to use for loading the image.
 
-- `auto`: Uses the global default setting (usually `docker`)
-- `containerd`: Loads directly into containerd. Supports multi-platform images.
-- `docker`: Loads via Docker daemon (but uses containerd backend if available). Falls back to slower `docker load` if Docker doesn't use containerd storage. `docker load` is limited to single-platform images.
+Available options:
+- **`auto`** (default): Uses the global default setting (usually `docker`)
+- **`containerd`**: Loads directly into containerd namespace. Supports multi-platform images
+  and incremental loading.
+- **`docker`**: Loads via Docker daemon. When Docker uses containerd storage (23.0+),
+  loads directly into containerd. Otherwise falls back to `docker load` command which
+  is slower and limited to single-platform images.
 
-**Platform Selection**: The load binary supports a `--platform` flag to filter which platforms to load:
-- No flag: Loads all platforms (default)
-- `--platform linux/amd64`: Loads only the specified platform
-
-Example: `bazel run //path/to:load_target -- --platform linux/amd64`
+The best performance is achieved with:
+- Direct containerd access (daemon = "containerd")
+- Docker 23.0+ with containerd storage enabled and accessible containerd socket
 """,
             default = "auto",
             values = ["auto", "docker", "containerd"],
@@ -279,7 +342,15 @@ Example: `bazel run //path/to:load_target -- --platform linux/amd64`
             doc = "Tag to apply when loading the image. Subject to [template expansion](/docs/templating.md).",
         ),
         "strategy": attr.string(
-            doc = "Load strategy to use.",
+            doc = """Strategy for handling image layers during load.
+
+Available strategies:
+- **`auto`** (default): Uses the global default load strategy
+- **`eager`**: Downloads all layers during the build phase. Ensures all layers are
+  available locally before running the load command.
+- **`lazy`**: Downloads layers only when needed during the load operation. More
+  efficient for large images where some layers might already exist in the daemon.
+""",
             default = "auto",
             values = ["auto", "eager", "lazy"],
         ),
