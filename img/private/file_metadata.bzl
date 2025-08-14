@@ -14,30 +14,6 @@ def file_metadata(
     This function generates JSON metadata that can be used to customize file attributes
     in container image layers, such as permissions, ownership, and timestamps.
 
-    Example:
-        ```starlark
-        load("//img:layer.bzl", "file_metadata")
-
-        image_layer(
-            name = "app_layer",
-            srcs = {
-                "/bin/app": "//cmd/app",
-                "/etc/config.json": "config.json",
-            },
-            default_metadata = file_metadata(
-                mode = "0644",
-                uid = 1000,
-                gid = 1000,
-                uname = "app",
-                gname = "app",
-            ),
-            file_metadata = {
-                "/bin/app": file_metadata(mode = "0755"),
-                "/etc/config.json": file_metadata(mode = "0600", uid = 0, gid = 0),
-            },
-        )
-        ```
-
     Args:
         mode: File permission mode (e.g., "0755", "0644"). String format.
         uid: User ID of the file owner. Integer.

@@ -340,34 +340,174 @@ def _image_push_impl(ctx):
 
 image_push = rule(
     implementation = _image_push_impl,
+    doc = """Pushes container images to a registry.
+
+This rule creates an executable target that uploads OCI images to container registries.
+It supports multiple push strategies optimized for different use cases, from simple
+uploads to advanced content-addressable storage integration.
+
+Key features:
+- **Multiple push strategies**: Choose between eager, lazy, CAS-based, or BES-integrated pushing
+- **Template expansion**: Dynamic registry, repository, and tag values using build settings
+- **Stamping support**: Include build information in image tags
+- **Incremental uploads**: Skip blobs that already exist in the registry
+
+The rule produces an executable that can be run with `bazel run`.
+
+Example:
+
+```python
+load("@rules_img//img:push.bzl", "image_push")
+
+# Simple push to Docker Hub
+image_push(
+    name = "push_app",
+    image = ":my_app",
+    registry = "index.docker.io",
+    repository = "myorg/myapp",
+    tag = "latest",
+)
+
+# Push multi-platform image with multiple tags
+image_push(
+    name = "push_multiarch",
+    image = ":my_app_index",  # References an image_index
+    registry = "gcr.io",
+    repository = "my-project/my-app",
+    tag_list = ["latest", "v1.0.0"],
+)
+
+# Dynamic push with build settings
+image_push(
+    name = "push_dynamic",
+    image = ":my_app",
+    registry = "{{.REGISTRY}}",
+    repository = "{{.PROJECT}}/my-app",
+    tag = "{{.VERSION}}",
+    build_settings = {
+        "REGISTRY": "//settings:registry",
+        "PROJECT": "//settings:project",
+        "VERSION": "//settings:version",
+    },
+)
+
+# Push with stamping for unique tags
+image_push(
+    name = "push_stamped",
+    image = ":my_app",
+    registry = "index.docker.io",
+    repository = "myorg/myapp",
+    tag = "latest-{{.BUILD_TIMESTAMP}}",
+    stamp = "enabled",
+)
+
+# Digest-only push (no tag)
+image_push(
+    name = "push_by_digest",
+    image = ":my_app",
+    registry = "gcr.io",
+    repository = "my-project/my-app",
+    # No tag specified - will push by digest only
+)
+```
+
+Push strategies:
+- **`eager`**: Materializes all layers next to push binary. Simple, correct, but may be inefficient.
+- **`lazy`**: Layers are not stored locally. Missing layers are streamed from Bazel's remote cache.
+- **`cas_registry`**: Uses content-addressable storage for extreme efficiency. Requires
+  CAS-enabled infrastructure.
+- **`bes`**: Image is pushed as side-effect of Build Event Stream upload. No "bazel run" command needed.
+  Requires Build Event Service integration.
+
+See [push strategies documentation](/docs/push-strategies.md) for detailed comparisons.
+
+Runtime usage:
+```bash
+# Push to registry
+bazel run //path/to:push_app
+
+# The push command will output the image digest
+```
+""",
     attrs = {
         "registry": attr.string(
-            doc = "Registry to push the image to. Subject to [template expansion](/docs/templating.md).",
+            doc = """Registry URL to push the image to.
+
+Common registries:
+- Docker Hub: `index.docker.io`
+- Google Container Registry: `gcr.io` or `us.gcr.io`
+- GitHub Container Registry: `ghcr.io`
+- Amazon ECR: `123456789.dkr.ecr.us-east-1.amazonaws.com`
+
+Subject to [template expansion](/docs/templating.md).
+""",
         ),
         "repository": attr.string(
-            doc = "Repository name of the image. Subject to [template expansion](/docs/templating.md).",
+            doc = """Repository path within the registry.
+
+Subject to [template expansion](/docs/templating.md).
+""",
         ),
         "tag": attr.string(
-            doc = "Tag of the image. Optional - can be omitted for digest-only push. Subject to [template expansion](/docs/templating.md).",
+            doc = """Tag to apply to the pushed image.
+
+Optional - if omitted, the image is pushed by digest only.
+
+Subject to [template expansion](/docs/templating.md).
+""",
         ),
         "tag_list": attr.string_list(
-            doc = "List of tags for the image. Cannot be used together with 'tag'. Subject to [template expansion](/docs/templating.md).",
+            doc = """List of tags to apply to the pushed image.
+
+Useful for applying multiple tags in a single push:
+
+```python
+tag_list = ["latest", "v1.0.0", "stable"]
+```
+
+Cannot be used together with `tag`. Each tag is subject to [template expansion](/docs/templating.md).
+""",
         ),
         "image": attr.label(
             doc = "Image to push. Should provide ImageManifestInfo or ImageIndexInfo.",
             mandatory = True,
         ),
         "strategy": attr.string(
-            doc = "Push strategy to use.",
+            doc = """Push strategy to use.
+
+See [push strategies documentation](/docs/push-strategies.md) for detailed information.
+""",
             default = "auto",
             values = ["auto", "eager", "lazy", "cas_registry", "bes"],
         ),
         "build_settings": attr.string_keyed_label_dict(
-            doc = "Build settings to use for [template expansion](/docs/templating.md). Keys are setting names, values are labels to string_flag targets.",
+            doc = """Build settings for template expansion.
+
+Maps template variable names to string_flag targets. These values can be used in
+registry, repository, and tag attributes using `{{.VARIABLE_NAME}}` syntax (Go template).
+
+Example:
+```python
+build_settings = {
+    "REGISTRY": "//settings:docker_registry",
+    "VERSION": "//settings:app_version",
+}
+```
+
+See [template expansion](/docs/templating.md) for more details.
+""",
             providers = [BuildSettingInfo],
         ),
         "stamp": attr.string(
-            doc = "Whether to use stamping for [template expansion](/docs/templating.md). If 'enabled', uses volatile-status.txt and version.txt if present. 'auto' uses the global default setting.",
+            doc = """Enable build stamping for template expansion.
+
+Controls whether to include volatile build information:
+- **`auto`** (default): Uses the global stamping configuration
+- **`enabled`**: Always include stamp information (BUILD_TIMESTAMP, BUILD_USER, etc.) if Bazel's "--stamp" flag is set
+- **`disabled`**: Never include stamp information
+
+See [template expansion](/docs/templating.md) for available stamp variables.
+""",
             default = "auto",
             values = ["auto", "enabled", "disabled"],
         ),

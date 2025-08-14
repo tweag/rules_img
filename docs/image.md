@@ -31,6 +31,7 @@ The rule produces:
 - ImageIndexInfo provider for use by image_push
 
 Example (explicit manifests):
+
 ```python
 image_index(
     name = "multiarch_app",
@@ -48,8 +49,8 @@ image_index(
     name = "multiarch_app",
     manifests = [":app"],
     platforms = [
-        "@platforms//os-cpu:linux-x86_64",
-        "@platforms//os-cpu:linux-aarch64",
+        "//platform:linux-x86_64",
+        "//platform:linux-aarch64",
     ],
 )
 ```
@@ -93,6 +94,7 @@ The rule produces:
 - ImageManifestInfo provider for use by image_index or image_push
 
 Example:
+
 ```python
 image_manifest(
     name = "my_app",

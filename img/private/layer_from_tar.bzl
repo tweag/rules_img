@@ -84,6 +84,46 @@ def _layer_from_tar_impl(ctx):
 
 layer_from_tar = rule(
     implementation = _layer_from_tar_impl,
+    doc = """Creates a container image layer from an existing tar archive.
+
+This rule converts tar files into container image layers, useful for incorporating
+pre-built artifacts, third-party distributions, or legacy build outputs.
+
+The rule can:
+- Use tar files as-is or recompress them
+- Optimize tar contents by deduplicating files
+- Add annotations to the layer metadata
+
+Example:
+
+```python
+load("@rules_img//img:layer.bzl", "layer_from_tar")
+
+# Use an existing tar file as a layer
+layer_from_tar(
+    name = "third_party_layer",
+    src = "@third_party_lib//:lib.tar.gz",
+)
+
+# Optimize and recompress
+layer_from_tar(
+    name = "optimized_layer",
+    src = "//legacy:build_output.tar",
+    optimize = True,  # Deduplicate contents
+    compress = "zstd",  # Use zstd compression
+)
+
+# Add metadata annotations
+layer_from_tar(
+    name = "annotated_layer",
+    src = "//vendor:dependencies.tar.gz",
+    annotations = {
+        "org.opencontainers.image.title": "Vendor Dependencies",
+        "org.opencontainers.image.version": "1.2.3",
+    },
+)
+```
+""",
     attrs = {
         "src": attr.label(
             mandatory = True,

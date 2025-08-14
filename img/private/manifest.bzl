@@ -249,6 +249,7 @@ The rule produces:
 - ImageManifestInfo provider for use by image_index or image_push
 
 Example:
+
 ```python
 image_manifest(
     name = "my_app",

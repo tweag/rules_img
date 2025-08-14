@@ -137,13 +137,67 @@ def _image_layer_impl(ctx):
 
 image_layer = rule(
     implementation = _image_layer_impl,
+    doc = """Creates a container image layer from files, executables, and directories.
+
+This rule packages files into a layer that can be used in container images. It supports:
+- Adding files at specific paths in the image
+- Setting file permissions and ownership
+- Creating symlinks
+- Including executables with their runfiles
+- Compression (gzip, zstd) and eStargz optimization
+
+Example:
+
+```python
+load("@rules_img//img:layer.bzl", "image_layer", "file_metadata")
+
+# Simple layer with files
+image_layer(
+    name = "app_layer",
+    srcs = {
+        "/app/bin/server": "//cmd/server",
+        "/app/config.json": ":config.json",
+    },
+)
+
+# Layer with custom permissions
+image_layer(
+    name = "secure_layer",
+    srcs = {
+        "/etc/app/config": ":config",
+        "/etc/app/secret": ":secret",
+    },
+    default_metadata = file_metadata(
+        mode = "0644",
+        uid = 1000,
+        gid = 1000,
+    ),
+    file_metadata = {
+        "/etc/app/secret": file_metadata(mode = "0600"),
+    },
+)
+
+# Layer with symlinks
+image_layer(
+    name = "bin_layer",
+    srcs = {
+        "/usr/local/bin/app": "//cmd/app",
+    },
+    symlinks = {
+        "/usr/bin/app": "/usr/local/bin/app",
+    },
+)
+```
+""",
     attrs = {
         "srcs": attr.string_keyed_label_dict(
-            doc = "Files (including regular files, executables, and TreeArtifacts) that should be added to the layer.",
+            doc = """Files to include in the layer. Keys are paths in the image (e.g., "/app/bin/server"),
+values are labels to files or executables. Executables automatically include their runfiles.""",
             allow_files = True,
         ),
         "symlinks": attr.string_dict(
-            doc = "Symlinks that should be added to the layer.",
+            doc = """Symlinks to create in the layer. Keys are symlink paths in the image,
+values are the targets they point to.""",
         ),
         "compress": attr.string(
             default = "auto",
