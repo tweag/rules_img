@@ -3,7 +3,7 @@ module(name = "go_e2e")
 # BEGIN BAZEL_DEP
 bazel_dep(
     name = "rules_img",
-    version = "0.1.4",
+    version = "0.1.5",
 )
 local_path_override(
     module_name = "rules_img",
