@@ -1,0 +1,32 @@
+module(name = "python_e2e")
+
+# BEGIN BAZEL_DEP
+bazel_dep(
+    name = "rules_img",
+    version = "0.1.5",
+)
+local_path_override(
+    module_name = "rules_img",
+    path = "../..",
+)
+# END BAZEL_DEP
+
+bazel_dep(name = "rules_python", version = "1.5.3")
+bazel_dep(name = "bazel_skylib", version = "1.8.1")
+bazel_dep(name = "platforms", version = "0.0.11")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    python_version = "3.13",
+)
+use_repo(python, "python_3_13")
+
+pull = use_repo_rule("@rules_img//img:pull.bzl", "pull")
+
+pull(
+    name = "python_base",
+    digest = "sha256:50cbf8e58ca53a806b99250b1ba2d16c19433e8c42e7eb4ac4ea924b095e280b",
+    registry = "index.docker.io",
+    repository = "library/python",
+    tag = "3.13",
+)

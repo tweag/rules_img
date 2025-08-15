@@ -1,0 +1,15 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+load("//extract_python_files:defs.bzl", "py_executable_for_image")
+
+py_binary(
+    name = "main",
+    srcs = ["main.py"],
+    legacy_create_init = False,
+    python_version = "PY3",
+)
+
+py_executable_for_image(
+    name = "app",
+    binary = ":main",
+    visibility = ["//visibility:public"],
+)

@@ -8,7 +8,7 @@ load(
 # gazelle:exclude cc
 # gazelle:exclude go
 # gazelle:exclude generic
-# gazelle:exclude load
+# gazelle:exclude python
 # gazelle:exclude_from_release
 
 TAGS = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS + ["requires-network"]
@@ -47,6 +47,17 @@ bazel_integration_tests(
     workspace_path = "generic",
 )
 
+bazel_integration_tests(
+    name = "python",
+    bazel_versions = bazel_binaries.versions.all,
+    tags = TAGS,
+    test_runner = "//img/private/integration_test_runner",
+    workspace_files = integration_test_utils.glob_workspace_files("python") + [
+        "//img/private/release/source_files:release_src_files",
+    ],
+    workspace_path = "python",
+)
+
 test_suite(
     name = "integration_tests",
     tags = TAGS,
@@ -58,6 +69,9 @@ test_suite(
         bazel_binaries.versions.all,
     ) + integration_test_utils.bazel_integration_test_names(
         "generic",
+        bazel_binaries.versions.all,
+    ) + integration_test_utils.bazel_integration_test_names(
+        "python",
         bazel_binaries.versions.all,
     ),
     visibility = ["//:__subpackages__"],
