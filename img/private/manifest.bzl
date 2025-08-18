@@ -74,7 +74,7 @@ def select_base(ctx):
     if ImageIndexInfo not in ctx.attr.base:
         fail("base image must be an ImageManifestInfo or ImageIndexInfo")
 
-    os_wanted = ctx.attr.os if ctx.attr.os != "" else "linux"
+    os_wanted = ctx.attr.os if ctx.attr.os != "" else ctx.attr._os_cpu[TargetPlatformInfo].os
     arch_wanted = ctx.attr.architecture if ctx.attr.architecture != "" else ctx.attr._os_cpu[TargetPlatformInfo].cpu
     constraints_wanted = dict(
         os = os_wanted,
@@ -154,7 +154,7 @@ def _image_manifest_impl(ctx):
         args.add("--base-manifest", base.manifest.path)
         args.add("--base-config", base.config.path)
     else:
-        os = ctx.attr.os if ctx.attr.os != "" else "linux"
+        os = ctx.attr.os if ctx.attr.os != "" else ctx.attr._os_cpu[TargetPlatformInfo].os
         arch = ctx.attr.architecture if ctx.attr.architecture != "" else ctx.attr._os_cpu[TargetPlatformInfo].cpu
     if ctx.attr.base != None and PullInfo in ctx.attr.base:
         providers.append(ctx.attr.base[PullInfo])
