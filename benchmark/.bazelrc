@@ -1,4 +1,0 @@
-build --experimental_output_paths=strip
-common --incompatible_enable_proto_toolchain_resolution
-
-try-import %workspace%/.bazelrc.user

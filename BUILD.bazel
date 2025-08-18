@@ -1,7 +1,5 @@
 exports_files(["MODULE.bazel"])
 
-# gazelle:exclude benchmark
-
 filegroup(
     name = "all_files",
     srcs = [
