@@ -35,6 +35,7 @@ def _pull_impl(rctx):
         manifests = [{"mediaType": MEDIA_TYPE_MANIFEST, "digest": rctx.attr.digest}]
     else:
         fail("invalid mediaType in manifest: {}".format(media_type))
+    print(manifests)
 
     # TODO: switch to builtin set (requires Bazel 8+)
     # layer_digests = set()
@@ -42,6 +43,7 @@ def _pull_impl(rctx):
 
     # download all manifests and configs
     for manifest_index in manifests:
+        print("processing manifest index: {}".format(manifest_index["digest"]))
         if manifest_index.get("mediaType") in [MEDIA_TYPE_INDEX, DOCKER_MANIFEST_LIST_V2]:
             # this is an index referenced by another index - we don't support nested indexes yet
             fail("image index referenced another index ({}). Nested indexes are not supported.".format(
@@ -58,7 +60,10 @@ def _pull_impl(rctx):
         config_info = _download_blob(rctx, digest = manifest["config"]["digest"])
         data[config_info.digest] = config_info.data
         for layer in manifest.get("layers", []):
+            print("adding layer: {}".format(layer))
             sets.insert(layer_digests, layer["digest"])
+
+    print("layer_digests: {}".format(sets.to_list(layer_digests)))
 
     files = {
         digest: "//:blobs/{}".format(digest.replace("sha256:", "sha256/"))
@@ -76,6 +81,7 @@ def _pull_impl(rctx):
             digest: "//:{}".format(digest.replace("sha256:", "sha256_"))
             for digest in sets.to_list(layer_digests)
         })
+    print("files: {}".format(files))
 
     registries = []
     if rctx.attr.registry:
