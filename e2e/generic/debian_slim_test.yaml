@@ -1,0 +1,9 @@
+schemaVersion: 2.0.0
+metadataTest:
+  entrypoint: []
+
+fileExistenceTests:
+  - name: "Check dash exists"
+    path: "/bin/dash"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"
