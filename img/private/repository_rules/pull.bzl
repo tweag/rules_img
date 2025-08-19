@@ -42,6 +42,11 @@ def _pull_impl(rctx):
 
     # download all manifests and configs
     for manifest_index in manifests:
+        if manifest_index.get("mediaType") in [MEDIA_TYPE_INDEX, DOCKER_MANIFEST_LIST_V2]:
+            # this is an index referenced by another index - we don't support nested indexes yet
+            fail("image index referenced another index ({}). Nested indexes are not supported.".format(
+                manifest_index["digest"],
+            ))
         if not manifest_index.get("mediaType") in [MEDIA_TYPE_MANIFEST, DOCKER_MANIFEST_V2]:
             continue
         if is_index:
