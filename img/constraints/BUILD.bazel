@@ -1,0 +1,14 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("//img/private/platforms:platforms.bzl", "CONFIG_SETTINGS")
+
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+[
+    selects.config_setting_group(
+        name = config.name,
+        match_all = config.match_all,
+    )
+    for config in CONFIG_SETTINGS
+]

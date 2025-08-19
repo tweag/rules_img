@@ -40,6 +40,8 @@ def _pull_impl(rctx):
     # layer_digests = set()
     layer_digests = sets.make()
 
+    target_compatible_with = []
+
     # download all manifests and configs
     for manifest_index in manifests:
         if manifest_index.get("mediaType") in [MEDIA_TYPE_INDEX, DOCKER_MANIFEST_LIST_V2]:
@@ -54,6 +56,7 @@ def _pull_impl(rctx):
             data[manifest_info.digest] = manifest_info.data
         else:
             manifest_info = root_blob_info
+        target
         manifest = json.decode(manifest_info.data)
         config_info = _download_blob(rctx, digest = manifest["config"]["digest"])
         data[config_info.digest] = config_info.data
@@ -139,6 +142,7 @@ image_import(
     registries = {registries},
     repository = {repository},
     tag = {tag},
+    target_compatible_with = {target_compatible_with},
     visibility = ["//visibility:public"],
 )
 
@@ -148,6 +152,7 @@ alias(
     visibility = ["//visibility:public"],
 )
 """.format(
+            target_compatible_with,
             loads = "\n".join(
                 ["load({}, {})".format(repr(path), repr(name)) for (path, name) in loads],
             ),
