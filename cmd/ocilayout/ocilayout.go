@@ -18,6 +18,25 @@ const OCILayoutVersion = "1.0.0"
 
 type blobMap map[string]string // digest -> source path
 
+// MissingBlobsError represents an error when one or more blobs are missing
+type MissingBlobsError struct {
+	MissingBlobs []string
+}
+
+func (e *MissingBlobsError) Error() string {
+	if os.Getenv("RULES_IMG") == "1" {
+		// invoked by rules_img
+		return fmt.Sprintf(
+			`Missing layer blobs %s
+"oci_layout" output group requested with shallow base image. You probably want to add the "layer_handling" attribute to the pull rule of your base image (choose "lazy" or "eager", but NOT "shallow").
+If you explicitly want to opt in to OCI image layouts with missing blobs, use the "--@rules_img//img/settings:shallow_oci_layout=i_know_what_i_am_doing" flag.
+`,
+			strings.Join(e.MissingBlobs, ", "),
+		)
+	}
+	return fmt.Sprintf("missing blobs: %s", strings.Join(e.MissingBlobs, ", "))
+}
+
 func OCILayoutProcess(ctx context.Context, args []string) {
 	var manifestPath string
 	var indexPath string
@@ -27,6 +46,7 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 	var manifestPaths stringSliceFlag
 	var configPaths stringSliceFlag
 	var useSymlinks bool
+	var allowMissingBlobs bool
 
 	flagSet := flag.NewFlagSet("oci-layout", flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -51,6 +71,7 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 	flagSet.Var(&manifestPaths, "manifest-path", "Path to manifest file (for index, can be specified multiple times)")
 	flagSet.Var(&configPaths, "config-path", "Path to config file (for index, can be specified multiple times)")
 	flagSet.BoolVar(&useSymlinks, "symlink", false, "Use symlinks instead of copying files")
+	flagSet.BoolVar(&allowMissingBlobs, "allow-missing-blobs", false, "Allow missing blobs instead of failing the build")
 
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
@@ -78,7 +99,7 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 			fmt.Fprintf(os.Stderr, "Error: --index requires at least one --manifest-path and --config-path\n")
 			os.Exit(1)
 		}
-		err = assembleOCILayoutWithIndex(indexPath, outputDir, manifestPaths, configPaths, layerFlags, useSymlinks)
+		err = assembleOCILayoutWithIndex(indexPath, outputDir, manifestPaths, configPaths, layerFlags, useSymlinks, allowMissingBlobs)
 	} else {
 		if manifestPath == "" {
 			fmt.Fprintf(os.Stderr, "Error: either --manifest or --index is required\n")
@@ -94,7 +115,7 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 			fmt.Fprintf(os.Stderr, "Error: cannot use --manifest-path or --config-path without --index\n")
 			os.Exit(1)
 		}
-		err = assembleOCILayout(manifestPath, configPath, outputDir, layerFlags, useSymlinks)
+		err = assembleOCILayout(manifestPath, configPath, outputDir, layerFlags, useSymlinks, allowMissingBlobs)
 	}
 
 	if err != nil {
@@ -103,7 +124,7 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 	}
 }
 
-func assembleOCILayout(manifestPath, configPath, outputDir string, layers layerMappingFlag, useSymlinks bool) error {
+func assembleOCILayout(manifestPath, configPath, outputDir string, layers layerMappingFlag, useSymlinks, allowMissingBlobs bool) error {
 	if err := setupOCILayout(outputDir); err != nil {
 		return err
 	}
@@ -141,11 +162,18 @@ func assembleOCILayout(manifestPath, configPath, outputDir string, layers layerM
 	blobs := make(blobMap)
 	blobs[manifest.Config.Digest.Hex] = configPath
 
-	// Only add layers that we have blobs for
+	// Check for missing blobs
+	var missingBlobs []string
 	for _, layerDesc := range manifest.Layers {
 		if blobPath, ok := layerBlobsByDigest[layerDesc.Digest.Hex]; ok {
 			blobs[layerDesc.Digest.Hex] = blobPath
+		} else if !allowMissingBlobs {
+			missingBlobs = append(missingBlobs, layerDesc.Digest.String())
 		}
+	}
+
+	if len(missingBlobs) > 0 {
+		return &MissingBlobsError{MissingBlobs: missingBlobs}
 	}
 
 	blobsDir := filepath.Join(outputDir, "blobs", "sha256")
@@ -211,7 +239,7 @@ func hashBytes(data []byte) v1.Hash {
 	return h
 }
 
-func assembleOCILayoutWithIndex(indexPath, outputDir string, manifestPaths, configPaths []string, layers layerMappingFlag, useSymlinks bool) error {
+func assembleOCILayoutWithIndex(indexPath, outputDir string, manifestPaths, configPaths []string, layers layerMappingFlag, useSymlinks, allowMissingBlobs bool) error {
 	if err := setupOCILayout(outputDir); err != nil {
 		return err
 	}
@@ -237,6 +265,7 @@ func assembleOCILayoutWithIndex(indexPath, outputDir string, manifestPaths, conf
 	}
 
 	blobs := make(blobMap)
+	var allMissingBlobs []string
 
 	for i := range manifestPaths {
 		manifestData, err := os.ReadFile(manifestPaths[i])
@@ -256,12 +285,18 @@ func assembleOCILayoutWithIndex(indexPath, outputDir string, manifestPaths, conf
 		// Add config to blobs
 		blobs[manifest.Config.Digest.Hex] = configPaths[i]
 
-		// Only add layers that we have blobs for
+		// Check for missing blobs in this manifest
 		for _, layerDesc := range manifest.Layers {
 			if blobPath, ok := layerBlobsByDigest[layerDesc.Digest.Hex]; ok {
 				blobs[layerDesc.Digest.Hex] = blobPath
+			} else if !allowMissingBlobs {
+				allMissingBlobs = append(allMissingBlobs, layerDesc.Digest.String())
 			}
 		}
+	}
+
+	if len(allMissingBlobs) > 0 {
+		return &MissingBlobsError{MissingBlobs: allMissingBlobs}
 	}
 
 	blobsDir := filepath.Join(outputDir, "blobs", "sha256")

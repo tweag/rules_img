@@ -18,6 +18,7 @@ bzl_library(
         "//img:providers",
         "//img/private/common:transitions",
         "//img/private/common:write_index_json",
+        "//img/private/providers:oci_layout_settings_info",
     ],
 )
 
@@ -79,6 +80,7 @@ bzl_library(
         "//img/private/providers:index_info",
         "//img/private/providers:layer_info",
         "//img/private/providers:manifest_info",
+        "//img/private/providers:oci_layout_settings_info",
         "//img/private/providers:pull_info",
     ],
 )

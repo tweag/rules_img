@@ -5,6 +5,7 @@ load("//img/private/common:transitions.bzl", "multi_platform_image_transition", 
 load("//img/private/common:write_index_json.bzl", "write_index_json")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
+load("//img/private/providers:oci_layout_settings_info.bzl", "OCILayoutSettingsInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
 
 def _build_oci_layout(ctx, index_out, manifests):
@@ -24,6 +25,8 @@ def _build_oci_layout(ctx, index_out, manifests):
     args.add("oci-layout")
     args.add("--index", index_out.path)
     args.add("--output", oci_layout_dir.path)
+    if ctx.attr._oci_layout_settings[OCILayoutSettingsInfo].allow_shallow_oci_layout:
+        args.add("--allow-missing-blobs")
 
     inputs = [index_out]
 
@@ -47,7 +50,8 @@ def _build_oci_layout(ctx, index_out, manifests):
         outputs = [oci_layout_dir],
         executable = img_toolchain_info.tool_exe,
         arguments = [args],
-        mnemonic = "OCILayoutIndex",
+        env = {"RULES_IMG": "1"},
+        mnemonic = "OCIIndexLayout",
     )
 
     return oci_layout_dir
@@ -140,6 +144,10 @@ Output groups:
         ),
         "annotations": attr.string_dict(
             doc = "Arbitrary metadata for the image index.",
+        ),
+        "_oci_layout_settings": attr.label(
+            default = Label("//img/private/settings:oci_layout"),
+            providers = [OCILayoutSettingsInfo],
         ),
     },
     toolchains = TOOLCHAINS,

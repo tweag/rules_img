@@ -6,6 +6,7 @@ load("//img/private/config:defs.bzl", "TargetPlatformInfo")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
 load("//img/private/providers:layer_info.bzl", "LayerInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
+load("//img/private/providers:oci_layout_settings_info.bzl", "OCILayoutSettingsInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
 
 _GOOS = [
@@ -105,6 +106,8 @@ def _build_oci_layout(ctx, manifest_out, config_out, layers):
     args.add("--manifest", manifest_out.path)
     args.add("--config", config_out.path)
     args.add("--output", oci_layout_dir.path)
+    if ctx.attr._oci_layout_settings[OCILayoutSettingsInfo].allow_shallow_oci_layout:
+        args.add("--allow-missing-blobs")
 
     inputs = [manifest_out, config_out]
 
@@ -121,6 +124,7 @@ def _build_oci_layout(ctx, manifest_out, config_out, layers):
         outputs = [oci_layout_dir],
         executable = img_toolchain_info.tool_exe,
         arguments = [args],
+        env = {"RULES_IMG": "1"},
         mnemonic = "OCILayout",
     )
 
@@ -328,6 +332,10 @@ This acts as a default value to use when the value is not specified when creatin
         "_os_cpu": attr.label(
             default = Label("//img/private/config:target_os_cpu"),
             providers = [TargetPlatformInfo],
+        ),
+        "_oci_layout_settings": attr.label(
+            default = Label("//img/private/settings:oci_layout"),
+            providers = [OCILayoutSettingsInfo],
         ),
     },
     provides = [ImageManifestInfo],
