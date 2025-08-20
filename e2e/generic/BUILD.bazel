@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@container_structure_test//:defs.bzl", "container_structure_test")
 load("@rules_img//img:image.bzl", "image_index", "image_manifest")
 load("@rules_img//img:layer.bzl", "file_metadata", "image_layer")
 
@@ -262,5 +263,30 @@ build_test(
         ":layer_tests",
         ":manifest_tests",
         ":index_tests",
+    ],
+)
+
+image_manifest(
+    name = "on_top_of_slim",
+    base = "@debian_slim",
+    layers = [
+        ":metadata_layer",
+    ],
+)
+
+filegroup(
+    name = "on_top_of_slim_oci_layout",
+    srcs = [":on_top_of_slim"],
+    output_group = "oci_layout",
+    tags = ["manual"],
+)
+
+container_structure_test(
+    name = "on_top_of_slim_test",
+    configs = ["debian_slim_test.yaml"],
+    image = ":on_top_of_slim_oci_layout",
+    tags = [
+        "local",
+        "manual",
     ],
 )
