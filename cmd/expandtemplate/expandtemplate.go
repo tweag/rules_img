@@ -12,8 +12,8 @@ import (
 	"text/template"
 )
 
-// templateRequest represents the input JSON with templates and build settings
-type templateRequest struct {
+// pushTemplateRequest represents the input JSON for push operations
+type pushTemplateRequest struct {
 	Registry      string            `json:"registry"`
 	Repository    string            `json:"repository"`
 	Tags          []string          `json:"tags,omitempty"`
@@ -30,8 +30,8 @@ type templateRequest struct {
 	OriginalDigest     string   `json:"original_digest,omitempty"`
 }
 
-// expandedRequest represents the output JSON without build settings
-type expandedRequest struct {
+// pushExpandedRequest represents the output JSON for push operations
+type pushExpandedRequest struct {
 	Registry string   `json:"registry"`
 	Repository string   `json:"repository"`
 	Tags       []string `json:"tags,omitempty"`
@@ -47,15 +47,38 @@ type expandedRequest struct {
 	OriginalDigest     string   `json:"original_digest,omitempty"`
 }
 
+// loadTemplateRequest represents the input JSON for load operations
+type loadTemplateRequest struct {
+	Command       string            `json:"command"`
+	Daemon        string            `json:"daemon"`
+	Strategy      string            `json:"strategy"`
+	Tag           string            `json:"tag,omitempty"`
+	BuildSettings map[string]string `json:"build_settings"`
+	Manifest      json.RawMessage   `json:"manifest,omitempty"`
+	Index         json.RawMessage   `json:"index,omitempty"`
+}
+
+// loadExpandedRequest represents the output JSON for load operations
+type loadExpandedRequest struct {
+	Command  string          `json:"command"`
+	Daemon   string          `json:"daemon"`
+	Strategy string          `json:"strategy"`
+	Tag      string          `json:"tag,omitempty"`
+	Manifest json.RawMessage `json:"manifest,omitempty"`
+	Index    json.RawMessage `json:"index,omitempty"`
+}
+
 // ExpandTemplateProcess is the main entry point for the expand-template subcommand
 func ExpandTemplateProcess(ctx context.Context, args []string) {
-	// Define flags for stamp files
+	// Define flags for stamp files and kind
 	var stampFiles []string
+	var kind string
 	flagSet := flag.NewFlagSet("expand-template", flag.ExitOnError)
 	flagSet.Func("stamp", "Path to a stamp file (can be specified multiple times)", func(s string) error {
 		stampFiles = append(stampFiles, s)
 		return nil
 	})
+	flagSet.StringVar(&kind, "kind", "push", "Kind of template to expand (push or load)")
 
 	// Parse flags
 	if err := flagSet.Parse(args); err != nil {
@@ -63,45 +86,64 @@ func ExpandTemplateProcess(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
+	// Validate kind
+	if kind != "push" && kind != "load" {
+		fmt.Fprintf(os.Stderr, "Error: --kind must be either 'push' or 'load'\n")
+		os.Exit(1)
+	}
+
 	// Get positional arguments
 	args = flagSet.Args()
 	if len(args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: img expand-template [--stamp file]... <input.json> <output.json>\n")
+		fmt.Fprintf(os.Stderr, "Usage: img expand-template [--stamp file]... [--kind push|load] <input.json> <output.json>\n")
 		os.Exit(1)
 	}
 
 	inputPath := args[0]
 	outputPath := args[1]
 
-	if err := expandTemplates(inputPath, outputPath, stampFiles); err != nil {
+	if err := expandTemplates(inputPath, outputPath, stampFiles, kind); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func expandTemplates(inputPath, outputPath string, stampFiles []string) error {
+func expandTemplates(inputPath, outputPath string, stampFiles []string, kind string) error {
 	// Read input JSON
 	inputData, err := os.ReadFile(inputPath)
 	if err != nil {
 		return fmt.Errorf("reading input file: %w", err)
 	}
 
-	var req templateRequest
-	if err := json.Unmarshal(inputData, &req); err != nil {
-		return fmt.Errorf("parsing input JSON: %w", err)
-	}
-
-	// Create template data map starting with build settings
+	// Create template data map
 	templateData := make(map[string]string)
-	for k, v := range req.BuildSettings {
-		templateData[k] = v
-	}
 
 	// Read stamp files and add their key-value pairs
 	for _, stampFile := range stampFiles {
 		if err := readStampFile(stampFile, templateData); err != nil {
 			return fmt.Errorf("reading stamp file %s: %w", stampFile, err)
 		}
+	}
+
+	switch kind {
+	case "push":
+		return expandPushTemplates(inputData, outputPath, templateData)
+	case "load":
+		return expandLoadTemplates(inputData, outputPath, templateData)
+	default:
+		return fmt.Errorf("unknown kind: %s", kind)
+	}
+}
+
+func expandPushTemplates(inputData []byte, outputPath string, templateData map[string]string) error {
+	var req pushTemplateRequest
+	if err := json.Unmarshal(inputData, &req); err != nil {
+		return fmt.Errorf("parsing input JSON: %w", err)
+	}
+
+	// Add build settings to template data
+	for k, v := range req.BuildSettings {
+		templateData[k] = v
 	}
 
 	// Expand templates
@@ -124,7 +166,7 @@ func expandTemplates(inputPath, outputPath string, stampFiles []string) error {
 	}
 
 	// Create output without build_settings
-	output := expandedRequest{
+	output := pushExpandedRequest{
 		Registry:   expandedRegistry,
 		Repository: expandedRepository,
 		Tags:       expandedTags,
@@ -137,6 +179,46 @@ func expandTemplates(inputPath, outputPath string, stampFiles []string) error {
 		OriginalRepository: req.OriginalRepository,
 		OriginalTag:        req.OriginalTag,
 		OriginalDigest:     req.OriginalDigest,
+	}
+
+	// Write output JSON
+	outputData, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling output: %w", err)
+	}
+
+	if err := os.WriteFile(outputPath, outputData, 0644); err != nil {
+		return fmt.Errorf("writing output file: %w", err)
+	}
+
+	return nil
+}
+
+func expandLoadTemplates(inputData []byte, outputPath string, templateData map[string]string) error {
+	var req loadTemplateRequest
+	if err := json.Unmarshal(inputData, &req); err != nil {
+		return fmt.Errorf("parsing input JSON: %w", err)
+	}
+
+	// Add build settings to template data
+	for k, v := range req.BuildSettings {
+		templateData[k] = v
+	}
+
+	// Expand tag template
+	expandedTag, err := expandTemplate(req.Tag, templateData)
+	if err != nil {
+		return fmt.Errorf("expanding tag template: %w", err)
+	}
+
+	// Create output without build_settings
+	output := loadExpandedRequest{
+		Command:  req.Command,
+		Daemon:   req.Daemon,
+		Strategy: req.Strategy,
+		Tag:      expandedTag,
+		Manifest: req.Manifest,
+		Index:    req.Index,
 	}
 
 	// Write output JSON

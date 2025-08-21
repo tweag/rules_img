@@ -185,7 +185,7 @@ def _expand_or_write(ctx, push_request, output_name):
             inputs = inputs,
             outputs = [final_json],
             executable = img_toolchain_info.tool_exe,
-            arguments = ["expand-template"] + args,
+            arguments = ["expand-template", "--kind", "push"] + args,
             mnemonic = "ExpandTemplate",
         )
         return final_json
