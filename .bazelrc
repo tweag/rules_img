@@ -1,7 +1,7 @@
 # To update these lines, execute
 # `bazel run @rules_bazel_integration_test//tools:update_deleted_packages`
-build --deleted_packages=e2e/cc,e2e/cc/base,e2e/cc/custom_standard_library,e2e/cc/patches,e2e/cc/platform,e2e/generic,e2e/generic/load,e2e/generic/platform,e2e/go,e2e/go/cross,e2e/go/customization,e2e/go/image,e2e/go/multiarch-manual,e2e/go/multiarch-transition
-query --deleted_packages=e2e/cc,e2e/cc/base,e2e/cc/custom_standard_library,e2e/cc/patches,e2e/cc/platform,e2e/generic,e2e/generic/load,e2e/generic/platform,e2e/go,e2e/go/cross,e2e/go/customization,e2e/go/image,e2e/go/multiarch-manual,e2e/go/multiarch-transition
+build --deleted_packages=e2e/cc,e2e/cc/base,e2e/cc/custom_standard_library,e2e/cc/patches,e2e/cc/platform,e2e/generic,e2e/generic/build_settings,e2e/generic/load,e2e/generic/platform,e2e/go,e2e/go/cross,e2e/go/customization,e2e/go/image,e2e/go/multiarch-manual,e2e/go/multiarch-transition
+query --deleted_packages=e2e/cc,e2e/cc/base,e2e/cc/custom_standard_library,e2e/cc/patches,e2e/cc/platform,e2e/generic,e2e/generic/build_settings,e2e/generic/load,e2e/generic/platform,e2e/go,e2e/go/cross,e2e/go/customization,e2e/go/image,e2e/go/multiarch-manual,e2e/go/multiarch-transition
 
 import %workspace%/.bazelrc.common
 

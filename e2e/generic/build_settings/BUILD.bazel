@@ -1,0 +1,18 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+
+package(default_visibility = ["//visibility:public"])
+
+string_flag(
+    name = "registry",
+    build_setting_default = "ghcr.io",
+)
+
+string_flag(
+    name = "user",
+    build_setting_default = "malt3",
+)
+
+string_flag(
+    name = "tag",
+    build_setting_default = "templated_tag",
+)

@@ -36,6 +36,18 @@ image_load(
     tag = "ghcr.io/malt3/rules_img:sideloaded",
 )
 
+# load an image with template variables
+image_load(
+    name = "load_image_template",
+    build_settings = {
+        "REGISTRY": "//build_settings:registry",
+        "USER": "//build_settings:user",
+        "TAG": "//build_settings:tag",
+    },
+    image = ":image",
+    tag = "{{.REGISTRY}}/{{.USER}}/rules_img:{{.TAG}}",
+)
+
 # Load an index (multi-platform)
 image_load(
     name = "load_index",
@@ -72,6 +84,7 @@ build_test(
         ":image",
         ":load_index",
         ":load_image",
+        ":load_image_template",
         ":load_normalized",
     ],
 )
