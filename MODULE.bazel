@@ -18,7 +18,7 @@ bazel_dep(name = "aspect_bazel_lib", version = "2.20.0", dev_dependency = True)
 bazel_dep(name = "rules_pkg", version = "1.1.0", dev_dependency = True)
 bazel_dep(name = "rules_bazel_integration_test", version = "0.33.2", dev_dependency = True)
 bazel_dep(name = "tweag-credential-helper", version = "0.0.6", dev_dependency = True)
-bazel_dep(name = "rules_python", version = "1.5.1", dev_dependency = True)
+bazel_dep(name = "rules_python", version = "1.6.1", dev_dependency = True)
 
 module_version = use_extension("//img/private/config:defs.bzl", "module_version", dev_dependency = True)
 use_repo(module_version, "rules_img_version")
