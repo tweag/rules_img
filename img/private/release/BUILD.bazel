@@ -8,6 +8,16 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+pkg_tar(
+    name = "tool_src_tar",
+    srcs = ["//:tool_source_files"],
+    out = "rules_img_tool.tar.gz",
+    extension = "tar.gz",
+    mode = "0755",
+    strip_prefix = "/src",
+    tags = ["manual"],
+)
+
 [
     platform(
         name = name(p),
@@ -23,7 +33,7 @@ release_platform_flag(
 
 release_files(
     name = "prebuilt_toolchain",
-    executable = "//cmd/img",
+    executable = "@rules_img_tool//cmd/img",
     tags = ["manual"],
 )
 
@@ -52,12 +62,24 @@ versioned_filename_info(
     name = "versioned_src_tar",
     src = ":src_tar",
     extension = "tar.gz",
+    module_name = "rules_img",
+    tags = ["manual"],
+)
+
+versioned_filename_info(
+    name = "versioned_tool_tar",
+    src = ":tool_src_tar",
+    extension = "tar.gz",
+    module_name = "rules_img_tool",
     tags = ["manual"],
 )
 
 offline_bcr(
     name = "bcr",
-    src_tar = ":versioned_src_tar",
+    src_tars = [
+        ":versioned_src_tar",
+        ":versioned_tool_tar",
+    ],
 )
 
 pkg_tar(
@@ -65,6 +87,7 @@ pkg_tar(
     srcs = [
         ":prebuilt_toolchain",
         ":versioned_src_tar",
+        ":versioned_tool_tar",
     ],
     out = "rules_img-dist.tar",
     mode = "0755",

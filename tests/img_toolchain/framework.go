@@ -42,14 +42,14 @@ type CommandSpec struct {
 }
 
 type AssertionSpec struct {
-	Type       string
-	Path       string
-	Content    string
-	Size       int64
-	TarEntry   string // For tar-specific assertions, the entry path within the tar
-	Owner      string // For ownership assertions (uid:gid format)
-	Mode       string // For file mode assertions (octal format)
-	PaxKey     string // For pax extended attribute key
+	Type     string
+	Path     string
+	Content  string
+	Size     int64
+	TarEntry string // For tar-specific assertions, the entry path within the tar
+	Owner    string // For ownership assertions (uid:gid format)
+	Mode     string // For file mode assertions (octal format)
+	PaxKey   string // For pax extended attribute key
 }
 
 type TestFramework struct {
@@ -72,7 +72,7 @@ func NewTestFramework(t *testing.T) (*TestFramework, error) {
 		return nil, fmt.Errorf("failed to create runfiles: %w", err)
 	}
 
-	imgBinaryPath, err := rf.Rlocation("_main/cmd/img/img_/img")
+	imgBinaryPath, err := rf.Rlocation("rules_img_tool/cmd/img/img_/img")
 	if err != nil {
 		return nil, fmt.Errorf("failed to locate img binary: %w", err)
 	}
@@ -376,7 +376,6 @@ func (tf *TestFramework) RunCommand(ctx context.Context, cmd CommandSpec) (*Comm
 	args := append([]string{cmd.Subcommand}, cmd.Args...)
 	execCmd := exec.CommandContext(ctx, tf.imgBinaryPath, args...)
 	execCmd.Dir = tf.tempDir
-
 
 	if cmd.Stdin != "" {
 		execCmd.Stdin = strings.NewReader(cmd.Stdin)

@@ -1,0 +1,22 @@
+"""Defines toolchains that are built from source (instead of prebuilt downloads).
+
+These toolchains are not registered by default.
+You need to register them explicitly if you want to build from source.
+"""
+
+load("@rules_img//img:image_toolchain.bzl", "TOOLCHAIN_TYPE", "image_toolchain")
+
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+image_toolchain(
+    name = "image_toolchain",
+    tool_exe = "//cmd/img",
+)
+
+toolchain(
+    name = "toolchain",
+    toolchain = ":image_toolchain",
+    toolchain_type = TOOLCHAIN_TYPE,
+)

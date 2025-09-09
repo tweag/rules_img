@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "upstream",
+    srcs = ["upstream.go"],
+    importpath = "github.com/tweag/rules_img/src/pkg/serve/registry/upstream",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/auth/registry",
+        "@com_github_malt3_go_containerregistry//pkg/name",
+        "@com_github_malt3_go_containerregistry//pkg/registry",
+        "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
+        "@com_github_malt3_go_containerregistry//pkg/v1/remote",
+    ],
+)

@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "tarcas",
+    srcs = [
+        "factory.go",
+        "options.go",
+        "tarcas.go",
+        "tarmetadata.go",
+    ],
+    importpath = "github.com/tweag/rules_img/src/pkg/tarcas",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api",
+        "//pkg/tree/merkle",
+    ],
+)

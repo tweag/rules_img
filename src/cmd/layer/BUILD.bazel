@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "layer",
+    srcs = [
+        "flagtypes.go",
+        "layer.go",
+        "metadata.go",
+        "paramfile.go",
+    ],
+    importpath = "github.com/tweag/rules_img/src/cmd/layer",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api",
+        "//pkg/compress",
+        "//pkg/contentmanifest",
+        "//pkg/tarcas",
+        "//pkg/tree",
+        "//pkg/tree/runfiles",
+        "//pkg/tree/treeartifact",
+    ],
+)

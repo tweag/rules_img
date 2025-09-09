@@ -84,18 +84,3 @@ host_platform_transition = transition(
         "//command_line_option:extra_execution_platforms",
     ],
 )
-
-def _toolchain_transition_impl(_settings, attr):
-    # If no explicit exec platform is set,
-    # we don't transition.
-    # This can be used to define a downloaded toolchain,
-    # where the target is a source file.
-    if attr.exec_platform == None:
-        return {}
-    return {_platforms_setting: str(attr.exec_platform)}
-
-toolchain_transition = transition(
-    implementation = _toolchain_transition_impl,
-    inputs = [],
-    outputs = [_platforms_setting],
-)

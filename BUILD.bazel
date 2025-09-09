@@ -1,14 +1,23 @@
 exports_files(["MODULE.bazel"])
 
+# gazelle:prefix github.com/tweag/rules_img
+
 filegroup(
     name = "all_files",
     srcs = [
         "BUILD.bazel",
         "LICENSE",
         "MODULE.bazel",
-        "go.mod",
-        "go.sum",
     ],
+    visibility = ["//img/private/release:__subpackages__"],
+)
+
+filegroup(
+    name = "tool_source_files",
+    srcs = glob(
+        ["src/**"],
+        allow_empty = True,
+    ),
     visibility = ["//img/private/release:__subpackages__"],
 )
 

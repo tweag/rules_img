@@ -1,0 +1,38 @@
+load("@rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+# gazelle:exclude v2.go
+
+proto_library(
+    name = "remote_execution_proto",
+    srcs = ["remote_execution.proto"],
+    strip_import_prefix = "/pkg/proto/remote-apis",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/remote-apis/build/bazel/semver:semver_proto",
+        "@googleapis//google/api:annotations_proto",
+        "@googleapis//google/longrunning:operations_proto",
+        "@googleapis//google/rpc:status_proto",
+        "@protobuf//:any_proto",
+        "@protobuf//:duration_proto",
+        "@protobuf//:timestamp_proto",
+        "@protobuf//:wrappers_proto",
+    ],
+)
+
+go_proto_library(
+    name = "v2",
+    compilers = [
+        "@rules_go//proto:go_proto",
+        "@rules_go//proto:go_grpc_v2",
+    ],
+    importpath = "github.com/tweag/rules_img/src/pkg/proto/remote-apis/build/bazel/remote/execution/v2",
+    proto = ":remote_execution_proto",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/remote-apis/build/bazel/semver",
+        "@com_google_cloud_go_longrunning//autogen/longrunningpb",
+        "@org_golang_google_genproto_googleapis_api//annotations",
+        "@org_golang_google_genproto_googleapis_rpc//status",
+    ],
+)
