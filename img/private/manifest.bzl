@@ -9,38 +9,6 @@ load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
 load("//img/private/providers:oci_layout_settings_info.bzl", "OCILayoutSettingsInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
 
-_GOOS = [
-    "android",
-    "darwin",
-    "dragonfly",
-    "freebsd",
-    "illumos",
-    "ios",
-    "js",
-    "linux",
-    "netbsd",
-    "openbsd",
-    "plan9",
-    "solaris",
-    "wasip1",
-    "windows",
-]
-
-_GOARCH = [
-    "amd64",
-    "386",
-    "arm",
-    "arm64",
-    "ppc64le",
-    "ppc64",
-    "mips64le",
-    "mips64",
-    "mipsle",
-    "mips",
-    "s390x",
-    "wasm",
-]
-
 def _to_layer_arg(layer):
     """Convert a layer to a command line argument."""
     return layer.metadata.path
@@ -74,8 +42,8 @@ def select_base(ctx):
     if ImageIndexInfo not in ctx.attr.base:
         fail("base image must be an ImageManifestInfo or ImageIndexInfo")
 
-    os_wanted = ctx.attr.os if ctx.attr.os != "" else ctx.attr._os_cpu[TargetPlatformInfo].os
-    arch_wanted = ctx.attr.architecture if ctx.attr.architecture != "" else ctx.attr._os_cpu[TargetPlatformInfo].cpu
+    os_wanted = ctx.attr._os_cpu[TargetPlatformInfo].os
+    arch_wanted = ctx.attr._os_cpu[TargetPlatformInfo].cpu
     constraints_wanted = dict(
         os = os_wanted,
         architecture = arch_wanted,
@@ -136,26 +104,17 @@ def _image_manifest_impl(ctx):
     args = ctx.actions.args()
     args.add("manifest")
     base = select_base(ctx)
-    os = None
-    arch = None
+    os = ctx.attr._os_cpu[TargetPlatformInfo].os
+    arch = ctx.attr._os_cpu[TargetPlatformInfo].cpu
     history = []
     layers = []
     if base != None:
-        if ctx.attr.os != "" and ctx.attr.os != base.os:
-            fail("base image OS {} does not match requested OS {}".format(base.os, ctx.attr.os))
-        if ctx.attr.architecture != "" and ctx.attr.architecture != base.architecture:
-            fail("base image architecture {} does not match requested architecture {}".format(base.architecture, ctx.attr.architecture))
-        os = base.os
-        arch = base.architecture
         history = base.structured_config.get("history", [])
         layers.extend(base.layers)
         inputs.append(base.manifest)
         inputs.append(base.config)
         args.add("--base-manifest", base.manifest.path)
         args.add("--base-config", base.config.path)
-    else:
-        os = ctx.attr.os if ctx.attr.os != "" else ctx.attr._os_cpu[TargetPlatformInfo].os
-        arch = ctx.attr.architecture if ctx.attr.architecture != "" else ctx.attr._os_cpu[TargetPlatformInfo].cpu
     if ctx.attr.base != None and PullInfo in ctx.attr.base:
         providers.append(ctx.attr.base[PullInfo])
     for layer in ctx.attr.layers:
@@ -282,14 +241,6 @@ Output groups:
             providers = [LayerInfo],
             doc = "Layers to include in the image.",
             cfg = normalize_layer_transition,
-        ),
-        "os": attr.string(
-            values = _GOOS,
-            doc = "The operating system this image runs on.",
-        ),
-        "architecture": attr.string(
-            values = _GOARCH,
-            doc = "The CPU architecture this image runs on.",
         ),
         "platform": attr.string_dict(
             default = {},

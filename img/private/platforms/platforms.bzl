@@ -134,3 +134,9 @@ def platform_for_goos_and_goarch(mangled_name):
     os = _platform_os(goos)
     cpu = _platform_cpu(goarch)
     return PLATFORMS[_platform_name((os, cpu))]
+
+def has_constraint_setting(goos, goarch):
+    for tup in _config_setting_groups:
+        if tup[0] == goos and tup[1] == goarch:
+            return True
+    return False
