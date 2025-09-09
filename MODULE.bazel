@@ -19,6 +19,7 @@ bazel_dep(name = "rules_pkg", version = "1.1.0", dev_dependency = True)
 bazel_dep(name = "rules_bazel_integration_test", version = "0.33.2", dev_dependency = True)
 bazel_dep(name = "tweag-credential-helper", version = "0.0.6", dev_dependency = True)
 bazel_dep(name = "rules_python", version = "1.6.1", dev_dependency = True)
+bazel_dep(name = "hermetic_cc_toolchain", version = "4.0.1", dev_dependency = True)
 
 module_version = use_extension("//img/private/config:defs.bzl", "module_version", dev_dependency = True)
 use_repo(module_version, "rules_img_version")
@@ -63,3 +64,12 @@ go_sdk.from_file(
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
 use_repo(go_deps, "com_github_aws_aws_sdk_go_v2", "com_github_aws_aws_sdk_go_v2_config", "com_github_aws_aws_sdk_go_v2_service_s3", "com_github_containerd_containerd_api", "com_github_containerd_stargz_snapshotter_estargz", "com_github_google_uuid", "com_github_klauspost_compress", "com_github_malt3_go_containerregistry", "com_github_opencontainers_go_digest", "com_github_opencontainers_image_spec", "com_google_cloud_go_longrunning", "org_golang_google_genproto_googleapis_api", "org_golang_google_genproto_googleapis_bytestream", "org_golang_google_genproto_googleapis_rpc", "org_golang_google_grpc", "org_golang_google_protobuf", "org_golang_x_sync")
+
+toolchains = use_extension("@hermetic_cc_toolchain//toolchain:ext.bzl", "toolchains", dev_dependency = True)
+use_repo(toolchains, "zig_sdk")
+
+register_toolchains(
+    "@zig_sdk//toolchain:linux_amd64_musl",
+    "@zig_sdk//toolchain:linux_arm64_musl",
+    dev_dependency = True,
+)
