@@ -8,9 +8,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/malt3/go-containerregistry/pkg/authn"
 	"github.com/malt3/go-containerregistry/pkg/name"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
+
+	reg "github.com/tweag/rules_img/pkg/auth/registry"
 )
 
 func DownloadBlobProcess(ctx context.Context, args []string) {
@@ -90,7 +91,7 @@ func downloadFromRegistry(registry, repository, digest, outputPath string) error
 		return fmt.Errorf("creating blob reference: %w", err)
 	}
 
-	layer, err := remote.Layer(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	layer, err := remote.Layer(ref, reg.WithAuthFromMultiKeychain())
 	if err != nil {
 		return fmt.Errorf("getting layer: %w", err)
 	}

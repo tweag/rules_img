@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/malt3/go-containerregistry/pkg/authn"
 	"github.com/malt3/go-containerregistry/pkg/name"
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
 
 	"github.com/tweag/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/auth/registry"
 )
 
 type LayerInput struct {
@@ -54,7 +54,7 @@ func (p *eagerPusher) PushManifest(ctx context.Context, reference string, req Pu
 	go progressPrinter(updateChan)
 	opts := []remote.Option{
 		remote.WithContext(ctx),
-		remote.WithAuthFromKeychain(authn.DefaultKeychain),
+	    registry.WithAuthFromMultiKeychain(),
 		remote.WithProgress(updateChan),
 	}
 	if err := remote.Write(ref, manifest, opts...); err != nil {
@@ -81,7 +81,7 @@ func (p *eagerPusher) PushIndex(ctx context.Context, reference string, req PushI
 	go progressPrinter(updateChan)
 	opts := []remote.Option{
 		remote.WithContext(ctx),
-		remote.WithAuthFromKeychain(authn.DefaultKeychain),
+	    registry.WithAuthFromMultiKeychain(),
 		remote.WithProgress(updateChan),
 	}
 	if err := remote.WriteIndex(ref, index, opts...); err != nil {

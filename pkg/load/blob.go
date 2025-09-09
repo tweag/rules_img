@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/malt3/go-containerregistry/pkg/authn"
 	registryname "github.com/malt3/go-containerregistry/pkg/name"
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
 
 	"github.com/tweag/rules_img/pkg/api"
 	"github.com/tweag/rules_img/pkg/cas"
+	"github.com/tweag/rules_img/pkg/auth/registry"
 )
 
 type casBlob struct {
@@ -56,7 +56,7 @@ func (r *remoteBlob) Compressed() (io.ReadCloser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating blob reference: %w", err)
 	}
-	layer, err := remote.Layer(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	layer, err := remote.Layer(ref, registry.WithAuthFromMultiKeychain())
 	if err != nil {
 		return nil, fmt.Errorf("getting layer: %w", err)
 	}
