@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "ocilayout",
+    srcs = [
+        "copy_linux.go",
+        "copy_other.go",
+        "flags.go",
+        "ocilayout.go",
+    ],
+    importpath = "github.com/tweag/rules_img/src/cmd/ocilayout",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
+    ],
+)

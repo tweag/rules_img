@@ -1,9 +1,5 @@
 .direnv
 benchmark
-e2e/go/bazel-bin
-e2e/go/bazel-go
-e2e/go/bazel-out
-e2e/go/bazel-testlogs
 e2e/cc/bazel-bin
 e2e/cc/bazel-cc
 e2e/cc/bazel-out
@@ -12,3 +8,11 @@ e2e/generic/bazel-bin
 e2e/generic/bazel-generic
 e2e/generic/bazel-out
 e2e/generic/bazel-testlogs
+e2e/go/bazel-bin
+e2e/go/bazel-go
+e2e/go/bazel-out
+e2e/go/bazel-testlogs
+src/bazel-bin
+src/bazel-out
+src/bazel-src
+src/bazel-testlogs

@@ -14,3 +14,10 @@ go_binary(
     embed = [":distdir_lib"],
     visibility = ["//visibility:public"],
 )
+
+go_library(
+    name = "lib",
+    srcs = ["distdir.go"],
+    importpath = "",
+    visibility = ["//visibility:private"],
+)

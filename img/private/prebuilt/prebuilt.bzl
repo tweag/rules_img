@@ -13,7 +13,6 @@ def _prebuilt_toolchain_definition_for_platform(platform_name, tool_target):
 image_toolchain(
     name = "img_{platform_name}",
     tool_exe = "{tool_target}",
-    exec_platform = "@rules_img//img/private/platforms:{platform_name}",
 )
 
 toolchain(

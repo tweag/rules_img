@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "fileopener",
+    srcs = ["fileopener.go"],
+    importpath = "github.com/tweag/rules_img/src/pkg/fileopener",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api",
+        "@com_github_klauspost_compress//zstd",
+    ],
+)

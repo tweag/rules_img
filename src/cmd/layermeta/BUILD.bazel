@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "layermeta",
+    srcs = [
+        "flagtypes.go",
+        "layermeta.go",
+    ],
+    importpath = "github.com/tweag/rules_img/src/cmd/layermeta",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api",
+        "//pkg/fileopener",
+    ],
+)

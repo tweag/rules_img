@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "api",
+    srcs = [
+        "api.go",
+        "binary.go",
+        "commands.go",
+    ],
+    importpath = "github.com/tweag/rules_img/src/pkg/api",
+    visibility = ["//visibility:public"],
+)

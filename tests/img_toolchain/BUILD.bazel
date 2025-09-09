@@ -18,8 +18,8 @@ go_test(
     srcs = ["img_toolchain_test.go"],
     data = [
         ":testcases",
-        "//cmd/img",
         "//testdata:ubuntu_testdata",
+        "@rules_img_tool//cmd/img",
     ],
     embed = [":img_toolchain"],
 )
@@ -34,4 +34,10 @@ filegroup(
     name = "all_files",
     srcs = glob(["**"]),
     visibility = ["//img/private/release:__subpackages__"],
+)
+
+go_test(
+    name = "lib_test",
+    srcs = ["img_toolchain_test.go"],
+    embed = [":img_toolchain"],
 )

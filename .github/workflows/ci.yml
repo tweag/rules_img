@@ -37,7 +37,7 @@ jobs:
         disk-cache: ${{ github.workflow }}-${{ matrix.runner }}-tidy_and_test_matrix
         repository-cache: true
     - name: Execute Tests
-      run: bazelisk test //...
+      run: bazelisk test //... @rules_img_tool//...
   integration_test_matrix:
     strategy:
       fail-fast: false

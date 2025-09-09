@@ -14,3 +14,10 @@ go_binary(
     embed = [":update_release_files_lib"],
     visibility = ["//visibility:public"],
 )
+
+go_library(
+    name = "lib",
+    srcs = ["main.go"],
+    importpath = "",
+    visibility = ["//visibility:private"],
+)

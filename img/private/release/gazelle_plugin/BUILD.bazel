@@ -33,6 +33,21 @@ release_files_test(
     update_release_files_binary = "//img/private/release/gazelle_plugin/cmd/update_release_files",
 )
 
+go_library(
+    name = "all_files",
+    srcs = ["all_files.go"],
+    importpath = "",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@gazelle//config",
+        "@gazelle//label",
+        "@gazelle//language",
+        "@gazelle//repo",
+        "@gazelle//resolve",
+        "@gazelle//rule",
+    ],
+)
+
 bzl_library(
     name = "release_files_updated",
     srcs = ["release_files_updated.bzl"],

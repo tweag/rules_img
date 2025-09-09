@@ -1,0 +1,9 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "validate",
+    srcs = ["validate.go"],
+    importpath = "github.com/tweag/rules_img/src/cmd/validate",
+    visibility = ["//visibility:public"],
+    deps = ["//cmd/validate/layer-presence"],
+)

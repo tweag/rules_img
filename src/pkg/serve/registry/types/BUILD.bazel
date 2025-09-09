@@ -1,0 +1,9 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "types",
+    srcs = ["request.go"],
+    importpath = "github.com/tweag/rules_img/src/pkg/serve/registry/types",
+    visibility = ["//visibility:public"],
+    deps = ["//pkg/api"],
+)

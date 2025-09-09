@@ -1,6 +1,6 @@
 """Implementation of the image_toolchain rule."""
 
-load("//img/private/common:transitions.bzl", "reset_platform_transition", "toolchain_transition")
+load("//img/private/common:transitions.bzl", "reset_platform_transition")
 load("//img/private/providers:image_toolchain_info.bzl", "ImageToolchainInfo")
 
 DOC = """\
@@ -15,14 +15,7 @@ See https://bazel.build/extending/toolchains#defining-toolchains.
 ATTRS = dict(
     tool_exe = attr.label(
         doc = "An image build tool executable.",
-        default = Label("//cmd/img"),
         allow_single_file = True,
-        cfg = toolchain_transition,
-    ),
-    exec_platform = attr.label(
-        doc = "The (optional) platform to use when building the tool from source.",
-        mandatory = False,
-        providers = [platform_common.PlatformInfo],
     ),
 )
 

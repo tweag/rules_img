@@ -315,7 +315,7 @@ def _versioned_filename_info_impl(ctx):
         DefaultInfo(files = depset(dest_src_map.values())),
         PackageFilesInfo(attributes = {dest: ctx.attr.attributes}, dest_src_map = dest_src_map),
         BCRModuleVersionInfo(
-            module_name = "rules_img",
+            module_name = ctx.attr.module_name,
             version = ctx.attr.version[ModuleVersionInfo].version,
             source_archive = ctx.file.src,
             source_archive_basename = dest_basename,
@@ -326,6 +326,7 @@ def _versioned_filename_info_impl(ctx):
 versioned_filename_info = rule(
     implementation = _versioned_filename_info_impl,
     attrs = {
+        "module_name": attr.string(),
         "src": attr.label(allow_single_file = True),
         "destdir": attr.string(),
         "extension": attr.string(),
@@ -343,39 +344,41 @@ versioned_filename_info = rule(
 )
 
 def _offline_bcr_impl(ctx):
-    bcr_info = ctx.attr.src_tar[BCRModuleVersionInfo]
-    request = {
-        "module_name": bcr_info.module_name,
-        "version": bcr_info.version,
-        "source_path": bcr_info.source_archive.path,
-        "override_source_basename": bcr_info.source_archive_basename,
-        "metadata_template_path": bcr_info.metadata_template.path,
-    }
-    request_file = ctx.actions.declare_file(ctx.attr.name + "_local_module_" + bcr_info.module_name + ".json")
-    ctx.actions.write(request_file, content = json.encode(request))
     bcr_args = ctx.actions.args()
-    bcr_args.add("--add-local-module", request_file.path)
-    bcr_tree_artifact = ctx.actions.declare_directory(ctx.attr.name + ".local")
-    bcr_args.add(bcr_tree_artifact.path)
-    ctx.actions.run(
-        outputs = [bcr_tree_artifact],
-        inputs = [request_file, bcr_info.source_archive, bcr_info.metadata_template],
-        executable = ctx.executable.bcr_generator,
-        arguments = [bcr_args],
-    )
-
-    bazel_dep = ctx.actions.declare_file(ctx.attr.name + "_local_module_" + bcr_info.module_name + ".bazel_dep")
-    ctx.actions.write(bazel_dep, content = """bazel_dep(
+    inputs = []
+    output_group_info = {}
+    for src_tar in ctx.attr.src_tars:
+        bcr_info = src_tar[BCRModuleVersionInfo]
+        request = {
+            "module_name": bcr_info.module_name,
+            "version": bcr_info.version,
+            "source_path": bcr_info.source_archive.path,
+            "override_source_basename": bcr_info.source_archive_basename,
+            "metadata_template_path": bcr_info.metadata_template.path,
+        }
+        request_file = ctx.actions.declare_file(ctx.attr.name + "_local_module_" + bcr_info.module_name + ".json")
+        inputs.append(request_file)
+        inputs.append(bcr_info.source_archive)
+        inputs.append(bcr_info.metadata_template)
+        ctx.actions.write(request_file, content = json.encode(request))
+        bcr_args.add("--add-local-module", request_file.path)
+        bazel_dep = ctx.actions.declare_file(ctx.attr.name + "_local_module_" + bcr_info.module_name + ".bazel_dep")
+        ctx.actions.write(bazel_dep, content = """bazel_dep(
     name = "{name}",
     version = "{version}",
 )
 """.format(name = bcr_info.module_name, version = bcr_info.version))
-
+        output_group_info[bcr_info.module_name] = depset([bazel_dep])
+    bcr_tree_artifact = ctx.actions.declare_directory(ctx.attr.name + ".local")
+    bcr_args.add(bcr_tree_artifact.path)
+    ctx.actions.run(
+        outputs = [bcr_tree_artifact],
+        inputs = inputs,
+        executable = ctx.executable.bcr_generator,
+        arguments = [bcr_args],
+    )
     bcr = depset([bcr_tree_artifact])
-    output_group_info = {
-        "bcr": bcr,
-        bcr_info.module_name: depset([bazel_dep]),
-    }
+    output_group_info["bcr"] = bcr
     return [
         DefaultInfo(files = bcr),
         OutputGroupInfo(**output_group_info),
@@ -384,7 +387,7 @@ def _offline_bcr_impl(ctx):
 offline_bcr = rule(
     implementation = _offline_bcr_impl,
     attrs = {
-        "src_tar": attr.label(
+        "src_tars": attr.label_list(
             providers = [BCRModuleVersionInfo],
             mandatory = True,
         ),

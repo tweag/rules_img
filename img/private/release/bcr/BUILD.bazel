@@ -15,3 +15,10 @@ go_binary(
     pure = "on",
     visibility = ["//visibility:public"],
 )
+
+go_library(
+    name = "lib",
+    srcs = ["bcr.go"],
+    importpath = "",
+    visibility = ["//visibility:private"],
+)
