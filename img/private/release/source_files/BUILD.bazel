@@ -20,6 +20,7 @@ release_files = [
     "//cmd/validate:all_files",
     "//cmd/validate/layer-presence:all_files",
     "//img:all_files",
+    "//img/constraints:all_files",
     "//img/private:all_files",
     "//img/private/common:all_files",
     "//img/private/config:all_files",

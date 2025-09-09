@@ -191,7 +191,6 @@ image_layer(
 # Edge case: Manifest with complex configuration
 image_manifest(
     name = "complex_manifest",
-    architecture = "amd64",
     cmd = [
         "arg1",
         "arg2",
@@ -220,7 +219,6 @@ image_manifest(
         ":heavily_annotated_layer",
         ":metadata_layer",
     ],
-    os = "linux",
     user = "1000:1000",
     working_dir = "/app",
 )

@@ -12,6 +12,7 @@ bzl_library(
     visibility = ["//img:__subpackages__"],
     deps = [
         ":download",
+        "//img/private/platforms",
         "@bazel_skylib//lib:sets",
     ],
 )

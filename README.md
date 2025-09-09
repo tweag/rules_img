@@ -147,39 +147,6 @@ image_index(
 )
 ```
 
-<details>
-<summary>You are in full control over the images you put into an image index</summary>
-
-```starlark
-load("@rules_img//img:image.bzl", "image_manifest", "image_index")
-
-# Create platform-specific images
-image_manifest(
-    name = "app_amd64",
-    layers = [":app_layer"],
-    architecture = "amd64",
-    os = "linux",
-)
-
-image_manifest(
-    name = "app_arm64",
-    layers = [":app_layer"],
-    architecture = "arm64",
-    os = "linux",
-)
-
-# Combine into multi-platform index
-image_index(
-    name = "app",
-    manifests = [
-        ":app_amd64",
-        ":app_arm64",
-    ],
-)
-```
-
-</details>
-
 ### Pushing to a Registry
 
 ```starlark

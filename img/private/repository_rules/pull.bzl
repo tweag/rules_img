@@ -1,12 +1,42 @@
 """Repository rules for pulling container images."""
 
 load("@bazel_skylib//lib:sets.bzl", "sets")
+load("//img/private/platforms:platforms.bzl", "has_constraint_setting")
 load(
     ":download.bzl",
     _download_blob = "download_blob",
     _download_layers = "download_layers",
     _download_manifest = "download_manifest",
 )
+
+def _map_os_arch_to_constraints(os_arch_pairs):
+    """Map OS/architecture pairs to Bazel constraint labels.
+
+    Args:
+        os_arch_pairs: List of strings in format "os_arch" (e.g., ["linux_amd64", "darwin_arm64"])
+
+    Returns:
+        String representation of a select expression for target_compatible_with
+    """
+    if not os_arch_pairs:
+        return "[]"
+
+    # If there's only one platform, return its constraints directly
+    if len(os_arch_pairs) == 1:
+        return '["@rules_img//img/constraints:{}"]'.format(os_arch_pairs[0])
+
+    # For multiple platforms, create a select expression
+    select_dict = {}
+    for os_arch in sorted(os_arch_pairs):
+        select_dict['"@rules_img//img/constraints:{}"'.format(os_arch)] = "[]"
+    select_dict['"//conditions:default"'] = '["@platforms//:incompatible"]'
+
+    # Build the select expression string
+    select_items = []
+    for key, value in select_dict.items():
+        select_items.append("        {}: {},".format(key, value))
+
+    return "select({{\n{}\n    }})".format("\n".join(select_items))
 
 def _pull_impl(rctx):
     """Pull an image from a registry and generate a BUILD file."""
@@ -39,6 +69,7 @@ def _pull_impl(rctx):
     # TODO: switch to builtin set (requires Bazel 8+)
     # layer_digests = set()
     layer_digests = sets.make()
+    platforms_set = sets.make()
 
     # download all manifests and configs
     for manifest_index in manifests:
@@ -52,11 +83,28 @@ def _pull_impl(rctx):
         if is_index:
             manifest_info = _download_manifest(rctx, reference = manifest_index["digest"])
             data[manifest_info.digest] = manifest_info.data
+
+            # Extract platform from index manifest entry
+            platform = manifest_index.get("platform", {})
+            if platform:
+                os = platform.get("os", "")
+                arch = platform.get("architecture", "")
+                if os and arch and has_constraint_setting(os, arch):
+                    sets.insert(platforms_set, "{}_{}".format(os, arch))
         else:
             manifest_info = root_blob_info
         manifest = json.decode(manifest_info.data)
         config_info = _download_blob(rctx, digest = manifest["config"]["digest"])
         data[config_info.digest] = config_info.data
+
+        # Extract platform from config if not already found
+        if not is_index:
+            config = json.decode(config_info.data)
+            os = config.get("os", "")
+            arch = config.get("architecture", "")
+            if os and arch and has_constraint_setting(os, arch):
+                sets.insert(platforms_set, "{}_{}".format(os, arch))
+
         for layer in manifest.get("layers", []):
             sets.insert(layer_digests, layer["digest"])
 
@@ -125,6 +173,9 @@ download_blobs(
             repository = repr(rctx.attr.repository),
         )
 
+    # Build target_compatible_with based on discovered platforms
+    target_compatible_with = _map_os_arch_to_constraints(sets.to_list(platforms_set))
+
     # write out the files
     rctx.file(
         "BUILD.bazel",
@@ -139,6 +190,7 @@ image_import(
     registries = {registries},
     repository = {repository},
     tag = {tag},
+    target_compatible_with = {target_compatible_with},
     visibility = ["//visibility:public"],
 )
 
@@ -148,6 +200,7 @@ alias(
     visibility = ["//visibility:public"],
 )
 """.format(
+            target_compatible_with = target_compatible_with,
             loads = "\n".join(
                 ["load({}, {})".format(repr(path), repr(name)) for (path, name) in loads],
             ),
