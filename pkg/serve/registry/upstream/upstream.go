@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/malt3/go-containerregistry/pkg/authn"
 	"github.com/malt3/go-containerregistry/pkg/name"
 	registry "github.com/malt3/go-containerregistry/pkg/registry"
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
+
+	reg "github.com/tweag/rules_img/pkg/auth/registry"
 )
 
 type UpstreamBlobHandler struct {
@@ -32,7 +33,7 @@ func (h *UpstreamBlobHandler) Get(ctx context.Context, repo string, hash registr
 	transport := &redirectHandler{
 		underlying: remote.DefaultTransport,
 	}
-	layer, err := remote.Layer(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain), remote.WithTransport(transport))
+	layer, err := remote.Layer(ref, reg.WithAuthFromMultiKeychain(), remote.WithTransport(transport))
 	if err != nil {
 		return nil, fmt.Errorf("getting layer: %w", err)
 	}
@@ -59,7 +60,7 @@ func (h *UpstreamBlobHandler) Stat(ctx context.Context, repo string, hash regist
 		hash:       hash,
 		underlying: remote.DefaultTransport,
 	}
-	layer, err := remote.Layer(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain), remote.WithTransport(transport))
+	layer, err := remote.Layer(ref, reg.WithAuthFromMultiKeychain(), remote.WithTransport(transport))
 	if err != nil {
 		return 0, fmt.Errorf("getting layer: %w", err)
 	}

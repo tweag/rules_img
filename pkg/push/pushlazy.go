@@ -11,13 +11,13 @@ import (
 	"strings"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
-	"github.com/malt3/go-containerregistry/pkg/authn"
 	"github.com/malt3/go-containerregistry/pkg/name"
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
 	typesv1 "github.com/malt3/go-containerregistry/pkg/v1/types"
 
 	"github.com/tweag/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/auth/registry"
 	"github.com/tweag/rules_img/pkg/cas"
 	registrytypes "github.com/tweag/rules_img/pkg/serve/registry/types"
 )
@@ -80,7 +80,7 @@ func (p lazyPusher) Push(ctx context.Context, reference string, req registrytype
 	go progressPrinter(updateChan)
 	opts := []remote.Option{
 		remote.WithContext(ctx),
-		remote.WithAuthFromKeychain(authn.DefaultKeychain),
+	    registry.WithAuthFromMultiKeychain(),
 		remote.WithProgress(updateChan),
 	}
 	ref, err := name.ParseReference(reference)

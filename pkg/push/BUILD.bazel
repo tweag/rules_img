@@ -19,6 +19,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",
+        "//pkg/auth/registry",
         "//pkg/cas",
         "//pkg/proto/blobcache",
         "//pkg/proto/remote-apis/build/bazel/remote/execution/v2",

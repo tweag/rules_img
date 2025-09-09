@@ -6,7 +6,7 @@ go_library(
     importpath = "github.com/tweag/rules_img/pkg/serve/registry/upstream",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_malt3_go_containerregistry//pkg/authn",
+        "//pkg/auth/registry",
         "@com_github_malt3_go_containerregistry//pkg/name",
         "@com_github_malt3_go_containerregistry//pkg/registry",
         "@com_github_malt3_go_containerregistry//pkg/v1:pkg",

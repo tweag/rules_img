@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
-	"github.com/malt3/go-containerregistry/pkg/authn"
 	"github.com/malt3/go-containerregistry/pkg/name"
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
 	typesv1 "github.com/malt3/go-containerregistry/pkg/v1/types"
 
 	"github.com/tweag/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/auth/registry"
 	blobcache_proto "github.com/tweag/rules_img/pkg/proto/blobcache"
 	remoteexecution_proto "github.com/tweag/rules_img/pkg/proto/remote-apis/build/bazel/remote/execution/v2"
 	registrytypes "github.com/tweag/rules_img/pkg/serve/registry/types"
@@ -92,7 +92,7 @@ func (p casRegistryPusher) Push(ctx context.Context, reference string, req regis
 
 	opts := []remote.Option{
 		remote.WithContext(ctx),
-		remote.WithAuthFromKeychain(authn.DefaultKeychain),
+	    registry.WithAuthFromMultiKeychain(),
 		remote.WithProgress(updateChan),
 		remote.WithTransport(transport),
 	}

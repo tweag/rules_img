@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/malt3/go-containerregistry/pkg/authn"
 	"github.com/malt3/go-containerregistry/pkg/name"
 	v1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
@@ -23,6 +22,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/tweag/rules_img/pkg/api"
+	"github.com/tweag/rules_img/pkg/auth/registry"
 	"github.com/tweag/rules_img/pkg/cas"
 	registrytypes "github.com/tweag/rules_img/pkg/serve/registry/types"
 )
@@ -190,7 +190,7 @@ func (s *Syncer) Commit(ctx context.Context, digest string, sizeBytes int64) err
 
 	remoteOpts := []remote.Option{
 		remote.WithContext(ctx),
-		remote.WithAuthFromKeychain(authn.DefaultKeychain),
+		registry.WithAuthFromMultiKeychain(),
 	}
 
 	if len(metadata.Blobs) == 0 {
@@ -1030,7 +1030,7 @@ func (l *remoteStreamingLayer) Compressed() (io.ReadCloser, error) {
 	}
 
 	// Fetch the layer from the original registry
-	layer, err := remote.Layer(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	layer, err := remote.Layer(ref, registry.WithAuthFromMultiKeychain())
 	if err != nil {
 		return nil, fmt.Errorf("getting layer from original registry: %w", err)
 	}

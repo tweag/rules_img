@@ -34,6 +34,7 @@ release_files = [
     "//pkg/auth/credential:all_files",
     "//pkg/auth/grpcheaderinterceptor:all_files",
     "//pkg/auth/protohelper:all_files",
+    "//pkg/auth/registry:all_files",
     "//pkg/cas:all_files",
     "//pkg/compress:all_files",
     "//pkg/compress/util:all_files",
