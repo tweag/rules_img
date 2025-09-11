@@ -76,3 +76,10 @@ filegroup(
     srcs = glob(["**"]),
     visibility = ["//img/private/release:__subpackages__"],
 )
+
+bzl_library(
+    name = "image_toolchain",
+    srcs = ["image_toolchain.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["//img/private:image_toolchain"],
+)

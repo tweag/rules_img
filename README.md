@@ -67,9 +67,6 @@ common --@rules_img//img/settings:credential_helper=grpcs://remote.buildbuddy.io
 </details>
 <br/>
 
-You also need a credential helper to pull base images from container registries.
-We recommend [tweag-credential-helper][tweag-credential-helper]. Refer to the [container registry setup][tweag-credential-helper-oci-setup] for more information.
-
 ## Quick Start
 
 ### Building a Simple Image
@@ -308,7 +305,5 @@ We invite external contributions and are eager to work together with the build s
 
 Special thanks to **Sushain Cherivirala** from Stripe for the inspiring BazelCon talk ["Building 1300 Container Images in 4 Minutes"](https://www.youtube.com/watch?v=c-yvIQooOSA). This talk introduced the groundbreaking idea of using the Build Event Service (BES) to sync container images between the remote cache and registry as a side effect. While their implementation was based on the now-archived rules_docker and was never published, it laid the conceptual foundation for our BES push strategy. Their work demonstrated how to achieve dramatic performance improvements in container image builds at scale, inspiring many of the optimizations in rules_img.
 
-[tweag-credential-helper]: https://github.com/tweag/credential-helper
-[tweag-credential-helper-oci-setup]: https://github.com/tweag/credential-helper/blob/main/docs/providers/oci.md
 [stargz-snapshotter]: https://github.com/containerd/stargz-snapshotter
 [oci-image-layout]: https://github.com/opencontainers/image-spec/blob/v1.1.1/image-layout.md

@@ -1,12 +1,14 @@
 """Repository rules for pulling container images."""
 
 load("@bazel_skylib//lib:sets.bzl", "sets")
+load("@img_toolchain//:defs.bzl", "tool_for_repository_os")
 load("//img/private/platforms:platforms.bzl", "has_constraint_setting")
 load(
     ":download.bzl",
-    _download_blob = "download_blob",
-    _download_layers = "download_layers",
-    _download_manifest = "download_manifest",
+    _download_with_tool = "download_with_tool",
+    _get_blob = "get_blob",
+    _get_layers = "get_layers",
+    _get_manifest = "get_manifest",
 )
 
 def _map_os_arch_to_constraints(os_arch_pairs):
@@ -46,12 +48,24 @@ def _pull_impl(rctx):
     elif not rctx.attr.digest.startswith("sha256:"):
         have_valid_digest = False
     reference = rctx.attr.digest if have_valid_digest else rctx.attr.tag
+
+    if rctx.attr.downloader == "img_tool":
+        # pre-download all files using the img tool
+        # here if requested
+        tool = tool_for_repository_os(rctx)
+        tool_path = rctx.path(tool)
+        _download_with_tool(
+            rctx,
+            tool_path = tool_path,
+            reference = reference,
+        )
+
     manifest_kwargs = dict(
         canonical_id = rctx.attr.repository + ":" + rctx.attr.tag,
     )
     if rctx.attr.registry == "docker.io":
         print("Specified docker.io as registry. Did you mean \"index.docker.io\"?")  # buildifier: disable=print
-    root_blob_info = _download_manifest(rctx, reference = reference, **manifest_kwargs)
+    root_blob_info = _get_manifest(rctx, reference = reference, **manifest_kwargs)
     data = {root_blob_info.digest: root_blob_info.data}
     root_blob = json.decode(root_blob_info.data)
     media_type = root_blob.get("mediaType", "unknown")
@@ -81,7 +95,7 @@ def _pull_impl(rctx):
         if not manifest_index.get("mediaType") in [MEDIA_TYPE_MANIFEST, DOCKER_MANIFEST_V2]:
             continue
         if is_index:
-            manifest_info = _download_manifest(rctx, reference = manifest_index["digest"])
+            manifest_info = _get_manifest(rctx, reference = manifest_index["digest"])
             data[manifest_info.digest] = manifest_info.data
 
             # Extract platform from index manifest entry
@@ -94,7 +108,7 @@ def _pull_impl(rctx):
         else:
             manifest_info = root_blob_info
         manifest = json.decode(manifest_info.data)
-        config_info = _download_blob(rctx, digest = manifest["config"]["digest"])
+        config_info = _get_blob(rctx, digest = manifest["config"]["digest"])
         data[config_info.digest] = config_info.data
 
         # Extract platform from config if not already found
@@ -117,7 +131,7 @@ def _pull_impl(rctx):
     if rctx.attr.layer_handling == "eager":
         files.update({
             layer.digest: "//:{}".format(layer.path)
-            for layer in _download_layers(rctx, sets.to_list(layer_digests))
+            for layer in _get_layers(rctx, sets.to_list(layer_digests))
         })
     elif rctx.attr.layer_handling == "lazy":
         files.update({
@@ -303,6 +317,18 @@ This attribute controls when and how layer data is fetched from the registry.
 * **`lazy`**: Layer data is downloaded in a build action when requested. This provides
   access to layers during builds while avoiding unnecessary downloads, but requires
   network access during the build phase. **EXPERIMENTAL:** Use at your own risk.
+""",
+        ),
+        "downloader": attr.string(
+            default = "img_tool",
+            values = ["img_tool", "bazel"],
+            doc = """The tool to use for downloading manifests and blobs.
+
+**Available options:**
+
+* **`img_tool`** (default): Uses the `img` tool for all downloads.
+
+* **`bazel`**: Uses Bazel's native HTTP capabilities for downloading manifests and blobs.
 """,
         ),
     },

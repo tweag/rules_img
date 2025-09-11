@@ -35,9 +35,32 @@ def _prebuilt_collection_hub_repo_impl(rctx):
         "BUILD.bazel",
         """\
 load("@rules_img//img/private:image_toolchain.bzl", "image_toolchain")
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@rules_img//img/private/platforms:platforms"],
+)
 
 {}
 """.format(toolchain_defs),
+    )
+    rctx.file(
+        "defs.bzl",
+        """\
+load("@rules_img//img/private/platforms:platforms.bzl", "platform_for_repository_os")
+
+TOOLS = {}
+
+def tool_for_repository_os(rctx):
+    platform = platform_for_repository_os(rctx)
+    key = platform.name
+    if key not in TOOLS:
+        fail("No prebuilt img tool for platform " + key)
+    return Label(TOOLS[key])
+""".format(json.encode_indent(rctx.attr.tools, indent = "    ")),
     )
 
 prebuilt_collection_hub_repo = repository_rule(
