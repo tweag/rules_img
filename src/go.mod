@@ -1,4 +1,4 @@
-module github.com/tweag/rules_img
+module github.com/tweag/rules_img/src
 
 go 1.24.2
 
@@ -9,7 +9,6 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.36.6
 	github.com/aws/aws-sdk-go-v2/config v1.29.18
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.84.1
-	github.com/bazelbuild/bazel-gazelle v0.45.0
 	github.com/bazelbuild/rules_go v0.54.0
 	github.com/containerd/containerd/api v1.9.0
 	github.com/containerd/stargz-snapshotter/estargz v0.16.3
@@ -26,6 +25,7 @@ require (
 )
 
 require (
+	cloud.google.com/go/compute/metadata v0.7.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.11 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.71 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.33 // indirect
@@ -41,7 +41,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.34.1 // indirect
 	github.com/aws/smithy-go v1.22.4 // indirect
-	github.com/bazelbuild/buildtools v0.0.0-20240918101019-be1c24cc9a44 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/ttrpc v1.2.5 // indirect
 	github.com/docker/cli v28.2.2+incompatible // indirect
@@ -54,7 +53,7 @@ require (
 	github.com/vbatts/tar-split v0.12.1 // indirect
 	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
-	golang.org/x/tools/go/vcs v0.1.0-deprecated // indirect
 )

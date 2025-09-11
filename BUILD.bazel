@@ -17,6 +17,10 @@ filegroup(
     srcs = glob(
         ["src/**"],
         allow_empty = True,
+        exclude = [
+            "src/.bazelrc",
+            "src/.bazelrc.common",
+        ],
     ),
     visibility = ["//img/private/release:__subpackages__"],
 )
