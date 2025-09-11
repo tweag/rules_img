@@ -90,13 +90,17 @@ Generated markdown files in `docs/` are excluded from trailing whitespace and en
 ### Building Core Components
 
 ```bash
-# Build all targets
+# Build all targets in the main rules_img module
 bazel build //...
 
-# Build specific binaries
-bazel build //cmd/img      # Main CLI tool
-bazel build //cmd/registry # CAS-integrated registry
-bazel build //cmd/bes      # BES server
+# Build all targets in the rules_img_tool module (Go binaries)
+bazel build @rules_img_tool//...
+
+# Build specific Go binaries from the rules_img_tool module
+bazel build @rules_img_tool//cmd/img       # Main CLI tool
+bazel build @rules_img_tool//cmd/registry  # CAS-integrated registry
+bazel build @rules_img_tool//cmd/bes       # BES server
+bazel build @rules_img_tool//pkg/...       # Go libraries
 ```
 
 ### Running Tests
@@ -111,18 +115,78 @@ bazel test --test_output=all //...
 
 ### Integration Testing
 
-The main integration tests are in the benchmark directory:
+Integration tests are available in the `e2e/` directory:
 
 ```bash
-cd benchmark
+# Run C++ integration tests
+cd e2e/cc && bazel test //...
 
-# Build example images
-bazel build //examples:my_image
-bazel build //examples:cc_index
+# Run Go integration tests
+cd e2e/go && bazel test //...
 
 # Test push functionality
-bazel run //examples:my_push
+cd e2e/go && bazel run //:push
 ```
+
+### Testing with Prebuilt img Tool
+
+When developing rules_img, you may need to test with a prebuilt version of the `img` tool. Since the tool is in a separate `rules_img_tool` module, there are a few approaches:
+
+#### Option 1: Local Development with HTTP Server
+
+Build the tool locally and serve it via HTTP:
+
+```bash
+# Build the img tool from the rules_img_tool module
+bazel build @rules_img_tool//cmd/img
+
+# Copy to a local directory and serve
+TMPDIR=$(mktemp -d)
+cp bazel-bin/external/rules_img_tool+/cmd/img/img_/img ${TMPDIR}/img
+cd ${TMPDIR} && python3 -m http.server 8000
+```
+
+Then create a custom lockfile (`prebuilt_lockfile.json`):
+
+```json
+[
+    {
+        "version": "v0.1.5",
+        "integrity": "sha256-FG5F8mJuRzvL1oiXCRXyOQ94RvJ+43HH+/yLGbWNvP8=",
+        "os": "linux",
+        "cpu": "amd64",
+        "url_templates": [
+            "http://localhost:8000/img"
+        ]
+    }
+]
+```
+
+#### Option 2: Airgapped BCR Module
+
+Build a complete local BCR (Bazel Central Registry) module:
+
+```bash
+# Build the BCR module and distribution directory
+bazel build //img/private/release:bcr
+bazel build //img/private/release/distdir
+
+# Set environment variables
+export RULES_IMG_BCR=file://$(realpath bazel-bin/img/private/release/bcr.local)
+export DISTDIR=$(realpath bazel-bin/img/private/release/distdir/distdir_/distdir)
+```
+
+Then configure your test project's `.bazelrc`:
+
+```bash
+# .bazelrc
+# Use the local BCR first, then fall back to the official registry
+# (you need to replace the placeholder with the values from above).
+common --registry=${RULES_IMG_BCR} --registry=https://bcr.bazel.build/
+common --distdir=${DISTDIR}
+```
+
+This approach provides a complete isolated testing environment with all dependencies.
 
 ## Documentation
 
@@ -150,41 +214,60 @@ When adding new public rules:
 
 ### Adding a New Compression Algorithm
 
-1. Implement the compressor in `pkg/compress/`
-2. Add it to the factory in `pkg/compress/factory.go`
+1. Implement the compressor in `src/pkg/compress/`
+2. Add it to the factory in `src/pkg/compress/factory.go`
 3. Update the compression attribute in `img/private/layer.bzl`
 4. Add the option to `img/settings/BUILD.bazel`
 5. Update documentation
 
 ### Adding a New Push Strategy
 
-1. Implement the pusher in `pkg/push/`
-2. Add it to the push command in `cmd/push/push.go`
+1. Implement the pusher in `src/pkg/push/`
+2. Add it to the push command in `src/cmd/push/push.go`
 3. Update the push strategy setting in `img/settings/BUILD.bazel`
 4. Document it in `docs/push-strategies.md`
 
 ### Debugging
 
 ```bash
-# Use Bazel's debugging features
+# Use Bazel's debugging features for rules
 bazel build --sandbox_debug //target:name
+
+# Debug Go binaries in the rules_img_tool module
+bazel build --sandbox_debug @rules_img_tool//cmd/img
 
 # Inspect action outputs
 bazel aquery //target:name
+
+# Run the img tool directly for debugging
+bazel run @rules_img_tool//cmd/img -- --help
+
+# Debug with verbose output
+bazel run @rules_img_tool//cmd/img -- pull --help
 ```
 
 ## Repository Structure
 
+The repository uses a **dual-module structure**:
+
 ```
-rules_img/
-├── cmd/           # Command-line tools
-├── pkg/           # Go libraries
-├── img/           # Public Bazel rules
-│   └── private/   # Implementation details
-├── docs/          # Generated documentation
-├── benchmark/     # Performance tests and examples
-└── testdata/      # Test fixtures
+rules_img/                    # Main module - Bazel rules and extensions
+├── img/                      # Public Bazel rules
+│   └── private/              # Implementation details
+├── docs/                     # Generated documentation
+├── src/                      # rules_img_tool module - Go code
+│   ├── cmd/                  # Command-line tools
+│   ├── pkg/                  # Go libraries
+│   └── MODULE.bazel          # Separate Bazel module
+└── e2e/                      # Integration tests and examples
 ```
+
+### Module Breakdown:
+
+- **`rules_img`** (root): Contains Bazel rules, extensions, and public API
+- **`rules_img_tool`** (src/): Contains Go binaries and libraries used by the rules
+
+This separation allows for better dependency management and enables the Go tools to be distributed independently.
 
 ## Troubleshooting
 
@@ -201,10 +284,12 @@ bazel clean
 ### Go Module Issues
 
 ```bash
-# Update go.mod and go.sum
-go mod tidy
+# Update go.mod and go.sum in the rules_img_tool module
+(cd src && go mod tidy)
+
 # Update Bazel's view of Go dependencies
 bazel mod tidy
+
 # Update all BUILD files
 bazel run //util:gazelle
 ```
@@ -212,8 +297,9 @@ bazel run //util:gazelle
 ### IDE Not Finding Dependencies
 
 1. Ensure you're using the correct GOPACKAGESDRIVER
-2. Run `bazel build //...` to generate all outputs
-3. Restart your IDE/language server
+2. Run `bazel build //...` and `bazel build @rules_img_tool//...` to generate all outputs
+3. Make sure your IDE is pointed at the `src/` directory for Go development
+4. Restart your IDE/language server
 
 ## Getting Help
 
