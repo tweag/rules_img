@@ -17,6 +17,7 @@ import (
 	"github.com/tweag/rules_img/src/cmd/load"
 	"github.com/tweag/rules_img/src/cmd/manifest"
 	"github.com/tweag/rules_img/src/cmd/ocilayout"
+	"github.com/tweag/rules_img/src/cmd/pull"
 	"github.com/tweag/rules_img/src/cmd/push"
 	"github.com/tweag/rules_img/src/cmd/validate"
 	"github.com/tweag/rules_img/src/pkg/api"
@@ -34,6 +35,7 @@ Commands:
   manifest        creates an image manifest and config from layers
   oci-layout      assembles an OCI layout directory from manifest and layers
   validate        validates layers and images
+  pull            pulls an image from a registry
   push            pushes an image to a registry`
 
 func Run(ctx context.Context, args []string) {
@@ -63,6 +65,8 @@ func Run(ctx context.Context, args []string) {
 		index.IndexProcess(ctx, args[2:])
 	case "validate":
 		validate.ValidationProcess(ctx, args[2:])
+	case "pull":
+		pull.PullProcess(ctx, args[2:])
 	case "push":
 		push.PushProcess(ctx, args[2:])
 	case "push-metadata":

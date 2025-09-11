@@ -1,7 +1,7 @@
 """Repository rules for downloading container image components."""
 
 def download_blob(rctx, *, digest, wait_and_read = True, **kwargs):
-    """Download a blob from a container registry.
+    """Download a blob from a container registry using Bazel's downloader.
 
     Args:
         rctx: Repository context.
@@ -43,7 +43,7 @@ def download_blob(rctx, *, digest, wait_and_read = True, **kwargs):
     )
 
 def download_manifest(rctx, *, reference, **kwargs):
-    """Download a manifest from a container registry.
+    """Download a manifest from a container registry using Bazel's downloader.
 
     Args:
         rctx: Repository context.
@@ -53,8 +53,8 @@ def download_manifest(rctx, *, reference, **kwargs):
     Returns:
         A struct containing digest, path, and data of the downloaded manifest.
     """
-    registries = [r for r in rctx.attr.registries]
     have_valid_digest = False
+    registries = [r for r in rctx.attr.registries]
     if rctx.attr.registry:
         registries.append(rctx.attr.registry)
     if len(registries) == 0:
@@ -107,3 +107,101 @@ def download_layers(rctx, digests):
     for layer in downloaded_layers:
         layer.waiter.wait()
     return [downloaded_layer for downloaded_layer in downloaded_layers]
+
+def get_blob(rctx, *, digest, read = True, **kwargs):
+    """Obtain a blob from a container registry.
+
+    Args:
+        rctx: Repository context.
+        digest: The blob digest to download.
+        read: If True, read the data from disk after downloading.
+        **kwargs: Additional arguments.
+
+    Returns:
+        A struct containing digest, path, and data of the downloaded blob.
+    """
+    if rctx.attr.downloader == "bazel":
+        # Use Bazel's downloader to download the blob now
+        return download_blob(rctx, digest = digest, wait_and_read = read, **kwargs)
+
+    # When using the img tool, the data already exists on disk
+    # so just read it from there
+    path = "blobs/sha256/" + digest.removeprefix("sha256:")
+    return struct(
+        digest = digest,
+        path = path,
+        data = rctx.read(path) if read else None,
+    )
+
+def get_manifest(rctx, *, reference, **kwargs):
+    """Obtain a manifest from a container registry.
+
+    Args:
+        rctx: Repository context.
+        reference: The manifest reference to download.
+        **kwargs: Additional arguments.
+
+    Returns:
+        A struct containing digest, path, and data of the downloaded manifest.
+    """
+    if rctx.attr.downloader == "bazel":
+        # Use Bazel's downloader to download the manifest now
+        return download_manifest(rctx, reference = reference, **kwargs)
+
+    # When using the img tool, the data already exists on disk
+    # so just read it from there
+    path = "blobs/sha256/" + reference.removeprefix("sha256:")
+    return struct(
+        digest = reference,
+        path = path,
+        data = rctx.read(path),
+    )
+
+def get_layers(rctx, digests):
+    """Obtain all layers from a manifest.
+
+    Args:
+        rctx: Repository context.
+        digests: A list of layer digests to download.
+
+    Returns:
+        A list of structs containing digest, path, and data of the downloaded layers.
+    """
+    if rctx.attr.downloader == "bazel":
+        # Use Bazel's downloader to download the layers now
+        return download_layers(rctx, digests = digests)
+
+    # When using the img tool, the data already exists on disk
+    # so just read it from there
+    return [
+        struct(
+            digest = digest,
+            path = "blobs/sha256/" + digest.removeprefix("sha256:"),
+        )
+        for digest in digests
+    ]
+
+def download_with_tool(rctx, *, tool_path, reference):
+    """Download an image using the img tool.
+
+    Args:
+        rctx: Repository context.
+        tool_path: The path to the img tool to use for downloading.
+        reference: The image reference to download.
+
+    Returns:
+        A struct containing manifest and layers of the downloaded image.
+    """
+    registries = [r for r in rctx.attr.registries]
+    if rctx.attr.registry:
+        registries.append(rctx.attr.registry)
+    args = [
+        tool_path,
+        "pull",
+        "--reference=" + reference,
+        "--repository=" + rctx.attr.repository,
+        "--layer-handling=" + rctx.attr.layer_handling,
+    ] + ["--registry=" + r for r in registries]
+    result = rctx.execute(args, quiet = False)
+    if result.return_code != 0:
+        fail("img tool failed with exit code {} and message {}".format(result.return_code, result.stderr))

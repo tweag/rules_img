@@ -26,7 +26,7 @@
         packages.bazel-fhs = bazel_pkgs.bazel-full;
         devShells.dev = packages.dev.env;
         devShells.default = pkgs.mkShell {
-          packages = [ packages.dev bazel_pkgs.bazel-full pkgs.pre-commit pkgs.tweag-credential-helper ];
+          packages = [ packages.dev bazel_pkgs.bazel-full pkgs.pre-commit ];
         };
       });
 }

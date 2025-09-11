@@ -1,1 +1,2 @@
 # gazelle:lang go,proto,bzl
+# gazelle:resolve_regexp go github.com/tweag/rules_img/src/(.*) //$1

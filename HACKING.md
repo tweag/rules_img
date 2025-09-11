@@ -11,7 +11,6 @@ This guide provides instructions for developers working on rules_img.
   - Bazel
   - Go
   - pre-commit
-  - tweag-credential-helper
 
 ### Setting up the Development Environment
 
@@ -25,7 +24,6 @@ nix develop
 # - Bazel with proper configuration
 # - Go toolchain
 # - pre-commit hooks
-# - tweag-credential-helper
 # - All other required tools
 ```
 

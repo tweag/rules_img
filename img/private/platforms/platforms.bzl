@@ -84,6 +84,28 @@ def _platform_cpu(name):
         return WASM
     return name
 
+def _java_os_to_go_os(os):
+    os = os.lower()
+    if os in ["osx", "mac os x", "darwin"]:
+        return "darwin"
+    if os.startswith("windows"):
+        return "windows"
+    if os.startswith("linux"):
+        return "linux"
+    return os
+
+def _java_arch_to_go_arch(arch):
+    if arch in ["i386", "i486", "i586", "i686", "i786", "x86"]:
+        return "386"
+    if arch in ["amd64", "x86_64", "x64"]:
+        return "amd64"
+    if arch in ["aarch64", "arm64"]:
+        return "arm64"
+
+    # Some arches can be converted as-is, inlcuding
+    # "ppc", "ppc64", "ppc64le", "s390x", "s390"
+    return arch
+
 def _constraints(tup):
     return [
         "@platforms//os:" + _bazel_os(tup[0]),
@@ -115,6 +137,7 @@ _config_setting_groups = [
 
 PLATFORMS = {
     _platform_name(tup): struct(
+        name = _platform_name(tup),
         platform_info = str(Label(":" + _platform_name(tup))),
         constraints = _constraints(tup),
     )
@@ -133,6 +156,11 @@ def platform_for_goos_and_goarch(mangled_name):
     [goos, goarch] = mangled_name.split("_")
     os = _platform_os(goos)
     cpu = _platform_cpu(goarch)
+    return PLATFORMS[_platform_name((os, cpu))]
+
+def platform_for_repository_os(rctx):
+    os = _java_os_to_go_os(rctx.os.name)
+    cpu = _java_arch_to_go_arch(rctx.os.arch)
     return PLATFORMS[_platform_name((os, cpu))]
 
 def has_constraint_setting(goos, goarch):
