@@ -24,3 +24,7 @@ startup --windows_enable_symlinks
 # ensure correct config_setting visibility
 # docs: https://bazel.build/reference/command-line-reference#build-flag--incompatible_config_setting_private_default_visibility
 build --incompatible_config_setting_private_default_visibility
+
+# enable rule extension API (needed prior to Bazel 8)
+# docs: https://bazel.build/versions/7.4.0/reference/command-line-reference#flag--experimental_rule_extension_api
+build --experimental_rule_extension_api

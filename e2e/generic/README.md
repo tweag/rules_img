@@ -38,6 +38,20 @@ This directory contains language-agnostic end-to-end tests for rules_img that fo
 - **Permission variations**: Different file modes (644, 755, 666)
 - **Ownership settings**: Custom user and group IDs
 
+### Rule Extension Testing (`extend/`)
+- **Custom rule providers**: Testing rule inheritance using Bazel's `parent` rule functionality
+- **Provider propagation**: Verifying that custom providers are correctly attached to extended rules
+- **Attribute extension**: Adding custom attributes to existing rules_img rules
+- **Transition compatibility**: Ensuring custom transitions work with extended rules
+
+The `extend/` directory demonstrates how to create custom rules that extend the built-in rules_img functionality:
+- `customized_image_layer`: Extends `image_layer` with a custom `comment` attribute
+- `customized_image_manifest`: Extends `image_manifest` with custom attributes and transitions
+- `customized_image_index`: Extends `image_index` with custom metadata
+- `MyInfo`: A custom provider that demonstrates how to attach additional metadata to rules_img targets
+
+This serves both as a test of rule extensibility and as an example for users who need to customize rules_img behavior.
+
 ## Running Tests
 
 ```bash
