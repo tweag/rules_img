@@ -149,7 +149,7 @@ Then create a custom lockfile (`prebuilt_lockfile.json`):
 ```json
 [
     {
-        "version": "v0.2.0-rc0",
+        "version": "v0.2.0-rc1",
         "integrity": "sha256-FG5F8mJuRzvL1oiXCRXyOQ94RvJ+43HH+/yLGbWNvP8=",
         "os": "linux",
         "cpu": "amd64",
