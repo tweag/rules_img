@@ -1,0 +1,32 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load(":defs.bzl", "customized_image_index", "customized_image_layer", "customized_image_manifest")
+
+customized_image_layer(
+    name = "layer",
+    srcs = {
+        "/hello.txt": ":hello.txt",
+    },
+    comment = "This is a customized layer",
+)
+
+customized_image_manifest(
+    name = "image",
+    base = "@alpine",
+    comment = "This is a customized image",
+    layers = [":layer"],
+)
+
+customized_image_index(
+    name = "index",
+    comment = "This is a customized image index",
+    manifests = [":image"],
+)
+
+build_test(
+    name = "test",
+    targets = [
+        ":layer",
+        ":image",
+        ":index",
+    ],
+)
