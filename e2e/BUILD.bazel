@@ -8,7 +8,7 @@ load(
 # gazelle:exclude cc
 # gazelle:exclude go
 # gazelle:exclude generic
-# gazelle:exclude load
+# gazelle:exclude python
 # gazelle:exclude_from_release
 
 TAGS = integration_test_utils.DEFAULT_INTEGRATION_TEST_TAGS + ["requires-network"]
@@ -47,6 +47,24 @@ bazel_integration_tests(
     workspace_path = "generic",
 )
 
+bazel_integration_tests(
+    name = "python",
+    bazel_versions = bazel_binaries.versions.all,
+    tags = TAGS,
+    target_compatible_with = select({
+        # skip windows due to this issue in aspect_rules_py:
+        # ERROR: error loading package '@@aspect_rules_py~//py/tools/venv_bin': at C:/users/runneradmin/appdata/local/temp/bit-251164491/h6u2tfaj/external/aspect_rules_py~/tools/release/defs.bzl:5:6: Unable to find package for @@[unknown repo 'rules_rust' requested from @@aspect_rules_py~]//rust:defs.bzl: The repository '@@[unknown repo 'rules_rust' requested from @@aspect_rules_py~]' could not be resolved: No repository visible as '@rules_rust' from repository '@@aspect_rules_py~'.
+        # ERROR: C:/users/runneradmin/appdata/local/temp/bit-251164491/h6u2tfaj/external/aspect_rules_py~/py/private/toolchain/venv/BUILD.bazel:3:17: error loading package '@@aspect_rules_py~//py/tools/venv_bin': at C:/users/runneradmin/appdata/local/temp/bit-251164491/h6u2tfaj/external/aspect_rules_py~/tools/release/defs.bzl:5:6: Unable to find package for @@[unknown repo 'rules_rust' requested from @@aspect_rules_py~]//rust:defs.bzl: The repository '@@[unknown repo 'rules_rust' requested from @@aspect_rules_py~]' could not be resolved: No repository visible as '@rules_rust' from repository '@@aspect_rules_py~'. and referenced by '@@aspect_rules_py~//py/private/toolchain/venv:venv_toolchain_source'
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    test_runner = "//img/private/integration_test_runner",
+    workspace_files = integration_test_utils.glob_workspace_files("python") + [
+        "//img/private/release/source_files:release_src_files",
+    ],
+    workspace_path = "python",
+)
+
 test_suite(
     name = "integration_tests",
     tags = TAGS,
@@ -58,6 +76,9 @@ test_suite(
         bazel_binaries.versions.all,
     ) + integration_test_utils.bazel_integration_test_names(
         "generic",
+        bazel_binaries.versions.all,
+    ) + integration_test_utils.bazel_integration_test_names(
+        "python",
         bazel_binaries.versions.all,
     ),
     visibility = ["//:__subpackages__"],

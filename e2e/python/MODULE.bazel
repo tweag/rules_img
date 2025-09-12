@@ -1,0 +1,42 @@
+module(name = "python_e2e")
+
+# BEGIN BAZEL_DEP
+bazel_dep(
+    name = "rules_img",
+    version = "0.2.0-rc1",
+)
+local_path_override(
+    module_name = "rules_img",
+    path = "../..",
+)
+# END BAZEL_DEP
+
+bazel_dep(name = "rules_python", version = "1.6.1")
+bazel_dep(name = "aspect_rules_py", version = "1.6.3")
+bazel_dep(name = "bazel_skylib", version = "1.8.1")
+bazel_dep(name = "platforms", version = "0.0.11")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    python_version = "3.13",
+)
+use_repo(python, "python_3_13")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    download_only = True,
+    hub_name = "pip",
+    python_version = "3.13",
+    requirements_lock = "//requirements:requirements_lock.txt",
+)
+use_repo(pip, "pip")
+
+pull = use_repo_rule("@rules_img//img:pull.bzl", "pull")
+
+pull(
+    name = "ubuntu",
+    digest = "sha256:9cbed754112939e914291337b5e554b07ad7c392491dba6daf25eef1332a22e8",
+    registry = "index.docker.io",
+    repository = "library/ubuntu",
+    tag = "latest",
+)

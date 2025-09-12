@@ -12,6 +12,10 @@ e2e/go/bazel-bin
 e2e/go/bazel-go
 e2e/go/bazel-out
 e2e/go/bazel-testlogs
+e2e/python/bazel-bin
+e2e/python/bazel-out
+e2e/python/bazel-python
+e2e/python/bazel-testlogs
 src/bazel-bin
 src/bazel-out
 src/bazel-src
