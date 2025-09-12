@@ -75,6 +75,7 @@ bzl_library(
     srcs = ["manifest.bzl"],
     visibility = ["//img:__subpackages__"],
     deps = [
+        "//img/private/common:layer_helper",
         "//img/private/common:transitions",
         "//img/private/config:defs",
         "//img/private/providers:index_info",
