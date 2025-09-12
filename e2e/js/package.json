@@ -1,0 +1,6 @@
+{
+    "name": "image",
+    "dependencies": {
+        "meaning-of-life": "1.0.0"
+    }
+}

@@ -167,6 +167,7 @@ bazel run //:push
 
 * [C++](/e2e/cc/)
 * [Go](/e2e/go/)
+* [JS / TS](/e2e/js/)
 * [Python](/e2e/python/)
 
 ## Comparison with rules_oci

@@ -8,6 +8,7 @@ load(
 # gazelle:exclude cc
 # gazelle:exclude go
 # gazelle:exclude generic
+# gazelle:exclude js
 # gazelle:exclude python
 # gazelle:exclude_from_release
 
@@ -48,6 +49,33 @@ bazel_integration_tests(
 )
 
 bazel_integration_tests(
+    name = "js",
+    bazel_versions = bazel_binaries.versions.all,
+    tags = TAGS,
+    target_compatible_with = select({
+        # skip windows due to this issue in aspect_rules_js:
+        # ERROR: D:/_bazel/execroot/_main/bazel-out/x64_windows-fastbuild/bin/e2e/js_bazel_7_4_0.exe.runfiles/_main/e2e/js.scratch/app/BUILD.bazel:14:15: Computing Layer Groups //app:layers failed: (Exit 1): node.exe failed: error executing JsImageLayerGroups command (from target //app:layers) external\rules_nodejs~~node~nodejs_windows_amd64\bin\nodejs\node.exe bazel-out/x64_windows-fastbuild/bin/app/layers_js_image_layer_splitter.mjs
+        # node:internal/process/esm_loader:40
+        #       internalBinding('errors').triggerUncaughtException(
+        #                                 ^
+        #
+        # [Error: UNKNOWN: unknown error, readlink 'C:\users\runneradmin\appdata\local\temp\bit-578081517\l77zjc4j\execroot\_main\bazel-out\x64_windows-fastbuild-ST-576ef9824eaa\bin\node_modules\.aspect_rules_js\meaning-of-life@1.0.0\node_modules\meaning-of-life\index.js'] {
+        #   errno: -4094,
+        #   code: 'UNKNOWN',
+        #   syscall: 'readlink',
+        #   path: 'C:\\users\\runneradmin\\appdata\\local\\temp\\bit-578081517\\l77zjc4j\\execroot\\_main\\bazel-out\\x64_windows-fastbuild-ST-576ef9824eaa\\bin\\node_modules\\.aspect_rules_js\\meaning-of-life@1.0.0\\node_modules\\meaning-of-life\\index.js'
+        # }
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    test_runner = "//img/private/integration_test_runner",
+    workspace_files = integration_test_utils.glob_workspace_files("js") + [
+        "//img/private/release/source_files:release_src_files",
+    ],
+    workspace_path = "js",
+)
+
+bazel_integration_tests(
     name = "python",
     bazel_versions = bazel_binaries.versions.all,
     tags = TAGS,
@@ -76,6 +104,9 @@ test_suite(
         bazel_binaries.versions.all,
     ) + integration_test_utils.bazel_integration_test_names(
         "generic",
+        bazel_binaries.versions.all,
+    ) + integration_test_utils.bazel_integration_test_names(
+        "js",
         bazel_binaries.versions.all,
     ) + integration_test_utils.bazel_integration_test_names(
         "python",
