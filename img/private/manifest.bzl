@@ -1,6 +1,7 @@
 """Image rule for assembling OCI images based on a set of layers."""
 
 load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
+load("//img/private/common:layer_helper.bzl", "allow_tar_files", "calculate_layer_info", "extension_to_compression")
 load("//img/private/common:transitions.bzl", "normalize_layer_transition")
 load("//img/private/config:defs.bzl", "TargetPlatformInfo")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
@@ -117,8 +118,39 @@ def _image_manifest_impl(ctx):
         args.add("--base-config", base.config.path)
     if ctx.attr.base != None and PullInfo in ctx.attr.base:
         providers.append(ctx.attr.base[PullInfo])
-    for layer in ctx.attr.layers:
-        layers.append(layer[LayerInfo])
+    for (layer_idx, layer) in enumerate(ctx.attr.layers):
+        if LayerInfo in layer:
+            # Use pre-built layer metadata
+            layers.append(layer[LayerInfo])
+            continue
+        elif DefaultInfo not in layer:
+            fail("layer {} needs to provide LayerInfo or DefaultInfo: {}".format(layer_idx, layer))
+
+        # Calculate layer metadata on the fly
+        default_info = layer[DefaultInfo]
+        files = default_info.files.to_list()
+        for (tar_idx, tar_file) in enumerate(files):
+            found_extension = False
+            for extension in allow_tar_files:
+                if tar_file.path.endswith(extension):
+                    found_extension = True
+                    break
+            if not found_extension:
+                fail("layer with DefaultInfo must be a tar file with one of the following extensions: {}, but got: {}".format(allow_tar_files, tar_file.path))
+            compression = extension_to_compression[tar_file.extension]
+            media_type = "application/vnd.oci.image.layer.v1.tar"
+            metadata_file = ctx.actions.declare_file("{}_metadata_layer_{}_{}.json".format(ctx.attr.name, layer_idx, tar_idx))
+            if compression != "none":
+                media_type += "+{}".format(compression)
+            layer_info = calculate_layer_info(
+                ctx = ctx,
+                media_type = media_type,
+                tar_file = tar_file,
+                metadata_file = metadata_file,
+                estargz = False,
+                annotations = {},
+            )
+            layers.append(layer_info)
 
     args.add("--os", os)
     args.add("--architecture", arch)
@@ -238,8 +270,7 @@ Output groups:
             doc = "Base image to inherit layers from. Should provide ImageManifestInfo or ImageIndexInfo.",
         ),
         "layers": attr.label_list(
-            providers = [LayerInfo],
-            doc = "Layers to include in the image.",
+            doc = "Layers to include in the image. Either a LayerInfo provider or a DefaultInfo with tar files.",
             cfg = normalize_layer_transition,
         ),
         "platform": attr.string_dict(
