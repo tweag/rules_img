@@ -1,0 +1,16 @@
+lockfileVersion: '6.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+dependencies:
+  meaning-of-life:
+    specifier: 1.0.0
+    version: 1.0.0
+
+packages:
+
+  /meaning-of-life@1.0.0:
+    resolution: {integrity: sha512-fVA4xSydqtK9owabGcYw1r4EKEsMOVVeYQLeCXPu77Z+8Y2j2B2I16UqZlKIOHnYkJ4RSvpJ00ywy9IWjmuxYw==}
+    dev: false

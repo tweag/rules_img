@@ -1,0 +1,39 @@
+module(name = "js_e2e")
+
+# BEGIN BAZEL_DEP
+bazel_dep(
+    name = "rules_img",
+    version = "0.2.0",
+)
+local_path_override(
+    module_name = "rules_img",
+    path = "../..",
+)
+# END BAZEL_DEP
+
+bazel_dep(name = "aspect_rules_js", version = "2.5.0")
+bazel_dep(name = "platforms", version = "0.0.11")
+bazel_dep(name = "bazel_skylib", version = "1.8.1")
+bazel_dep(name = "rules_nodejs", version = "6.3.0")
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
+npm.npm_translate_lock(
+    name = "npm",
+    npmrc = "//:.npmrc",
+    pnpm_lock = "//:pnpm-lock.yaml",
+    verify_node_modules_ignored = "//:.bazelignore",
+)
+use_repo(npm, "npm")
+
+node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
+use_repo(node, "nodejs_toolchains")
+
+pull = use_repo_rule("@rules_img//img:pull.bzl", "pull")
+
+pull(
+    name = "debian",
+    digest = "sha256:833c135acfe9521d7a0035a296076f98c182c542a2b6b5a0fd7063d355d696be",
+    registry = "index.docker.io",
+    repository = "library/debian",
+    tag = "latest",
+)
