@@ -75,6 +75,15 @@ func LearnLayerFormat(r io.ReaderAt) (api.LayerFormat, error) {
 	if bytes.Compare(tarMagic[:], tarMagicA[:]) == 0 || bytes.Compare(tarMagic[:], tarMagicB[:]) == 0 {
 		return api.TarLayer, nil
 	}
+	// Alternatively, check for end-of-archive marker of an empty tar file
+	var emptyTar [1024]byte
+	n, err := r.ReadAt(emptyTar[:], 0)
+	if err != nil {
+		return "", err
+	}
+	if n == 1024 && bytes.Compare(emptyTar[:], make([]byte, 1024)) == 0 {
+		return api.TarLayer, nil
+	}
 	return "", fmt.Errorf("unknown file type")
 }
 
