@@ -3,11 +3,14 @@ package push
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
+	"sort"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
 
@@ -37,6 +40,28 @@ func PushProcess(ctx context.Context, args []string) {
 }
 
 func PushFromFile(ctx context.Context, requestPath string) error {
+	// Parse command-line arguments from os.Args
+	var additionalTags stringSliceFlag
+	var overrideRegistry string
+
+	fs := flag.NewFlagSet("push", flag.ContinueOnError)
+	fs.Var(&additionalTags, "tag", "Additional tag to apply (can be used multiple times)")
+	fs.Var(&additionalTags, "t", "Additional tag to apply (can be used multiple times)")
+	fs.StringVar(&overrideRegistry, "registry", "", "Override registry to push to")
+	fs.StringVar(&overrideRegistry, "r", "", "Override registry to push to")
+
+	// Parse os.Args, skipping the program name
+	if len(os.Args) > 1 {
+		if err := fs.Parse(os.Args[1:]); err != nil {
+			// Continue with no additional flags if parsing fails
+			fmt.Fprintf(os.Stderr, "Warning: failed to parse flags: %v\n", err)
+		}
+	}
+
+	return PushFromFileWithExtras(ctx, requestPath, []string(additionalTags), overrideRegistry)
+}
+
+func PushFromFileWithExtras(ctx context.Context, requestPath string, additionalTags []string, overrideRegistry string) error {
 	rawRequest, err := os.ReadFile(requestPath)
 	if err != nil {
 		return fmt.Errorf("reading request file: %w", err)
@@ -57,7 +82,13 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 	}
 
 	pusher := push.New()
-	baseReference := req.Registry + "/" + req.Repository
+
+	// Use override registry if provided, otherwise use original
+	registry := req.Registry
+	if overrideRegistry != "" {
+		registry = overrideRegistry
+	}
+	baseReference := registry + "/" + req.Repository
 
 	var digest string
 	if req.Manifest.ManifestPath != "" {
@@ -138,17 +169,46 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 		return fmt.Errorf("no manifest or index path provided")
 	}
 
+	// Combine original tags with additional tags, deduplicate and sort
+	allTags := deduplicateAndSort(append(req.Tags, additionalTags...))
+
 	// Apply tags if any were specified
-	if len(req.Tags) > 0 {
-		if err := push.PushTags(ctx, baseReference, digest, req.Tags); err != nil {
+	if len(allTags) > 0 {
+		if err := push.PushTags(ctx, baseReference, digest, allTags); err != nil {
 			return fmt.Errorf("applying tags: %w", err)
 		}
-		for _, tag := range req.Tags {
+		for _, tag := range allTags {
 			fmt.Printf("%s:%s\n", baseReference, tag)
 		}
 	}
 
-	fmt.Printf("%s/%s@%s\n", req.Registry, req.Repository, digest)
+	fmt.Printf("%s/%s@%s\n", registry, req.Repository, digest)
+	return nil
+}
+
+// deduplicateAndSort removes duplicates and sorts a slice of strings
+func deduplicateAndSort(tags []string) []string {
+	if len(tags) == 0 {
+		return tags
+	}
+
+	// Sort first, then compact to remove consecutive duplicates
+	sort.Strings(tags)
+	return slices.Compact(tags)
+}
+
+// stringSliceFlag implements flag.Value for collecting multiple string values
+type stringSliceFlag []string
+
+func (s *stringSliceFlag) String() string {
+	if s == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", []string(*s))
+}
+
+func (s *stringSliceFlag) Set(value string) error {
+	*s = append(*s, value)
 	return nil
 }
 
