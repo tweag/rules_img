@@ -311,8 +311,26 @@ def _versioned_filename_info_impl(ctx):
         version = ctx.attr.version[ModuleVersionInfo].version,
     )
     dest_src_map = {dest: file}
+
+    # Generate release notes if requested (for source archives)
+    output_group_info = {}
+    if ctx.attr.generate_release_notes:
+        release_notes = ctx.actions.declare_file("%s_release_notes.md" % ctx.attr.name)
+        version = ctx.attr.version[ModuleVersionInfo].version
+        version_with_v = "v" + version
+
+        ctx.actions.run(
+            outputs = [release_notes],
+            inputs = [ctx.file.src],
+            executable = ctx.executable._release_notes_generator,
+            arguments = [ctx.file.src.path, version_with_v, release_notes.path],
+            mnemonic = "GenerateReleaseNotes",
+        )
+        output_group_info["release_notes"] = depset([release_notes])
+
     return [
         DefaultInfo(files = depset(dest_src_map.values())),
+        OutputGroupInfo(**output_group_info),
         PackageFilesInfo(attributes = {dest: ctx.attr.attributes}, dest_src_map = dest_src_map),
         BCRModuleVersionInfo(
             module_name = ctx.attr.module_name,
@@ -332,6 +350,7 @@ versioned_filename_info = rule(
         "extension": attr.string(),
         "path_template": attr.string(default = "{destdir}{slash}{stem}-v{version}{dot}{extension}"),
         "attributes": attr.string(),
+        "generate_release_notes": attr.bool(default = False),
         "version": attr.label(
             default = "@rules_img_version",
             providers = [ModuleVersionInfo],
@@ -339,6 +358,11 @@ versioned_filename_info = rule(
         "_metadata_template": attr.label(
             allow_single_file = True,
             default = "//:.bcr/metadata.template.json",
+        ),
+        "_release_notes_generator": attr.label(
+            executable = True,
+            default = Label("//img/private/release/release_notes"),
+            cfg = "exec",
         ),
     },
 )
