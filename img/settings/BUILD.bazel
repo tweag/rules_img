@@ -22,7 +22,7 @@ string_flag(
 
 string_flag(
     name = "stamp",
-    build_setting_default = "disabled",
+    build_setting_default = "enabled",
     values = [
         "enabled",
         "disabled",
