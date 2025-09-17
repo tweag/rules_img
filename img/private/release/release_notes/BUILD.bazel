@@ -1,0 +1,7 @@
+load("@rules_go//go:def.bzl", "go_binary")
+
+go_binary(
+    name = "release_notes",
+    srcs = ["release_notes.go"],
+    visibility = ["//img/private/release:__pkg__"],
+)
