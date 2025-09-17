@@ -33,6 +33,7 @@ func prepareWorkspace(workspaceDir, sourceDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to find bazel dep override: %v", err)
 	}
+
 	credentialHelper, err := runfiles.Rlocation("tweag-credential-helper/installer/installer.exe")
 	if err != nil {
 		return fmt.Errorf("failed to find credential helper: %v", err)
@@ -43,6 +44,24 @@ func prepareWorkspace(workspaceDir, sourceDir string) error {
 	}
 	if err := copyFSWithSymlinks(workspaceDir, sourceDir); err != nil {
 		return fmt.Errorf("failed to copy source dir: %v", err)
+	}
+
+	// Detect if this is a workspace mode test (after copying files)
+	workspaceFile := filepath.Join(workspaceDir, "WORKSPACE.bazel")
+	moduleFile := filepath.Join(workspaceDir, "MODULE.bazel")
+	isWorkspaceMode := false
+
+	// Check if WORKSPACE.bazel exists and contains BAZEL_DEP markers
+	if _, err := os.Stat(workspaceFile); err == nil {
+		workspaceData, err := os.ReadFile(workspaceFile)
+		if err == nil && strings.Contains(string(workspaceData), "# BEGIN BAZEL_DEP") {
+			isWorkspaceMode = true
+		}
+	}
+
+	// Also check that MODULE.bazel doesn't exist (additional validation)
+	if _, err := os.Stat(moduleFile); err == nil && isWorkspaceMode {
+		return fmt.Errorf("both WORKSPACE.bazel and MODULE.bazel found - this should not happen")
 	}
 	if runtime.GOOS == "windows" {
 		// on Windows, absolute paths in .bazelrc are not supported, so we need to use a relative path
@@ -73,33 +92,92 @@ func prepareWorkspace(workspaceDir, sourceDir string) error {
 		os.Setenv("CREDENTIAL_HELPER_STANDALONE", "1")
 	}
 
-	// replace parts of MODULE.bazel with dep override:
-	// anything between the markers is replaced
-	// with the contents of the dep override file
-	moduleFile := filepath.Join(workspaceDir, "MODULE.bazel")
-	moduleData, err := os.ReadFile(moduleFile)
-	if err != nil {
-		return fmt.Errorf("failed to read module file: %v", err)
-	}
-	depData, err := os.ReadFile(bazelDepOverride)
-	if err != nil {
-		return fmt.Errorf("failed to read dep override file: %v", err)
-	}
-	startMarker := "# BEGIN BAZEL_DEP"
-	endMarker := "# END BAZEL_DEP"
-	startIndex := strings.Index(string(moduleData), startMarker)
-	endIndex := strings.Index(string(moduleData), endMarker)
-	if startIndex == -1 || endIndex == -1 {
-		return fmt.Errorf("failed to find markers in module file")
-	}
+	// Handle patching based on mode (MODULE.bazel vs WORKSPACE.bazel)
+	if isWorkspaceMode {
+		// For WORKSPACE mode, patch WORKSPACE.bazel with http_archive instead of local_repository
+		workspaceData, err := os.ReadFile(workspaceFile)
+		if err != nil {
+			return fmt.Errorf("failed to read workspace file: %v", err)
+		}
 
-	patchedModuleData := bytes.NewBuffer(nil)
-	patchedModuleData.Write(moduleData[:startIndex])
-	patchedModuleData.Write(depData)
-	patchedModuleData.Write(moduleData[endIndex+len(endMarker):])
-	os.Remove(moduleFile)
-	if err := os.WriteFile(moduleFile, patchedModuleData.Bytes(), 0o644); err != nil {
-		return fmt.Errorf("failed to write patched module file: %v", err)
+		// Read the bazel_dep override to get the version
+		depData, err := os.ReadFile(bazelDepOverride)
+		if err != nil {
+			return fmt.Errorf("failed to read dep override file: %v", err)
+		}
+
+		// Extract version from bazel_dep content (simple regex would work but let's use string parsing)
+		depString := string(depData)
+		versionStart := strings.Index(depString, `version = "`) + len(`version = "`)
+		versionEnd := strings.Index(depString[versionStart:], `"`) + versionStart
+		version := depString[versionStart:versionEnd]
+
+		// Create the local_repository replacement for WORKSPACE mode
+		// Use the local BCR source tree which contains the extracted rules_img source
+		localBCRSourcePath := filepath.Join(filepath.Dir(localBCR), "bcr.local", "contents", "rules_img", version, "src")
+		// Convert to absolute path and use forward slashes for cross-platform compatibility
+		absLocalBCRSourcePath, err := filepath.Abs(localBCRSourcePath)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path for local BCR source: %v", err)
+		}
+		// Use forward slashes for Bazel paths even on Windows
+		bcrSourcePathForBazel := filepath.ToSlash(absLocalBCRSourcePath)
+
+		workspaceOverride := fmt.Sprintf(`local_repository(
+    name = "rules_img",
+    path = "%s",
+)`, bcrSourcePathForBazel)
+
+		startMarker := "# BEGIN BAZEL_DEP"
+		endMarker := "# END BAZEL_DEP"
+		startIndex := strings.Index(string(workspaceData), startMarker)
+		endIndex := strings.Index(string(workspaceData), endMarker)
+		if startIndex == -1 || endIndex == -1 {
+			return fmt.Errorf("failed to find markers in workspace file")
+		}
+
+		patchedWorkspaceData := bytes.NewBuffer(nil)
+		patchedWorkspaceData.Write(workspaceData[:startIndex])
+		patchedWorkspaceData.WriteString(workspaceOverride)
+		patchedWorkspaceData.Write(workspaceData[endIndex+len(endMarker):])
+		os.Remove(workspaceFile)
+		if err := os.WriteFile(workspaceFile, patchedWorkspaceData.Bytes(), 0o644); err != nil {
+			return fmt.Errorf("failed to write patched workspace file: %v", err)
+		}
+	} else {
+		// replace parts of MODULE.bazel with dep override:
+		// anything between the markers is replaced
+		// with the contents of the dep override file
+		moduleFile := filepath.Join(workspaceDir, "MODULE.bazel")
+		// Check if MODULE.bazel exists (it should for MODULE mode)
+		if _, err := os.Stat(moduleFile); err != nil {
+			return fmt.Errorf("MODULE.bazel not found for MODULE mode test: %v", err)
+		}
+
+		moduleData, err := os.ReadFile(moduleFile)
+		if err != nil {
+			return fmt.Errorf("failed to read module file: %v", err)
+		}
+		depData, err := os.ReadFile(bazelDepOverride)
+		if err != nil {
+			return fmt.Errorf("failed to read dep override file: %v", err)
+		}
+		startMarker := "# BEGIN BAZEL_DEP"
+		endMarker := "# END BAZEL_DEP"
+		startIndex := strings.Index(string(moduleData), startMarker)
+		endIndex := strings.Index(string(moduleData), endMarker)
+		if startIndex == -1 || endIndex == -1 {
+			return fmt.Errorf("failed to find markers in module file")
+		}
+
+		patchedModuleData := bytes.NewBuffer(nil)
+		patchedModuleData.Write(moduleData[:startIndex])
+		patchedModuleData.Write(depData)
+		patchedModuleData.Write(moduleData[endIndex+len(endMarker):])
+		os.Remove(moduleFile)
+		if err := os.WriteFile(moduleFile, patchedModuleData.Bytes(), 0o644); err != nil {
+			return fmt.Errorf("failed to write patched module file: %v", err)
+		}
 	}
 	localBCRUrlPath := filepath.ToSlash(localBCR)
 	if runtime.GOOS == "windows" {
@@ -108,10 +186,22 @@ func prepareWorkspace(workspaceDir, sourceDir string) error {
 		localBCRUrlPath = "file://" + localBCRUrlPath
 	}
 
-	bazelrc := fmt.Sprintf(`common --registry=%s --registry=https://bcr.bazel.build/
+	var bazelrc string
+	if isWorkspaceMode {
+		// For WORKSPACE mode, disable bzlmod and enable workspace
+		bazelrc = fmt.Sprintf(`common --noenable_bzlmod
+common --enable_workspace
+common --registry=%s --registry=https://bcr.bazel.build/
 common --distdir=%s
 common --credential_helper=%s
 `, localBCRUrlPath, filepath.ToSlash(distdir), credentialHelper)
+	} else {
+		// For MODULE mode, include the local BCR registry
+		bazelrc = fmt.Sprintf(`common --registry=%s --registry=https://bcr.bazel.build/
+common --distdir=%s
+common --credential_helper=%s
+`, localBCRUrlPath, filepath.ToSlash(distdir), credentialHelper)
+	}
 	return os.WriteFile(filepath.Join(workspaceDir, ".bazelrc.generated"), []byte(bazelrc), 0o644)
 }
 
