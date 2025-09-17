@@ -1,0 +1,31 @@
+# WORKSPACE file for testing rules_img with WORKSPACE mode
+# This file marks this directory as a bazel workspace.
+
+# BEGIN BAZEL_DEP
+local_repository(
+    name = "rules_img",
+    path = "../../",
+)
+# END BAZEL_DEP
+
+# Load rules_img dependencies and prebuilt toolchains
+load("@rules_img//img:dependencies.bzl", "rules_img_dependencies")
+load("@rules_img//img:repositories.bzl", "img_register_prebuilt_toolchains")
+
+rules_img_dependencies()
+
+# Register prebuilt img toolchains for WORKSPACE mode
+img_register_prebuilt_toolchains()
+
+register_toolchains("@img_toolchain//:all")
+
+# Pull Alpine Linux as base image for WORKSPACE mode test
+load("@rules_img//img:pull.bzl", "pull")
+
+pull(
+    name = "alpine",
+    digest = "sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1",
+    registry = "index.docker.io",
+    repository = "library/alpine",
+    tag = "3.22",
+)

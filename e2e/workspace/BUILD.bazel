@@ -1,0 +1,58 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_img//img:image.bzl", "image_manifest")
+load("@rules_img//img:layer.bzl", "image_layer")
+
+# Simple test file for the workspace e2e test
+write_file(
+    name = "hello_file",
+    out = "hello.txt",
+    content = ["Hello from WORKSPACE mode!\n"],
+)
+
+# Create a simple layer with the test file
+image_layer(
+    name = "hello_layer",
+    srcs = {
+        "hello.txt": ":hello_file",
+    },
+)
+
+# Create a simple manifest with the layer (without base)
+image_manifest(
+    name = "hello_image",
+    entrypoint = [
+        "/bin/cat",
+        "/hello.txt",
+    ],
+    labels = {
+        "description": "Simple test image built with WORKSPACE mode",
+        "version": "1.0.0",
+    },
+    layers = [":hello_layer"],
+)
+
+# Create an image based on Alpine Linux (with pulled base image)
+image_manifest(
+    name = "alpine_based_image",
+    base = "@alpine",
+    cmd = [
+        "/bin/cat",
+        "/hello.txt",
+    ],
+    labels = {
+        "description": "WORKSPACE mode test image based on Alpine Linux",
+        "version": "1.0.0",
+        "base": "alpine:3.22",
+    },
+    layers = [":hello_layer"],
+)
+
+# Build test to ensure both images can be built
+build_test(
+    name = "workspace_test",
+    targets = [
+        ":hello_image",
+        ":alpine_based_image",
+    ],
+)
