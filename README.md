@@ -61,7 +61,7 @@ common --@rules_img//img/settings:remote_cache=grpcs://remote.buildbuddy.io
 # in some push strategies.
 # This can be the same as Bazel's credential helper.
 # Falls back to $IMG_CREDENTIAL_HELPER env var.
-common --@rules_img//img/settings:credential_helper=grpcs://remote.buildbuddy.io
+common --@rules_img//img/settings:credential_helper=tweag-credential-helper
 ```
 
 </details>
