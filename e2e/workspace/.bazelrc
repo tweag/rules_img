@@ -1,0 +1,8 @@
+import %workspace%/.bazelrc.common
+
+# explicitly disable bzlmod for this workspace
+# to test WORKSPACE mode
+common --noenable_bzlmod
+common --enable_workspace
+
+try-import %workspace%/.bazelrc.user
