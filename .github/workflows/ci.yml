@@ -20,6 +20,8 @@ jobs:
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8 # 0.15.0
+      with:
+        bazelrc: import %workspace%/.github/workflows/ci.bazelrc
     - name: Run buildifier
       run: bazelisk run //util:buildifier.check
   tidy_and_test_matrix:
@@ -36,6 +38,7 @@ jobs:
         bazelisk-cache: true
         disk-cache: ${{ github.workflow }}-${{ matrix.runner }}-tidy_and_test_matrix
         repository-cache: true
+        bazelrc: import %workspace%/.github/workflows/ci.bazelrc
     - name: Execute Tests
       run: bazelisk test //... @rules_img_tool//...
   integration_test_matrix:
@@ -56,6 +59,7 @@ jobs:
         bazelisk-cache: true
         disk-cache: ${{ github.workflow }}-${{ matrix.runner }}-integration_test_matrix
         repository-cache: true
+        bazelrc: import %workspace%/.github/workflows/ci.bazelrc
     - name: Execute Integration Tests
       run: bazelisk test "//e2e:integration_tests"
 
