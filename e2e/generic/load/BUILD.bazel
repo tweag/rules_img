@@ -38,7 +38,7 @@ image_load(
 
 # load an image with template variables
 image_load(
-    name = "load_image_template",
+    name = "load_image_templated",
     build_settings = {
         "REGISTRY": "//build_settings:registry",
         "USER": "//build_settings:user",
@@ -84,7 +84,7 @@ build_test(
         ":image",
         ":load_index",
         ":load_image",
-        ":load_image_template",
+        ":load_image_templated",
         ":load_normalized",
     ],
 )
