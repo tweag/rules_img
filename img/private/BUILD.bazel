@@ -39,6 +39,7 @@ bzl_library(
     srcs = ["push.bzl"],
     visibility = ["//img:__subpackages__"],
     deps = [
+        ":stamp",
         "//img:providers",
         "//img/private/common:build",
         "//img/private/common:transitions",
@@ -58,6 +59,7 @@ bzl_library(
     srcs = ["load.bzl"],
     visibility = ["//img:__subpackages__"],
     deps = [
+        ":stamp",
         "//img/private/common:build",
         "//img/private/common:transitions",
         "//img/private/providers:image_toolchain_info",
@@ -135,4 +137,15 @@ bzl_library(
     name = "file_metadata",
     srcs = ["file_metadata.bzl"],
     visibility = ["//img:__subpackages__"],
+)
+
+bzl_library(
+    name = "stamp",
+    srcs = ["stamp.bzl"],
+    visibility = ["//img:__subpackages__"],
+    deps = [
+        "//img/private/common:build",
+        "//img/private/providers:stamp_setting_info",
+        "@bazel_skylib//rules:common_settings",
+    ],
 )
