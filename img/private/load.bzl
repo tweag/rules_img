@@ -139,7 +139,12 @@ def _image_load_impl(ctx):
         )
 
     # Either expand templates or write directly
-    request_json = expand_or_write(ctx, load_request, ctx.label.name + ".json", "load")
+    request_json = expand_or_write(
+        ctx = ctx,
+        request = load_request,
+        output_name = ctx.label.name + ".json",
+        kind = "load",
+    )
     root_symlinks["dispatch.json"] = request_json
 
     outputs = [request_json]

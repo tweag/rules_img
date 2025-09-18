@@ -149,7 +149,12 @@ def _image_push_upload_impl(ctx):
         )
 
     # Either expand templates or write directly
-    request_json = expand_or_write(ctx, push_request, ctx.label.name + ".json", "push")
+    request_json = expand_or_write(
+        ctx = ctx,
+        request = push_request,
+        output_name = ctx.label.name + ".json",
+        kind = "push",
+    )
     root_symlinks["dispatch.json"] = request_json
     return [
         DefaultInfo(
@@ -206,7 +211,12 @@ def _image_push_cas_impl(ctx):
         inputs.extend([manifest.manifest for manifest in index_info.manifests])
 
     # Either expand templates or write directly
-    request_metadata = expand_or_write(ctx, push_request, ctx.label.name + "_request_metadata.json", "push")
+    request_metadata = expand_or_write(
+        ctx = ctx,
+        request = push_request,
+        output_name = ctx.label.name + "_request_metadata.json",
+        kind = "push",
+    )
     inputs.append(request_metadata)
 
     metadata_out = ctx.actions.declare_file(ctx.label.name + ".json")
