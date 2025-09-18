@@ -18,11 +18,12 @@ def get_build_settings(ctx):
         settings[setting_name] = setting_label[BuildSettingInfo].value
     return settings
 
-def should_stamp(ctx):
+def should_stamp(*, ctx, template_strings):
     """Get the stamp configuration from the context.
 
     Args:
         ctx: The rule context
+        template_strings: List of strings to check for Go template placeholders ({{...}})
 
     Returns:
         A struct containing stamp, can_stamp, and want_stamp boolean fields
@@ -32,20 +33,31 @@ def should_stamp(ctx):
     global_user_preference = stamp_settings.user_preference
     target_stamp = ctx.attr.stamp
 
+    contains_template_placeholders = False
+    for template in template_strings:
+        # search for "{{" followed by "}}" (Go template syntax)
+        # ensure {{ comes before }} in the string
+        open_pos = template.find("{{")
+        if open_pos >= 0:
+            close_pos = template.find("}}", open_pos + 2)
+            if close_pos >= 0:
+                contains_template_placeholders = True
+                break
+
     want_stamp = False
     if target_stamp == "disabled":
         want_stamp = False
     elif target_stamp == "enabled":
-        want_stamp = True
+        want_stamp = contains_template_placeholders
     elif target_stamp == "auto":
-        want_stamp = global_user_preference
+        want_stamp = global_user_preference and contains_template_placeholders
     return struct(
         stamp = can_stamp and want_stamp,
         can_stamp = can_stamp,
         want_stamp = want_stamp,
     )
 
-def expand_or_write(ctx, request, output_name, kind):
+def expand_or_write(*, ctx, request, output_name, kind):
     """Either expand templates or write JSON directly based on build_settings.
 
     Args:
@@ -58,7 +70,7 @@ def expand_or_write(ctx, request, output_name, kind):
         The File object for the final JSON
     """
     build_settings = get_build_settings(ctx)
-    stamp_settings = should_stamp(ctx)
+    stamp_settings = should_stamp(ctx = ctx, template_strings = [json.encode(request)])
 
     if build_settings or stamp_settings.want_stamp:
         # Add build settings to the request for template expansion
