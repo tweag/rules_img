@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 )
@@ -23,6 +24,10 @@ type externalCredentialHelper struct {
 }
 
 func New(credentialHelperBinary string) Helper {
+	workingDirectory := os.Getenv("BUILD_WORKSPACE_DIRECTORY")
+	if workingDirectory != "" {
+		credentialHelperBinary = strings.Replace(credentialHelperBinary, "%workspace%", workingDirectory, 1)
+	}
 	return &externalCredentialHelper{
 		helperBinary: credentialHelperBinary,
 		cache:        make(map[string]cacheEntry),
