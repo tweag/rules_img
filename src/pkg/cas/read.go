@@ -148,7 +148,7 @@ func (c *CAS) batchReadOne(ctx context.Context, digest Digest) ([]byte, error) {
 	if len(resp.Responses) != 1 {
 		return nil, errors.New("unexpected number of responses from BatchReadBlobs")
 	}
-	if resp.Responses[0].Status.Code != 0 {
+	if resp.Responses[0].Status != nil && resp.Responses[0].Status.Code != 0 {
 		return nil, fmt.Errorf("failed to read blob: %s", resp.Responses[0].Status.String())
 	}
 	if len(resp.Responses[0].Data) != int(digest.SizeBytes) {
