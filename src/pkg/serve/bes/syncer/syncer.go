@@ -24,7 +24,6 @@ import (
 	"github.com/tweag/rules_img/src/pkg/api"
 	"github.com/tweag/rules_img/src/pkg/auth/registry"
 	"github.com/tweag/rules_img/src/pkg/cas"
-	registrytypes "github.com/tweag/rules_img/src/pkg/serve/registry/types"
 )
 
 // uploadJob represents a single blob upload task for the worker pool.
@@ -34,7 +33,7 @@ type uploadJob struct {
 	ctx        context.Context
 	ref        name.Repository
 	desc       api.Descriptor
-	metadata   registrytypes.PushRequest
+	pushOp     api.IndexedPushDeployOperation
 	remoteOpts []remote.Option
 	result     chan error
 }
@@ -150,7 +149,7 @@ func (s *Syncer) Shutdown() {
 
 // Commit uploads a container image or index to the registry.
 // The digest parameter is the SHA256 hash of the push metadata JSON,
-// which is produced by the "img push-metadata" command and stored in CAS.
+// which is produced by the "img deploy-metadata" command and stored in CAS.
 //
 // This method:
 //  1. Retrieves push metadata from CAS using the provided digest
@@ -173,15 +172,34 @@ func (s *Syncer) Commit(ctx context.Context, digest string, sizeBytes int64) err
 		return fmt.Errorf("failed to retrieve push metadata from CAS: %w", err)
 	}
 
-	var metadata registrytypes.PushRequest
+	var metadata api.DeployManifest
 	if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
 		return fmt.Errorf("failed to parse push metadata: %w", err)
 	}
 
+	pushOps, err := metadata.PushOperations()
+	if err != nil {
+		return fmt.Errorf("failed to get push operations from metadata: %w", err)
+	}
+	if len(metadata.Operations) == 0 {
+		// don't check for len of pushOps, since this may still contain load operations
+		return errors.New("no push operations found in metadata")
+	}
+
+	for _, op := range pushOps {
+		if err := s.commitOne(ctx, op); err != nil {
+			return fmt.Errorf("failed to commit image %s: %w", op.Root.Digest, err)
+		}
+	}
+
+	return nil
+}
+
+func (s *Syncer) commitOne(ctx context.Context, pushOp api.IndexedPushDeployOperation) error {
 	// Parse base reference without tag for digest-based push
 	baseReference := fmt.Sprintf("%s/%s",
-		metadata.PushTarget.Registry,
-		metadata.PushTarget.Repository)
+		pushOp.PushTarget.Registry,
+		pushOp.PushTarget.Repository)
 
 	ref, err := name.NewRepository(baseReference)
 	if err != nil {
@@ -193,17 +211,13 @@ func (s *Syncer) Commit(ctx context.Context, digest string, sizeBytes int64) err
 		registry.WithAuthFromMultiKeychain(),
 	}
 
-	if len(metadata.Blobs) == 0 {
-		return fmt.Errorf("no blobs in push metadata")
-	}
-
-	rootBlob := metadata.Blobs[0]
+	rootBlob := pushOp.Root
 	mediaType := types.MediaType(rootBlob.MediaType)
 
 	if mediaType.IsIndex() {
-		err = s.pushIndex(ctx, ref, metadata, remoteOpts)
+		err = s.pushIndex(ctx, ref, pushOp, remoteOpts)
 	} else if mediaType.IsImage() {
-		err = s.pushImage(ctx, ref, metadata, remoteOpts)
+		err = s.pushImage(ctx, ref, pushOp, remoteOpts)
 	} else {
 		return fmt.Errorf("unsupported root media type: %s", mediaType)
 	}
@@ -213,7 +227,7 @@ func (s *Syncer) Commit(ctx context.Context, digest string, sizeBytes int64) err
 	}
 
 	needsTagging := false
-	for _, tag := range metadata.PushTarget.Tags {
+	for _, tag := range pushOp.PushTarget.Tags {
 		tagKey := makeTagKey(ref, tag)
 		s.tagMutex.RLock()
 		cachedDigest, exists := s.uploadedTags[tagKey]
@@ -239,7 +253,7 @@ func (s *Syncer) Commit(ctx context.Context, digest string, sizeBytes int64) err
 		return fmt.Errorf("failed to get descriptor for digest %s: %w", rootBlob.Digest, err)
 	}
 
-	for _, tag := range metadata.PushTarget.Tags {
+	for _, tag := range pushOp.PushTarget.Tags {
 		tagKey := makeTagKey(ref, tag)
 
 		// Check if tag already points to the correct digest
@@ -307,9 +321,9 @@ func (s *Syncer) getCachedOrFetch(ctx context.Context, digest cas.Digest) ([]byt
 //
 // The method uses the worker pool for concurrent layer uploads and deduplication
 // to avoid uploading the same blob multiple times.
-func (s *Syncer) pushImage(ctx context.Context, ref name.Repository, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
+func (s *Syncer) pushImage(ctx context.Context, ref name.Repository, pushOp api.IndexedPushDeployOperation, remoteOpts []remote.Option) error {
 	log.Printf("Pushing image to %s", ref.Name())
-	manifestBlob := metadata.Blobs[0]
+	manifestBlob := pushOp.Root
 
 	// Get manifest from CAS
 	manifestData, err := s.getBlobFromCAS(ctx, manifestBlob)
@@ -323,12 +337,12 @@ func (s *Syncer) pushImage(ctx context.Context, ref name.Repository, metadata re
 	}
 
 	// Upload layers first (with deduplication and concurrency)
-	if err := s.uploadLayers(ctx, ref, manifest.Layers, metadata, remoteOpts); err != nil {
+	if err := s.uploadLayers(ctx, ref, manifest.Layers, pushOp, remoteOpts); err != nil {
 		return fmt.Errorf("failed to upload layers: %w", err)
 	}
 
 	// Upload config blob
-	configResult := s.queueBlobUpload(ctx, ref, apiDescriptorFromV1(manifest.Config), metadata, remoteOpts)
+	configResult := s.queueBlobUpload(ctx, ref, apiDescriptorFromV1(manifest.Config), pushOp, remoteOpts)
 	if err := <-configResult; err != nil {
 		return fmt.Errorf("failed to upload config: %w", err)
 	}
@@ -338,7 +352,7 @@ func (s *Syncer) pushImage(ctx context.Context, ref name.Repository, metadata re
 		syncer:       s,
 		manifest:     &manifest,
 		manifestData: manifestData,
-		metadata:     metadata,
+		pushOp:       pushOp,
 	}
 
 	// Create a digest reference for pushing
@@ -357,9 +371,9 @@ func (s *Syncer) pushImage(ctx context.Context, ref name.Repository, metadata re
 //
 // The method uses errgroups to upload multiple platform manifests concurrently,
 // with each manifest upload handled by uploadManifestAndLayers.
-func (s *Syncer) pushIndex(ctx context.Context, ref name.Repository, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
+func (s *Syncer) pushIndex(ctx context.Context, ref name.Repository, pushOp api.IndexedPushDeployOperation, remoteOpts []remote.Option) error {
 	log.Printf("Pushing index to %s", ref.Name())
-	indexBlob := metadata.Blobs[0]
+	indexBlob := pushOp.Root
 
 	// Get index from CAS
 	indexData, err := s.getBlobFromCAS(ctx, indexBlob)
@@ -377,7 +391,7 @@ func (s *Syncer) pushIndex(ctx context.Context, ref name.Repository, metadata re
 	for _, manifestDesc := range index.Manifests {
 		manifestDesc := manifestDesc // capture loop variable
 		eg.Go(func() error {
-			return s.uploadManifestAndLayers(egCtx, ref, manifestDesc, metadata, remoteOpts)
+			return s.uploadManifestAndLayers(egCtx, ref, manifestDesc, pushOp, remoteOpts)
 		})
 	}
 
@@ -390,7 +404,7 @@ func (s *Syncer) pushIndex(ctx context.Context, ref name.Repository, metadata re
 		syncer:    s,
 		index:     &index,
 		indexData: indexData,
-		metadata:  metadata,
+		pushOp:    pushOp,
 	}
 
 	// Create a digest reference for pushing
@@ -408,12 +422,12 @@ func (s *Syncer) pushIndex(ctx context.Context, ref name.Repository, metadata re
 // manifest and layers before writing the index.
 //
 // It follows the proper upload order: layers, config, then the manifest blob itself.
-func (s *Syncer) uploadManifestAndLayers(ctx context.Context, ref name.Repository, manifestDesc v1.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
+func (s *Syncer) uploadManifestAndLayers(ctx context.Context, ref name.Repository, manifestDesc v1.Descriptor, pushOp api.IndexedPushDeployOperation, remoteOpts []remote.Option) error {
 	// Find the manifest blob in metadata
 	var manifestBlob *api.Descriptor
-	for _, blob := range metadata.Blobs {
-		if blob.Digest == manifestDesc.Digest.String() {
-			manifestBlob = &blob
+	for _, manifestInfo := range pushOp.Manifests {
+		if manifestInfo.Descriptor.Digest == manifestDesc.Digest.String() {
+			manifestBlob = &manifestInfo.Descriptor
 			break
 		}
 	}
@@ -433,18 +447,18 @@ func (s *Syncer) uploadManifestAndLayers(ctx context.Context, ref name.Repositor
 	}
 
 	// Upload layers
-	if err := s.uploadLayers(ctx, ref, manifest.Layers, metadata, remoteOpts); err != nil {
+	if err := s.uploadLayers(ctx, ref, manifest.Layers, pushOp, remoteOpts); err != nil {
 		return fmt.Errorf("failed to upload layers for manifest %s: %w", manifestDesc.Digest, err)
 	}
 
 	// Upload config blob
-	configResult := s.queueBlobUpload(ctx, ref, apiDescriptorFromV1(manifest.Config), metadata, remoteOpts)
+	configResult := s.queueBlobUpload(ctx, ref, apiDescriptorFromV1(manifest.Config), pushOp, remoteOpts)
 	if err := <-configResult; err != nil {
 		return fmt.Errorf("failed to upload config for manifest %s: %w", manifestDesc.Digest, err)
 	}
 
 	// Upload the manifest itself
-	manifestResult := s.queueBlobUpload(ctx, ref, apiDescriptorFromV1(manifestDesc), metadata, remoteOpts)
+	manifestResult := s.queueBlobUpload(ctx, ref, apiDescriptorFromV1(manifestDesc), pushOp, remoteOpts)
 	if err := <-manifestResult; err != nil {
 		return fmt.Errorf("failed to upload manifest %s: %w", manifestDesc.Digest, err)
 	}
@@ -457,7 +471,7 @@ func (s *Syncer) uploadManifestAndLayers(ctx context.Context, ref name.Repositor
 // Deduplication is handled automatically by queueBlobUpload.
 //
 // If any layer fails to upload, the method returns immediately with an error.
-func (s *Syncer) uploadLayers(ctx context.Context, ref name.Repository, layers []v1.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
+func (s *Syncer) uploadLayers(ctx context.Context, ref name.Repository, layers []v1.Descriptor, pushOp api.IndexedPushDeployOperation, remoteOpts []remote.Option) error {
 	if len(layers) == 0 {
 		return nil
 	}
@@ -465,7 +479,7 @@ func (s *Syncer) uploadLayers(ctx context.Context, ref name.Repository, layers [
 	// Create result channels for each layer
 	results := make([]chan error, len(layers))
 	for i, layer := range layers {
-		results[i] = s.queueBlobUpload(ctx, ref, apiDescriptorFromV1(layer), metadata, remoteOpts)
+		results[i] = s.queueBlobUpload(ctx, ref, apiDescriptorFromV1(layer), pushOp, remoteOpts)
 	}
 
 	// Wait for all uploads to complete
@@ -489,7 +503,7 @@ func (s *Syncer) uploadLayers(ctx context.Context, ref name.Repository, layers [
 //   - If blob is already uploaded: returns immediately with nil
 //   - If blob upload is in progress: waits for the ongoing upload to complete
 //   - If blob is not uploaded: queues a new upload job
-func (s *Syncer) queueBlobUpload(ctx context.Context, ref name.Repository, desc api.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) chan error {
+func (s *Syncer) queueBlobUpload(ctx context.Context, ref name.Repository, desc api.Descriptor, pushOp api.IndexedPushDeployOperation, remoteOpts []remote.Option) chan error {
 	digest := desc.Digest
 	uploadKey := makeUploadKey(digest, ref)
 	result := make(chan error, 1)
@@ -523,7 +537,7 @@ func (s *Syncer) queueBlobUpload(ctx context.Context, ref name.Repository, desc 
 		ctx:        ctx,
 		ref:        ref,
 		desc:       desc,
-		metadata:   metadata,
+		pushOp:     pushOp,
 		remoteOpts: remoteOpts,
 		result:     result,
 	}
@@ -545,16 +559,22 @@ func (s *Syncer) queueBlobUpload(ctx context.Context, ref name.Repository, desc 
 // uploadBlob performs the actual blob upload to the registry.
 // This method is called by worker goroutines to process queued upload jobs.
 // It creates a layer wrapper and uploads it to the registry using go-containerregistry.
-func (s *Syncer) uploadBlob(ctx context.Context, ref name.Repository, desc api.Descriptor, metadata registrytypes.PushRequest, remoteOpts []remote.Option) error {
+func (s *Syncer) uploadBlob(ctx context.Context, ref name.Repository, desc api.Descriptor, pushOp api.IndexedPushDeployOperation, remoteOpts []remote.Option) error {
 	digest := desc.Digest
+	digestAsMissingBlob := strings.TrimPrefix(digest, "sha256:")
 	uploadKey := makeUploadKey(digest, ref)
 
 	var layer v1.Layer
 
 	// Check if this is a missing blob from shallow base image pull
 	isMissing := false
-	for _, missingDigest := range metadata.MissingBlobs {
-		if missingDigest == digest {
+
+	allMissingBlobs := []string{}
+	for _, manifestInfo := range pushOp.Manifests {
+		allMissingBlobs = append(allMissingBlobs, manifestInfo.MissingBlobs...)
+	}
+	for _, missingDigest := range allMissingBlobs {
+		if missingDigest == digestAsMissingBlob {
 			isMissing = true
 			break
 		}
@@ -568,7 +588,7 @@ func (s *Syncer) uploadBlob(ctx context.Context, ref name.Repository, desc api.D
 			size:      desc.Size,
 			mediaType: desc.MediaType,
 			desc:      desc,
-			pullInfo:  metadata.PullInfo,
+			pullInfo:  pushOp.PullInfo,
 		}
 	} else {
 		// Layer is in CAS
@@ -637,7 +657,7 @@ func (s *Syncer) worker(id int) {
 				}
 
 				// Perform the upload
-				err := s.uploadBlob(job.ctx, job.ref, job.desc, job.metadata, job.remoteOpts)
+				err := s.uploadBlob(job.ctx, job.ref, job.desc, job.pushOp, job.remoteOpts)
 
 				// Send result
 				job.result <- err
@@ -687,7 +707,7 @@ type casImage struct {
 	syncer       *Syncer
 	manifest     *v1.Manifest
 	manifestData []byte
-	metadata     registrytypes.PushRequest
+	pushOp       api.IndexedPushDeployOperation
 	config       *v1.ConfigFile // cached config
 	configOnce   sync.Once
 	configErr    error
@@ -807,7 +827,7 @@ type casIndex struct {
 	syncer    *Syncer
 	index     *v1.IndexManifest
 	indexData []byte
-	metadata  registrytypes.PushRequest
+	pushOp    api.IndexedPushDeployOperation
 }
 
 func (idx *casIndex) MediaType() (types.MediaType, error) {
@@ -852,7 +872,7 @@ func (idx *casIndex) Image(hash v1.Hash) (v1.Image, error) {
 				syncer:       idx.syncer,
 				manifest:     &manifestObj,
 				manifestData: manifestData,
-				metadata:     idx.metadata,
+				pushOp:       idx.pushOp,
 			}, nil
 		}
 	}

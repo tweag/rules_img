@@ -3,25 +3,17 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "load",
     srcs = [
-        "blob.go",
-        "docker.go",
         "load.go",
+        "loader.go",
     ],
     importpath = "github.com/tweag/rules_img/src/pkg/load",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",
-        "//pkg/auth/credential",
-        "//pkg/auth/protohelper",
-        "//pkg/auth/registry",
-        "//pkg/cas",
         "//pkg/containerd",
         "//pkg/docker",
-        "@com_github_malt3_go_containerregistry//pkg/name",
         "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
-        "@com_github_malt3_go_containerregistry//pkg/v1/remote",
         "@com_github_opencontainers_go_digest//:go-digest",
         "@com_github_opencontainers_image_spec//specs-go/v1:specs-go",
-        "@rules_go//go/runfiles",
     ],
 )

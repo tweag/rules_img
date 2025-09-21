@@ -57,27 +57,30 @@ def should_stamp(*, ctx, template_strings):
         want_stamp = want_stamp,
     )
 
-def expand_or_write(*, ctx, request, output_name, kind):
+def expand_or_write(*, ctx, templates, output_name):
     """Either expand templates or write JSON directly based on build_settings.
 
     Args:
         ctx: The rule context
-        request: The request dictionary (push_request, load_request, etc.)
+        templates: The templates dictionary (dict of template name to value (str) or values (list of str))
         output_name: The name for the output file
-        kind: The kind of template expansion (e.g., "push", "load")
 
     Returns:
         The File object for the final JSON
     """
     build_settings = get_build_settings(ctx)
-    stamp_settings = should_stamp(ctx = ctx, template_strings = [json.encode(request)])
+    stamp_settings = should_stamp(ctx = ctx, template_strings = [json.encode(v) for v in templates.values()])
+    final_json = ctx.actions.declare_file(output_name)
 
     if build_settings or stamp_settings.want_stamp:
         # Add build settings to the request for template expansion
-        request["build_settings"] = build_settings
+        request = dict(
+            templates = templates,
+            build_settings = build_settings,
+        )
 
         # Write the template JSON
-        template_name = output_name.replace(".json", "_template.json")
+        template_name = output_name.replace(".json", ".template_request.json")
         template_json = ctx.actions.declare_file(template_name)
         ctx.actions.write(
             template_json,
@@ -85,7 +88,6 @@ def expand_or_write(*, ctx, request, output_name, kind):
         )
 
         # Run expand-template to create the final JSON
-        final_json = ctx.actions.declare_file(output_name)
 
         # Build arguments for expand-template
         args = []
@@ -107,15 +109,14 @@ def expand_or_write(*, ctx, request, output_name, kind):
             inputs = inputs,
             outputs = [final_json],
             executable = img_toolchain_info.tool_exe,
-            arguments = ["expand-template", "--kind", kind] + args,
+            arguments = ["expand-template"] + args,
             mnemonic = "ExpandTemplate",
         )
         return final_json
     else:
         # No templates to expand, create JSON directly
-        final_json = ctx.actions.declare_file(output_name)
         ctx.actions.write(
             final_json,
-            json.encode(request),
+            json.encode(templates),
         )
         return final_json

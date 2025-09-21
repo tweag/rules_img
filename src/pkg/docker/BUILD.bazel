@@ -9,6 +9,7 @@ go_library(
     importpath = "github.com/tweag/rules_img/src/pkg/docker",
     visibility = ["//visibility:public"],
     deps = [
+        "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
         "@com_github_opencontainers_go_digest//:go-digest",
         "@com_github_opencontainers_image_spec//specs-go/v1:specs-go",
     ],

@@ -7,6 +7,7 @@ import (
 	"io"
 	"path"
 
+	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -56,8 +57,8 @@ func (t *TarWriter) WriteConfig(configData []byte) error {
 }
 
 // WriteLayer streams a layer to the tar
-func (t *TarWriter) WriteLayer(layerDigest digest.Digest, size int64, reader io.Reader) error {
-	layerDir := layerDigest.Hex()
+func (t *TarWriter) WriteLayer(layerDigest registryv1.Hash, size int64, reader io.Reader) error {
+	layerDir := layerDigest.Hex
 	layerPath := path.Join(layerDir, "layer.tar")
 
 	// Update manifest entry

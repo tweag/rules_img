@@ -1,7 +1,16 @@
-load("@rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+# gazelle:exclude_from_release
 
 go_binary(
     name = "release_notes",
-    srcs = ["release_notes.go"],
+    embed = [":release_notes_lib"],
     visibility = ["//img/private/release:__pkg__"],
+)
+
+go_library(
+    name = "release_notes_lib",
+    srcs = ["release_notes.go"],
+    importpath = "github.com/tweag/rules_img/img/private/release/release_notes",
+    visibility = ["//visibility:private"],
 )

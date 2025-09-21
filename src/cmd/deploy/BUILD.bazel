@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "deploy",
+    srcs = ["metadata.go"],
+    importpath = "github.com/tweag/rules_img/src/cmd/deploy",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api",
+        "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
+    ],
+)

@@ -1,6 +1,7 @@
 """Push rule for uploading images to a registry."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+load("//img/private:root_symlinks.bzl", "calculate_root_symlinks")
 load("//img/private:stamp.bzl", "expand_or_write")
 load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/common:transitions.bzl", "host_platform_transition", "reset_platform_transition")
@@ -10,72 +11,6 @@ load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
 load("//img/private/providers:push_settings_info.bzl", "PushSettingsInfo")
 load("//img/private/providers:stamp_setting_info.bzl", "StampSettingInfo")
-
-def _encode_manifest(manifest_info, path_prefix = ""):
-    layers = []
-    for i, layer in enumerate(manifest_info.layers):
-        blob_path = "{path_prefix}/layer/{i}".format(path_prefix = path_prefix, i = i) if layer.blob != None else ""
-        blob_path = blob_path.removeprefix("/")
-        metadata = "{path_prefix}/metadata/{i}".format(path_prefix = path_prefix, i = i)
-        metadata = metadata.removeprefix("/")
-        layers.append(dict(
-            metadata = metadata,
-            blob_path = blob_path,
-        ))
-    manifest = "{}/manifest.json".format(path_prefix)
-    manifest = manifest.removeprefix("/")
-    config = "{}/config.json".format(path_prefix)
-    config = config.removeprefix("/")
-    return dict(
-        manifest = manifest,
-        config = config,
-        layers = layers,
-        missing_blobs = manifest_info.missing_blobs,
-    )
-
-def _encode_manifest_metadata(manifest_info):
-    manifest = manifest_info.manifest.path
-    return dict(
-        manifest = manifest,
-        missing_blobs = manifest_info.missing_blobs,
-    )
-
-def _layer_root_symlinks_for_manifest(manifest_info, index = None):
-    base_path = "layer" if index == None else "manifests/{}/layer".format(index)
-    return {
-        "{base}/{layer_index}".format(base = base_path, layer_index = layer_index): layer.blob
-        for (layer_index, layer) in enumerate(manifest_info.layers)
-        if layer.blob != None
-    }
-
-def _metadata_symlinks_for_manifest(manifest_info, index = None):
-    base_path = "metadata" if index == None else "manifests/{}/metadata".format(index)
-    return {
-        "{base}/{layer_index}".format(base = base_path, layer_index = layer_index): layer.metadata
-        for (layer_index, layer) in enumerate(manifest_info.layers)
-        if layer.metadata != None
-    }
-
-def _root_symlinks_for_manifest(manifest_info, index = None, *, include_layers):
-    base_path = "" if index == None else "manifests/{}/".format(index)
-    root_symlinks = {
-        "{base}manifest.json".format(base = base_path): manifest_info.manifest,
-        "{base}config.json".format(base = base_path): manifest_info.config,
-    }
-    if include_layers:
-        root_symlinks.update(_layer_root_symlinks_for_manifest(manifest_info, index))
-        root_symlinks.update(_metadata_symlinks_for_manifest(manifest_info, index))
-    return root_symlinks
-
-def _root_symlinks(index_info, manifest_info, *, include_layers):
-    root_symlinks = {}
-    if index_info != None:
-        root_symlinks["index.json"] = index_info.index
-        for i, manifest in enumerate(index_info.manifests):
-            root_symlinks.update(_root_symlinks_for_manifest(manifest, index = i, include_layers = include_layers))
-    if manifest_info != None:
-        root_symlinks.update(_root_symlinks_for_manifest(manifest_info, include_layers = include_layers))
-    return root_symlinks
 
 def _push_strategy(ctx):
     """Determine the push strategy to use based on the settings."""
@@ -110,133 +45,98 @@ def _get_tags(ctx):
     # Empty list is allowed for digest-only push
     return tags
 
-def _image_push_upload_impl(ctx):
-    """Regular image push rule (bazel run target)."""
-
-    pusher = ctx.actions.declare_file(ctx.label.name + ".exe")
-    img_toolchain_info = ctx.attr._tool[0][ImageToolchainInfo]
-    ctx.actions.symlink(
-        output = pusher,
-        target_file = img_toolchain_info.tool_exe,
-        is_executable = True,
-    )
+def _compute_push_metadata(*, ctx, configuration_json):
+    inputs = [configuration_json]
+    args = ctx.actions.args()
+    args.add("deploy-metadata")
+    args.add("--command", "push")
     manifest_info = ctx.attr.image[ImageManifestInfo] if ImageManifestInfo in ctx.attr.image else None
     index_info = ctx.attr.image[ImageIndexInfo] if ImageIndexInfo in ctx.attr.image else None
     if manifest_info == None and index_info == None:
         fail("image must provide ImageManifestInfo or ImageIndexInfo")
     if manifest_info != None and index_info != None:
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
-
-    root_symlinks = _root_symlinks(index_info, manifest_info, include_layers = True)
-
-    # Create push request
-    push_request = dict(
-        command = "push",
-        registry = ctx.attr.registry,
-        repository = ctx.attr.repository,
-        tags = _get_tags(ctx),
-    )
-    push_request.update(_target_info(ctx))
-    if manifest_info != None:
-        push_request["manifest"] = _encode_manifest(manifest_info)
-    if index_info != None:
-        push_request["index"] = dict(
-            index = "index.json",
-            manifests = [
-                _encode_manifest(manifest, "manifests/{}".format(i))
-                for i, manifest in enumerate(index_info.manifests)
-            ],
-        )
-
-    # Either expand templates or write directly
-    request_json = expand_or_write(
-        ctx = ctx,
-        request = push_request,
-        output_name = ctx.label.name + ".json",
-        kind = "push",
-    )
-    root_symlinks["dispatch.json"] = request_json
-    return [
-        DefaultInfo(
-            files = depset([request_json]),
-            executable = pusher,
-            runfiles = ctx.runfiles(
-                root_symlinks = root_symlinks,
-            ),
-        ),
-    ]
-
-def _image_push_cas_impl(ctx):
-    """CAS push rule (bazel run target)."""
-    pusher = ctx.actions.declare_file(ctx.label.name + ".exe")
-    img_toolchain_info = ctx.attr._tool[0][ImageToolchainInfo]
-    ctx.actions.symlink(
-        output = pusher,
-        target_file = img_toolchain_info.tool_exe,
-        is_executable = True,
-    )
-
-    inputs = []
-    manifest_info = ctx.attr.image[ImageManifestInfo] if ImageManifestInfo in ctx.attr.image else None
-    index_info = ctx.attr.image[ImageIndexInfo] if ImageIndexInfo in ctx.attr.image else None
-    if manifest_info == None and index_info == None:
-        fail("image must provide ImageManifestInfo or ImageIndexInfo")
-    if manifest_info != None and index_info != None:
-        fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
-
-    root_symlinks = _root_symlinks(index_info, manifest_info, include_layers = False)
-
-    # Create push request
-    push_request = dict(
-        command = "push-metadata",
-        strategy = _push_strategy(ctx),
-        registry = ctx.attr.registry,
-        repository = ctx.attr.repository,
-        tags = _get_tags(ctx),
-    )
-    push_request.update(_target_info(ctx))
+    args.add("--strategy", _push_strategy(ctx))
+    args.add("--configuration-file", configuration_json.path)
+    target_info = _target_info(ctx)
+    if "original_registries" in target_info:
+        args.add_all("--original-registry", target_info["original_registries"])
+    if "original_repository" in target_info:
+        args.add("--original-repository", target_info["original_repository"])
+    if "original_tag" in target_info and target_info["original_tag"] != None:
+        args.add("--original-tag", target_info["original_tag"])
+    if "original_digest" in target_info and target_info["original_digest"] != None:
+        args.add("--original-digest", target_info["original_digest"])
 
     if manifest_info != None:
-        push_request["manifest"] = _encode_manifest_metadata(manifest_info)
+        args.add("--root-path", manifest_info.manifest.path)
+        args.add("--root-kind", "manifest")
+        args.add("--manifest-path", "0=" + manifest_info.manifest.path)
+        args.add("--missing-blobs-for-manifest", "0=" + (",".join(manifest_info.missing_blobs)))
         inputs.append(manifest_info.manifest)
     if index_info != None:
-        push_request["index"] = dict(
-            index = index_info.index.path,
-            manifests = [
-                _encode_manifest_metadata(manifest)
-                for manifest in index_info.manifests
-            ],
-        )
+        args.add("--root-path", index_info.index.path)
+        args.add("--root-kind", "index")
+        for i, manifest in enumerate(index_info.manifests):
+            args.add("--manifest-path", "{}={}".format(i, manifest.manifest.path))
+            args.add("--missing-blobs-for-manifest", "{}={}".format(i, ",".join(manifest.missing_blobs)))
         inputs.append(index_info.index)
         inputs.extend([manifest.manifest for manifest in index_info.manifests])
 
-    # Either expand templates or write directly
-    request_metadata = expand_or_write(
-        ctx = ctx,
-        request = push_request,
-        output_name = ctx.label.name + "_request_metadata.json",
-        kind = "push",
-    )
-    inputs.append(request_metadata)
-
     metadata_out = ctx.actions.declare_file(ctx.label.name + ".json")
-
+    args.add(metadata_out.path)
     img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
     ctx.actions.run(
         inputs = inputs,
         outputs = [metadata_out],
         executable = img_toolchain_info.tool_exe,
-        arguments = ["push-metadata", "--from-file", request_metadata.path, metadata_out.path],
+        arguments = [args],
         mnemonic = "PushMetadata",
     )
-    root_symlinks["dispatch.json"] = metadata_out
+    return metadata_out
+
+def _image_push_impl(ctx):
+    """Implementation of the push rule."""
+    pusher = ctx.actions.declare_file(ctx.label.name + ".exe")
+    img_toolchain_info = ctx.attr._tool[0][ImageToolchainInfo]
+    ctx.actions.symlink(
+        output = pusher,
+        target_file = img_toolchain_info.tool_exe,
+        is_executable = True,
+    )
+    manifest_info = ctx.attr.image[ImageManifestInfo] if ImageManifestInfo in ctx.attr.image else None
+    index_info = ctx.attr.image[ImageIndexInfo] if ImageIndexInfo in ctx.attr.image else None
+    if manifest_info == None and index_info == None:
+        fail("image must provide ImageManifestInfo or ImageIndexInfo")
+    if manifest_info != None and index_info != None:
+        fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
+
+    root_symlinks = calculate_root_symlinks(index_info, manifest_info, include_layers = _push_strategy(ctx) == "eager")
+
+    templates = dict(
+        registry = ctx.attr.registry,
+        repository = ctx.attr.repository,
+        tags = _get_tags(ctx),
+    )
+
+    # Either expand templates or write directly
+    configuration_json = expand_or_write(
+        ctx = ctx,
+        templates = templates,
+        output_name = ctx.label.name + ".configuration.json",
+    )
+
+    dispatch_json = _compute_push_metadata(
+        ctx = ctx,
+        configuration_json = configuration_json,
+    )
+
+    root_symlinks["dispatch.json"] = dispatch_json
     return [
         DefaultInfo(
-            files = depset([metadata_out]),
+            files = depset([dispatch_json]),
             executable = pusher,
-            runfiles = ctx.runfiles(
-                root_symlinks = root_symlinks,
-            ),
+            runfiles = ctx.runfiles(root_symlinks = root_symlinks),
         ),
         RunEnvironmentInfo(
             environment = {
@@ -249,16 +149,6 @@ def _image_push_cas_impl(ctx):
             ],
         ),
     ]
-
-def _image_push_impl(ctx):
-    """Implementation of the push rule."""
-    strategy = _push_strategy(ctx)
-    if strategy == "eager":
-        return _image_push_upload_impl(ctx)
-    elif strategy in ["lazy", "cas_registry", "bes"]:
-        return _image_push_cas_impl(ctx)
-    else:
-        fail("Unknown push strategy: {}".format(strategy))
 
 image_push = rule(
     implementation = _image_push_impl,
