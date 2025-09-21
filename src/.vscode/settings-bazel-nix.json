@@ -16,10 +16,10 @@
             "-bazel-bin",
             "-bazel-out",
             "-bazel-testlogs",
-            "-bazel-rules_img",
+            "-bazel-src",
         ],
         "formatting.gofumpt": true,
-        "formatting.local": "github.com/tweag/rules_img",
+        "formatting.local": "github.com/tweag/rules_img/src",
         "ui.completion.usePlaceholders": true,
         "ui.semanticTokens": true,
         "ui.codelenses": {

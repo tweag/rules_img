@@ -124,10 +124,10 @@ Also note that the regsitry doesn't offer TLS nor authentication, so it should o
 1. Deploy the CAS-integrated registry:
 ```bash
 # Build the registry
-bazel build //cmd/registry
+bazel build @rules_img_tool//cmd/registry
 
 # Start registry server
-bazel-bin/cmd/registry/registry_/registry \
+bazel-bin/external/rules_img_tool+/cmd/registry/registry_/registry \
   --reapi-endpoint grpc://your-cas-server:9092 \
   --credential-helper tweag-credential-helper \
   --address localhost \
@@ -188,10 +188,10 @@ Note that the BES service doesn't offer TLS nor authentication, so it should onl
 1. Deploy the BES backend with image push support:
 ```bash
 # Build the BES server
-bazel build //cmd/bes
+bazel build @rules_img_tool//cmd/bes
 
 # Run with CAS backend
-bazel-bin/cmd/bes/bes_/bes \
+bazel-bin/external/rules_img_tool+/cmd/bes/bes_/bes \
   --address localhost \
   --port 8080 \
   --cas-endpoint grpc://your-cas-server:9092 \

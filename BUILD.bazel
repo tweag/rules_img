@@ -18,8 +18,10 @@ filegroup(
         ["src/**"],
         allow_empty = True,
         exclude = [
-            "src/.bazelrc",
             "src/.bazelrc.common",
+            "src/.bazelrc",
+            "src/.vscode/**",
+            "src/tools/**",
         ],
     ),
     visibility = ["//img/private/release:__subpackages__"],
