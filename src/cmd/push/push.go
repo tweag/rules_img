@@ -1,6 +1,7 @@
 package push
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -9,46 +10,38 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"slices"
-	"sort"
+	"strings"
 
-	"github.com/bazelbuild/rules_go/go/runfiles"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/tweag/rules_img/src/pkg/api"
 	"github.com/tweag/rules_img/src/pkg/auth/credential"
 	"github.com/tweag/rules_img/src/pkg/auth/protohelper"
+	"github.com/tweag/rules_img/src/pkg/auth/registry"
 	"github.com/tweag/rules_img/src/pkg/cas"
+	"github.com/tweag/rules_img/src/pkg/deployvfs"
+	"github.com/tweag/rules_img/src/pkg/load"
 	"github.com/tweag/rules_img/src/pkg/proto/blobcache"
 	"github.com/tweag/rules_img/src/pkg/push"
 )
 
 func PushProcess(ctx context.Context, args []string) {
-	rf, err := runfiles.New()
-	if err != nil {
-		pushFromArgs(ctx, args)
-		return
-	}
-	requestPath, err := rf.Rlocation("dispatch.json")
-	if err != nil {
-		pushFromArgs(ctx, args)
-		return
-	}
-	if err := PushFromFile(ctx, requestPath); err != nil {
-		fmt.Fprintf(os.Stderr, "pushing image based on request file %s: %v\n", requestPath, err)
-		return
-	}
+	panic("not implemented")
 }
 
-func PushFromFile(ctx context.Context, requestPath string) error {
+func DeployDispatch(ctx context.Context, rawRequest []byte) {
 	// Parse command-line arguments from os.Args
 	var additionalTags stringSliceFlag
 	var overrideRegistry string
+	var overrideRepository string
+	var platforms string
 
 	fs := flag.NewFlagSet("push", flag.ContinueOnError)
 	fs.Var(&additionalTags, "tag", "Additional tag to apply (can be used multiple times)")
 	fs.Var(&additionalTags, "t", "Additional tag to apply (can be used multiple times)")
 	fs.StringVar(&overrideRegistry, "registry", "", "Override registry to push to")
-	fs.StringVar(&overrideRegistry, "r", "", "Override registry to push to")
+	fs.StringVar(&overrideRepository, "repository", "", "Override repository to push to")
+	fs.StringVar(&platforms, "platform", "", "Comma-separated list of platforms to load (e.g., linux/amd64,linux/arm64). If not set, all platforms are loaded. Doesn't affect push, only load.")
 
 	// Parse os.Args, skipping the program name
 	if len(os.Args) > 1 {
@@ -58,17 +51,27 @@ func PushFromFile(ctx context.Context, requestPath string) error {
 		}
 	}
 
-	return PushFromFileWithExtras(ctx, requestPath, []string(additionalTags), overrideRegistry)
+	// Parse platforms
+	var platformList []string
+	if platforms != "" {
+		platformList = strings.Split(platforms, ",")
+		// Trim whitespace from each platform
+		for i, p := range platformList {
+			platformList[i] = strings.TrimSpace(p)
+		}
+	}
+
+	if err := DeployWithExtras(ctx, rawRequest, []string(additionalTags), overrideRegistry, overrideRepository, platformList); err != nil {
+		fmt.Fprintf(os.Stderr, "Error during deploy: %v\n", err)
+	}
 }
 
-func PushFromFileWithExtras(ctx context.Context, requestPath string, additionalTags []string, overrideRegistry string) error {
-	rawRequest, err := os.ReadFile(requestPath)
-	if err != nil {
-		return fmt.Errorf("reading request file: %w", err)
-	}
-	var req request
-	if err := json.Unmarshal(rawRequest, &req); err != nil {
-		return fmt.Errorf("unmarshalling request file: %w", err)
+func DeployWithExtras(ctx context.Context, rawRequest []byte, additionalTags []string, overrideRegistry, overrideRepository string, platformList []string) error {
+	var req api.DeployManifest
+	decoder := json.NewDecoder(bytes.NewReader(rawRequest))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		return fmt.Errorf("unmarshalling deploy manifest file: %w", err)
 	}
 
 	reapiEndpoint := os.Getenv("IMG_REAPI_ENDPOINT")
@@ -81,120 +84,111 @@ func PushFromFileWithExtras(ctx context.Context, requestPath string, additionalT
 		credentialHelper = credential.NopHelper()
 	}
 
-	pusher := push.New()
-
-	// Use override registry if provided, otherwise use original
-	registry := req.Registry
-	if overrideRegistry != "" {
-		registry = overrideRegistry
+	pushOperations, err := req.PushOperations()
+	if err != nil {
+		return err
 	}
-	baseReference := registry + "/" + req.Repository
+	loadOperations, err := req.LoadOperations()
+	if err != nil {
+		return err
+	}
+	if len(pushOperations) == 0 && len(loadOperations) == 0 {
+		return fmt.Errorf("no push or load operations found in deploy manifest")
+	}
 
-	var digest string
-	if req.Manifest.ManifestPath != "" {
-		manifestReq := push.PushManifestRequest{
-			ManifestPath:   req.Manifest.ManifestPath,
-			ConfigPath:     req.Manifest.ConfigPath,
-			Layers:         req.Manifest.Layers,
-			MissingBlobs:   req.Manifest.MissingBlobs,
-			RemoteBlobInfo: req.PullInfo,
+	// check if any operation requires a reapi endpoint
+	var casReader *cas.CAS
+	if (len(pushOperations) > 0 && req.Settings.PushStrategy == "lazy") || (len(loadOperations) > 0 && req.Settings.LoadStrategy == "lazy") {
+		if reapiEndpoint == "" {
+			return fmt.Errorf("IMG_REAPI_ENDPOINT environment variable must be set for lazy push/load strategy")
 		}
-		var err error
-		digest, err = pusher.PushManifest(ctx, baseReference, manifestReq)
+		grpcClientConn, err := protohelper.Client(reapiEndpoint, credentialHelper)
 		if err != nil {
-			return fmt.Errorf("pushing manifest: %w", err)
+			return fmt.Errorf("Failed to create gRPC client connection: %w", err)
 		}
-	} else if req.Index.IndexPath != "" {
-		indexReq := push.PushIndexRequest{
-			IndexPath:        req.Index.IndexPath,
-			ManifestRequests: make([]push.PushManifestRequest, len(req.Index.Manifests)),
-		}
-		for i, manifestReq := range req.Index.Manifests {
-			indexReq.ManifestRequests[i] = push.PushManifestRequest{
-				ManifestPath:   manifestReq.ManifestPath,
-				ConfigPath:     manifestReq.ConfigPath,
-				Layers:         manifestReq.Layers,
-				MissingBlobs:   manifestReq.MissingBlobs,
-				RemoteBlobInfo: req.PullInfo,
-			}
-		}
-		var err error
-		digest, err = pusher.PushIndex(ctx, baseReference, indexReq)
+		casReader, err = cas.New(grpcClientConn)
 		if err != nil {
-			return fmt.Errorf("pushing index: %w", err)
+			return fmt.Errorf("creating CAS client: %w", err)
 		}
-	} else if req.Command == api.PushMetadata {
-		var metadataRequest pushMetadata
-		if err := json.Unmarshal(rawRequest, &metadataRequest); err != nil {
-			return fmt.Errorf("unmarshalling request file: %w", err)
+	}
+	// check if any operation requires a blob cache endpoint
+	var blobcacheClient blobcache.BlobsClient
+	haveBlobCacheCient := false
+	if len(pushOperations) > 0 && req.Settings.PushStrategy == "cas_registry" {
+		if blobcacheEndpoint == "" {
+			return fmt.Errorf("IMG_BLOB_CACHE_ENDPOINT environment variable must be set for cas_registry push strategy")
 		}
-		if len(metadataRequest.Blobs) == 0 {
-			return fmt.Errorf("no descriptors provided for push metadata command")
+		grpcClientConn, err := protohelper.Client(blobcacheEndpoint, credentialHelper)
+		if err != nil {
+			return fmt.Errorf("Failed to create gRPC client connection: %w", err)
 		}
-		switch metadataRequest.Strategy {
-		case "lazy":
-			if reapiEndpoint == "" {
-				return fmt.Errorf("IMG_REAPI_ENDPOINT environment variable must be set for lazy push strategy")
-			}
-			grpcClientConn, err := protohelper.Client(reapiEndpoint, credentialHelper)
+		blobcacheClient = blobcache.NewBlobsClient(grpcClientConn)
+		haveBlobCacheCient = true
+	}
+
+	vfsBuilder := deployvfs.Builder(req).WithContainerRegistryOption(registry.WithAuthFromMultiKeychain())
+	if casReader != nil {
+		vfsBuilder = vfsBuilder.WithCASReader(casReader)
+	}
+	vfs, err := vfsBuilder.Build()
+	if err != nil {
+		return fmt.Errorf("building VFS: %w", err)
+	}
+
+	var pushedTags []string
+	var loadedTags []string
+	g, ctx := errgroup.WithContext(ctx)
+
+	if len(pushOperations) > 0 {
+		uploadBuilder := push.NewBuilder(vfs)
+		if haveBlobCacheCient {
+			uploadBuilder = uploadBuilder.WithBlobcacheClient(blobcacheClient)
+		}
+		if overrideRegistry != "" {
+			uploadBuilder = uploadBuilder.WithOverrideRegistry(overrideRegistry)
+		}
+		if overrideRepository != "" {
+			uploadBuilder = uploadBuilder.WithOverrideRepository(overrideRepository)
+		}
+		if len(additionalTags) > 0 {
+			uploadBuilder = uploadBuilder.WithExtraTags(additionalTags)
+		}
+		uploadBuilder.WithRemoteOptions(registry.WithAuthFromMultiKeychain())
+		uploader := uploadBuilder.Build()
+
+		g.Go(func() error {
+			tags, err := uploader.PushAll(ctx, pushOperations, req.Settings.PushStrategy)
 			if err != nil {
-				return fmt.Errorf("Failed to create gRPC client connection: %w", err)
+				return err
 			}
-			casReader, err := cas.New(grpcClientConn)
-			if err != nil {
-				return fmt.Errorf("creating CAS client: %w", err)
-			}
-			if digest, err = push.NewLazy(casReader).Push(ctx, baseReference, metadataRequest.PushRequest); err != nil {
-				return fmt.Errorf("pushing image with lazy strategy: %w", err)
-			}
-		case "cas_registry":
-			if blobcacheEndpoint == "" {
-				return fmt.Errorf("IMG_BLOB_CACHE_ENDPOINT environment variable must be set for cas_registry push strategy")
-			}
-			grpcClientConn, err := protohelper.Client(blobcacheEndpoint, credentialHelper)
-			if err != nil {
-				return fmt.Errorf("Failed to create gRPC client connection: %w", err)
-			}
-			blobcacheClient := blobcache.NewBlobsClient(grpcClientConn)
-			if digest, err = push.NewCASRegistryPusher(blobcacheClient).Push(ctx, baseReference, metadataRequest.PushRequest); err != nil {
-				return fmt.Errorf("pushing image with CAS registry strategy: %w", err)
-			}
-		case "bes":
-			fmt.Fprintln(os.Stderr, `You don't need to "bazel run" the target in this mode. Image is pushed as a side-effect of uploading BEP data to the BES service.`)
+			pushedTags = tags
 			return nil
-		default:
-			return fmt.Errorf("unknown push strategy %q", req.Strategy)
-		}
-	} else {
-		return fmt.Errorf("no manifest or index path provided")
+		})
+	}
+	if len(loadOperations) > 0 {
+		g.Go(func() error {
+			builder := load.NewBuilder(vfs)
+			if len(platformList) > 0 {
+				builder = builder.WithPlatforms(platformList)
+			}
+			loadedTags, err = builder.Build().LoadAll(ctx, loadOperations)
+			return err
+		})
 	}
 
-	// Combine original tags with additional tags, deduplicate and sort
-	allTags := deduplicateAndSort(append(req.Tags, additionalTags...))
-
-	// Apply tags if any were specified
-	if len(allTags) > 0 {
-		if err := push.PushTags(ctx, baseReference, digest, allTags); err != nil {
-			return fmt.Errorf("applying tags: %w", err)
-		}
-		for _, tag := range allTags {
-			fmt.Printf("%s:%s\n", baseReference, tag)
-		}
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("deploying images: %w", err)
 	}
 
-	fmt.Printf("%s/%s@%s\n", registry, req.Repository, digest)
+	// Print all pushed tags to stdout, one per line.
+	for _, tag := range pushedTags {
+		fmt.Println(tag)
+	}
+	for _, tag := range loadedTags {
+		fmt.Println(tag)
+	}
+
 	return nil
-}
-
-// deduplicateAndSort removes duplicates and sorts a slice of strings
-func deduplicateAndSort(tags []string) []string {
-	if len(tags) == 0 {
-		return tags
-	}
-
-	// Sort first, then compact to remove consecutive duplicates
-	sort.Strings(tags)
-	return slices.Compact(tags)
 }
 
 // stringSliceFlag implements flag.Value for collecting multiple string values
@@ -235,25 +229,4 @@ func credentialHelperPath() string {
 		return tweagCredentialHelper
 	}
 	return ""
-}
-
-type request struct {
-	Command  string `json:"command"`
-	Strategy string `json:"strategy,omitempty"`
-	api.PushTarget
-	Manifest manifestRequest `json:"manifest"`
-	Index    indexRequest    `json:"index"`
-	api.PullInfo
-}
-
-type indexRequest struct {
-	IndexPath string `json:"index"`
-	Manifests []manifestRequest
-}
-
-type manifestRequest struct {
-	ManifestPath string            `json:"manifest"`
-	ConfigPath   string            `json:"config"`
-	Layers       []push.LayerInput `json:"layers"`
-	MissingBlobs []string          `json:"missing_blobs"`
 }

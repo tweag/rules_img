@@ -2,41 +2,39 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
 
 	"github.com/tweag/rules_img/src/cmd/compress"
+	"github.com/tweag/rules_img/src/cmd/deploy"
 	"github.com/tweag/rules_img/src/cmd/downloadblob"
 	"github.com/tweag/rules_img/src/cmd/expandtemplate"
 	"github.com/tweag/rules_img/src/cmd/index"
 	"github.com/tweag/rules_img/src/cmd/layer"
 	"github.com/tweag/rules_img/src/cmd/layermeta"
-	"github.com/tweag/rules_img/src/cmd/load"
 	"github.com/tweag/rules_img/src/cmd/manifest"
 	"github.com/tweag/rules_img/src/cmd/ocilayout"
 	"github.com/tweag/rules_img/src/cmd/pull"
 	"github.com/tweag/rules_img/src/cmd/push"
 	"github.com/tweag/rules_img/src/cmd/validate"
-	"github.com/tweag/rules_img/src/pkg/api"
 )
 
 const usage = `Usage: img [COMMAND] [ARGS...]
 
 Commands:
-  compress        (re-)compresses a layer
-  download-blob   downloads a single blob from a registry
-  expand-template expands Go templates in push request JSON
-  layer           creates a layer from files
-  layer-metadata  creates a layer metadata file from a layer
-  load            loads an image into a container daemon
-  manifest        creates an image manifest and config from layers
-  oci-layout      assembles an OCI layout directory from manifest and layers
-  validate        validates layers and images
-  pull            pulls an image from a registry
-  push            pushes an image to a registry`
+  compress         (re-)compresses a layer
+  download-blob    downloads a single blob from a registry
+  expand-template  expands Go templates in push request JSON
+  layer            creates a layer from files
+  layer-metadata   creates a layer metadata file from a layer
+  manifest         creates an image manifest and config from layers
+  oci-layout       assembles an OCI layout directory from manifest and layers
+  validate         validates layers and images
+  pull             pulls an image from a registry
+  push             pushes an image to a registry
+  deploy-metadata  calculates metadata for deploying an image (push/load)`
 
 func Run(ctx context.Context, args []string) {
 	if runfilesDispatch(ctx, args[1:]) {
@@ -69,8 +67,8 @@ func Run(ctx context.Context, args []string) {
 		pull.PullProcess(ctx, args[2:])
 	case "push":
 		push.PushProcess(ctx, args[2:])
-	case "push-metadata":
-		push.PushMetadataProcess(ctx, args[2:])
+	case "deploy-metadata":
+		deploy.DeployMetadataProcess(ctx, args[2:])
 	case "compress":
 		compress.CompressProcess(ctx, args[2:])
 	case "download-blob":
@@ -79,8 +77,6 @@ func Run(ctx context.Context, args []string) {
 		ocilayout.OCILayoutProcess(ctx, args[2:])
 	case "expand-template":
 		expandtemplate.ExpandTemplateProcess(ctx, args[2:])
-	case "load":
-		load.LoadProcess(ctx, args[2:])
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
@@ -90,7 +86,7 @@ func Run(ctx context.Context, args []string) {
 func runfilesDispatch(ctx context.Context, args []string) bool {
 	// Check if the command is run from a Bazel runfiles context
 	// with a special root symlink indicating that this binary is used
-	// to push an image.
+	// to push/load an image.
 	rf, err := runfiles.New()
 	if err != nil {
 		return false
@@ -109,31 +105,11 @@ func runfilesDispatch(ctx context.Context, args []string) bool {
 		os.Exit(1)
 	}
 
-	var req api.Dispatch
-	if err := json.Unmarshal(rawRequest, &req); err != nil {
-		fmt.Fprintf(os.Stderr, "unmarshalling request file: %v\n", err)
-		os.Exit(1)
-	}
-
 	// If we got here, we are in a Bazel runfiles context
 	// and we have a special root symlink indicating that this binary
 	// is using a json command.
 
-	switch req.Command {
-	case api.PushCommand, api.PushMetadata:
-		if err := push.PushFromFile(ctx, requestPath); err != nil {
-			fmt.Fprintf(os.Stderr, "pushing image based on request file %s: %v\n", requestPath, err)
-			os.Exit(1)
-		}
-	case api.LoadCommand:
-		if err := load.LoadFromFile(ctx, requestPath, args); err != nil {
-			fmt.Fprintf(os.Stderr, "loading image based on request file %s: %v\n", requestPath, err)
-			os.Exit(1)
-		}
-	default:
-		fmt.Fprintf(os.Stderr, "unknown command %s\n", req.Command)
-		os.Exit(1)
-	}
+	push.DeployDispatch(ctx, rawRequest)
 
 	return true
 }

@@ -62,25 +62,12 @@ var (
 )
 
 type Descriptor struct {
-	Name        string            `json:"name"`
+	Name        string            `json:"name,omitempty"`
 	DiffID      string            `json:"diff_id,omitempty"`
 	MediaType   string            `json:"mediaType"`
 	Digest      string            `json:"digest"`
 	Size        int64             `json:"size"`
 	Annotations map[string]string `json:"annotations,omitempty"`
-}
-
-type PushTarget struct {
-	Registry   string   `json:"registry,omitempty"`
-	Repository string   `json:"repository,omitempty"`
-	Tags       []string `json:"tags,omitempty"`
-}
-
-type PullInfo struct {
-	OriginalBaseImageRegistries []string `json:"original_registries,omitempty"`
-	OriginalBaseImageRepository string   `json:"original_repository,omitempty"`
-	OriginalBaseImageTag        string   `json:"original_tag,omitempty"`
-	OriginalBaseImageDigest     string   `json:"original_digest,omitempty"`
 }
 
 type AppenderState struct {

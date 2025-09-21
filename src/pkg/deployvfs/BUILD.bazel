@@ -1,16 +1,21 @@
 load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
-    name = "push",
-    srcs = ["push.go"],
-    importpath = "github.com/tweag/rules_img/src/pkg/push",
+    name = "deployvfs",
+    srcs = [
+        "deployvfs.go",
+        "image.go",
+        "index.go",
+    ],
+    importpath = "github.com/tweag/rules_img/src/pkg/deployvfs",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",
-        "//pkg/proto/blobcache",
-        "//pkg/proto/remote-apis/build/bazel/remote/execution/v2",
+        "//pkg/cas",
         "@com_github_malt3_go_containerregistry//pkg/name",
         "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
         "@com_github_malt3_go_containerregistry//pkg/v1/remote",
+        "@com_github_malt3_go_containerregistry//pkg/v1/types",
+        "@rules_go//go/runfiles",
     ],
 )

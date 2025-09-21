@@ -1,11 +1,6 @@
 package api
 
 const (
-	PushCommand  = "push"
-	PushMetadata = "push-metadata"
-	LoadCommand  = "load"
+	PushCommand = "push"
+	LoadCommand = "load"
 )
-
-type Dispatch struct {
-	Command string `json:"command"`
-}

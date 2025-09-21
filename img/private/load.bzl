@@ -1,8 +1,9 @@
 """Load rule for importing images into a container daemon."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+load("//img/private:root_symlinks.bzl", "calculate_root_symlinks")
 load("//img/private:stamp.bzl", "expand_or_write")
-load("//img/private/common:build.bzl", "TOOLCHAINS")
+load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/common:transitions.bzl", "host_platform_transition", "reset_platform_transition")
 load("//img/private/providers:image_toolchain_info.bzl", "ImageToolchainInfo")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
@@ -10,34 +11,6 @@ load("//img/private/providers:load_settings_info.bzl", "LoadSettingsInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
 load("//img/private/providers:stamp_setting_info.bzl", "StampSettingInfo")
-
-def _layer_root_symlinks_for_manifest(manifest_info, index = None):
-    base_path = "layer" if index == None else "manifests/{}/layer".format(index)
-    return {
-        "{base}/{layer_index}".format(base = base_path, layer_index = layer_index): layer.blob
-        for (layer_index, layer) in enumerate(manifest_info.layers)
-        if layer.blob != None
-    }
-
-def _root_symlinks_for_manifest(manifest_info, index = None, *, include_layers):
-    base_path = "" if index == None else "manifests/{}/".format(index)
-    root_symlinks = {
-        "{base}manifest.json".format(base = base_path): manifest_info.manifest,
-        "{base}config.json".format(base = base_path): manifest_info.config,
-    }
-    if include_layers:
-        root_symlinks.update(_layer_root_symlinks_for_manifest(manifest_info, index))
-    return root_symlinks
-
-def _root_symlinks(index_info, manifest_info, *, include_layers):
-    root_symlinks = {}
-    if index_info != None:
-        root_symlinks["index.json"] = index_info.index
-        for i, manifest in enumerate(index_info.manifests):
-            root_symlinks.update(_root_symlinks_for_manifest(manifest, index = i, include_layers = include_layers))
-    if manifest_info != None:
-        root_symlinks.update(_root_symlinks_for_manifest(manifest_info, include_layers = include_layers))
-    return root_symlinks
 
 def _load_strategy(ctx):
     """Determine the load strategy to use based on the settings."""
@@ -55,6 +28,67 @@ def _daemon(ctx):
         daemon = load_settings.daemon
     return daemon
 
+def _target_info(ctx):
+    pull_info = ctx.attr.image[PullInfo] if PullInfo in ctx.attr.image else None
+    if pull_info == None:
+        return {}
+    return dict(
+        original_registries = pull_info.registries,
+        original_repository = pull_info.repository,
+        original_tag = pull_info.tag,
+        original_digest = pull_info.digest,
+    )
+
+def _compute_load_metadata(*, ctx, configuration_json):
+    inputs = [configuration_json]
+    args = ctx.actions.args()
+    args.add("deploy-metadata")
+    args.add("--command", "load")
+    manifest_info = ctx.attr.image[ImageManifestInfo] if ImageManifestInfo in ctx.attr.image else None
+    index_info = ctx.attr.image[ImageIndexInfo] if ImageIndexInfo in ctx.attr.image else None
+    if manifest_info == None and index_info == None:
+        fail("image must provide ImageManifestInfo or ImageIndexInfo")
+    if manifest_info != None and index_info != None:
+        fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
+    args.add("--strategy", _load_strategy(ctx))
+    args.add("--configuration-file", configuration_json.path)
+    target_info = _target_info(ctx)
+    if "original_registries" in target_info:
+        args.add_all("--original-registry", target_info["original_registries"])
+    if "original_repository" in target_info:
+        args.add("--original-repository", target_info["original_repository"])
+    if "original_tag" in target_info and target_info["original_tag"] != None:
+        args.add("--original-tag", target_info["original_tag"])
+    if "original_digest" in target_info and target_info["original_digest"] != None:
+        args.add("--original-digest", target_info["original_digest"])
+
+    if manifest_info != None:
+        args.add("--root-path", manifest_info.manifest.path)
+        args.add("--root-kind", "manifest")
+        args.add("--manifest-path", "0=" + manifest_info.manifest.path)
+        args.add("--missing-blobs-for-manifest", "0=" + (",".join(manifest_info.missing_blobs)))
+        inputs.append(manifest_info.manifest)
+    if index_info != None:
+        args.add("--root-path", index_info.index.path)
+        args.add("--root-kind", "index")
+        for i, manifest in enumerate(index_info.manifests):
+            args.add("--manifest-path", "{}={}".format(i, manifest.manifest.path))
+            args.add("--missing-blobs-for-manifest", "{}={}".format(i, ",".join(manifest.missing_blobs)))
+        inputs.append(index_info.index)
+        inputs.extend([manifest.manifest for manifest in index_info.manifests])
+
+    metadata_out = ctx.actions.declare_file(ctx.label.name + ".json")
+    args.add(metadata_out.path)
+    img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
+    ctx.actions.run(
+        inputs = inputs,
+        outputs = [metadata_out],
+        executable = img_toolchain_info.tool_exe,
+        arguments = [args],
+        mnemonic = "LoadMetadata",
+    )
+    return metadata_out
+
 def _image_load_impl(ctx):
     """Implementation of the load rule."""
     loader = ctx.actions.declare_file(ctx.label.name + ".exe")
@@ -64,7 +98,6 @@ def _image_load_impl(ctx):
         target_file = img_toolchain_info.tool_exe,
         is_executable = True,
     )
-
     manifest_info = ctx.attr.image[ImageManifestInfo] if ImageManifestInfo in ctx.attr.image else None
     index_info = ctx.attr.image[ImageIndexInfo] if ImageIndexInfo in ctx.attr.image else None
     if manifest_info == None and index_info == None:
@@ -72,90 +105,34 @@ def _image_load_impl(ctx):
     if manifest_info != None and index_info != None:
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
 
-    # Determine strategy
     strategy = _load_strategy(ctx)
-    daemon = _daemon(ctx)
     include_layers = (strategy == "eager")
 
-    root_symlinks = _root_symlinks(index_info, manifest_info, include_layers = include_layers)
+    root_symlinks = calculate_root_symlinks(index_info, manifest_info, include_layers = include_layers)
 
-    # Create load request
-    load_request = dict(
-        command = "load",
-        daemon = daemon,
-        strategy = strategy,
+    templates = dict(
+        tag = ctx.attr.tag,
+        daemon = _daemon(ctx),
     )
-
-    # Add tag if provided
-    if ctx.attr.tag:
-        load_request["tag"] = ctx.attr.tag
-
-    # Determine the image type
-    if manifest_info != None:
-        manifest_req = dict(
-            manifest = "manifest.json",
-            config = "config.json",
-            layers = [
-                "layer/{}".format(i)
-                for i, layer in enumerate(manifest_info.layers)
-                if layer.blob != None
-            ],
-            missing_blobs = manifest_info.missing_blobs,
-        )
-
-        # Add PullInfo if the image has pull information (from a base image)
-        # This is optional - images built entirely locally won't have PullInfo
-        if PullInfo in ctx.attr.image:
-            pull_info = ctx.attr.image[PullInfo]
-            manifest_req["original_registries"] = pull_info.registries
-            manifest_req["original_repository"] = pull_info.repository
-
-        load_request["manifest"] = manifest_req
-    if index_info != None:
-        manifests = []
-        for i, manifest in enumerate(index_info.manifests):
-            manifest_req = dict(
-                manifest = "manifests/{}/manifest.json".format(i),
-                config = "manifests/{}/config.json".format(i),
-                layers = [
-                    "manifests/{}/layer/{}".format(i, j)
-                    for j, layer in enumerate(manifest.layers)
-                    if layer.blob != None
-                ],
-                missing_blobs = manifest.missing_blobs,
-            )
-
-            # Add PullInfo if available on the index level
-            if PullInfo in ctx.attr.image:
-                pull_info = ctx.attr.image[PullInfo]
-                manifest_req["original_registries"] = pull_info.registries
-                manifest_req["original_repository"] = pull_info.repository
-
-            manifests.append(manifest_req)
-
-        load_request["index"] = dict(
-            index = "index.json",
-            manifests = manifests,
-        )
 
     # Either expand templates or write directly
-    request_json = expand_or_write(
+    configuration_json = expand_or_write(
         ctx = ctx,
-        request = load_request,
-        output_name = ctx.label.name + ".json",
-        kind = "load",
+        templates = templates,
+        output_name = ctx.label.name + ".configuration.json",
     )
-    root_symlinks["dispatch.json"] = request_json
 
-    outputs = [request_json]
+    dispatch_json = _compute_load_metadata(
+        ctx = ctx,
+        configuration_json = configuration_json,
+    )
+    root_symlinks["dispatch.json"] = dispatch_json
 
     return [
         DefaultInfo(
-            files = depset(outputs),
+            files = depset([dispatch_json]),
             executable = loader,
-            runfiles = ctx.runfiles(
-                root_symlinks = root_symlinks,
-            ),
+            runfiles = ctx.runfiles(root_symlinks = root_symlinks),
         ),
         RunEnvironmentInfo(
             environment = {
