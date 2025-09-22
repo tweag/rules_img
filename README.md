@@ -198,9 +198,10 @@ This results in a more complex implementation, but also allows for interesting o
     - [`image_manifest`](docs/image.md#image_manifest) - Build single-platform images
     - [`image_index`](docs/image.md#image_index) - Build multi-platform image indexes
   - **Push, Pull and Load Rules**
+    - [`pull`](docs/pull.md#pull) - Pull base images
     - [`image_push`](docs/push.md#image_push) - Push images to registries
     - [`image_load`](docs/load.md#image_load) - Load images into container daemons
-    - [`pull`](docs/pull.md#pull) - Pull base images
+    - [`multi_deploy`](docs/multi_deploy.md#multi_deploy) - Deploy multiple operations as unified command
 
 ## Key Differences Explained
 

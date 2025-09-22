@@ -34,7 +34,8 @@ Commands:
   validate         validates layers and images
   pull             pulls an image from a registry
   push             pushes an image to a registry
-  deploy-metadata  calculates metadata for deploying an image (push/load)`
+  deploy-metadata  calculates metadata for deploying an image (push/load)
+  deploy-merge     merges multiple deploy manifests into a single deployment`
 
 func Run(ctx context.Context, args []string) {
 	if runfilesDispatch(ctx, args[1:]) {
@@ -69,6 +70,8 @@ func Run(ctx context.Context, args []string) {
 		push.PushProcess(ctx, args[2:])
 	case "deploy-metadata":
 		deploy.DeployMetadataProcess(ctx, args[2:])
+	case "deploy-merge":
+		deploy.DeployMergeProcess(ctx, args[2:])
 	case "compress":
 		compress.CompressProcess(ctx, args[2:])
 	case "download-blob":
