@@ -5,6 +5,7 @@ load("//img/private:root_symlinks.bzl", "calculate_root_symlinks")
 load("//img/private:stamp.bzl", "expand_or_write")
 load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/common:transitions.bzl", "host_platform_transition", "reset_platform_transition")
+load("//img/private/providers:deploy_info.bzl", "DeployInfo")
 load("//img/private/providers:image_toolchain_info.bzl", "ImageToolchainInfo")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
@@ -110,6 +111,7 @@ def _image_push_impl(ctx):
         fail("image must provide ImageManifestInfo or ImageIndexInfo")
     if manifest_info != None and index_info != None:
         fail("image must provide either ImageManifestInfo or ImageIndexInfo, not both")
+    image_provider = manifest_info if manifest_info != None else index_info
 
     root_symlinks = calculate_root_symlinks(index_info, manifest_info, include_layers = _push_strategy(ctx) == "eager")
 
@@ -147,6 +149,10 @@ def _image_push_impl(ctx):
                 "IMG_REAPI_ENDPOINT",
                 "IMG_CREDENTIAL_HELPER",
             ],
+        ),
+        DeployInfo(
+            image = image_provider,
+            deploy_manifest = dispatch_json,
         ),
     ]
 

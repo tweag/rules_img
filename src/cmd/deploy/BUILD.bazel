@@ -2,7 +2,10 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "deploy",
-    srcs = ["metadata.go"],
+    srcs = [
+        "merge.go",
+        "metadata.go",
+    ],
     importpath = "github.com/tweag/rules_img/src/cmd/deploy",
     visibility = ["//visibility:public"],
     deps = [

@@ -100,3 +100,10 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = ["//img/private/prebuilt"],
 )
+
+bzl_library(
+    name = "multi_deploy",
+    srcs = ["multi_deploy.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["//img/private:multi_deploy"],
+)
