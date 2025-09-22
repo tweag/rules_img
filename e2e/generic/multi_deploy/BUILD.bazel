@@ -1,0 +1,17 @@
+load("@rules_img//img:multi_deploy.bzl", "multi_deploy")
+
+multi_deploy(
+    name = "multi_deploy",
+    operations = [
+        "//extend:push",
+        "//load:load_image",
+        "//load:load_image_templated",
+        "//load:load_index",
+        "//load:load_alpine",
+        "//:push_single_layer",
+        "//:push_multi_layer",
+        "//:push_annotated",
+        "//:push_index",
+        "//:push_complex",
+    ],
+)

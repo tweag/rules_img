@@ -57,6 +57,7 @@ image_push(
         "{{if .is_production}}production{{else}}development{{end}}",
         "another-tag-just-for-fun",
     ],
+    visibility = ["//:__pkg__"],
 )
 
 string_flag(
