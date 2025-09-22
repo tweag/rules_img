@@ -39,3 +39,14 @@ pull(
     repository = "nvidia/cuda",
     tag = "13.0.0-tensorrt-runtime-ubuntu24.04",
 )
+
+# note that nginx does not have a tag here, relying solely on the digest
+# this is not recommended, since tools like renovate use the tag to determine
+# as a starting point for updates
+# but it is supported
+pull(
+    name = "nginx",
+    digest = "sha256:2945a0bfa07bf1d3cb9ba5f03678e2827f11c240e4c9d38e075037938310062a",
+    registry = "index.docker.io",
+    repository = "library/nginx",
+)

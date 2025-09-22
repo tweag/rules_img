@@ -1,8 +1,17 @@
 load("@rules_img//img:multi_deploy.bzl", "multi_deploy")
+load("@rules_img//img:push.bzl", "image_push")
+
+image_push(
+    name = "nginx",
+    image = "@nginx",
+    registry = "ghcr.io",
+    repository = "malt3/nginx",
+)
 
 multi_deploy(
     name = "multi_deploy",
     operations = [
+        ":nginx",
         "//extend:push",
         "//load:load_image",
         "//load:load_image_templated",
