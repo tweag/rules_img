@@ -33,6 +33,7 @@ image_push(
     registry = "ghcr.io",
     repository = "malt3/rules_img/go",
     tag = "multiarch",
+    visibility = ["//:__pkg__"],
 )
 
 build_test(

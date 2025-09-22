@@ -1,4 +1,5 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_img//img:multi_deploy.bzl", "multi_deploy")
 
 go_library(
     name = "app_lib",
@@ -12,4 +13,13 @@ go_binary(
     embed = [":app_lib"],
     pure = "on",
     visibility = ["//visibility:public"],
+)
+
+multi_deploy(
+    name = "deploy_all",
+    operations = [
+        "//customization:push",
+        "//image:push",
+        "//multiarch:push",
+    ],
 )

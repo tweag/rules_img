@@ -2,6 +2,7 @@ load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_img//img:image.bzl", "image_index", "image_manifest")
 load("@rules_img//img:layer.bzl", "file_metadata", "image_layer")
+load("@rules_img//img:push.bzl", "image_push")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 # Test files for various scenarios
@@ -132,6 +133,14 @@ image_manifest(
     layers = [":mixed_layer"],
 )
 
+image_push(
+    name = "push_single_layer",
+    image = ":single_layer_manifest",
+    registry = "ghcr.io",
+    repository = "malt3/rules_img/e2e-generic-single-layer",
+    visibility = ["//visibility:public"],
+)
+
 # Edge case: Multi-layer manifest with different types
 image_manifest(
     name = "multi_layer_manifest",
@@ -158,6 +167,14 @@ image_manifest(
     ],
 )
 
+image_push(
+    name = "push_multi_layer",
+    image = ":multi_layer_manifest",
+    registry = "ghcr.io",
+    repository = "malt3/rules_img/e2e-generic-multi-layer",
+    visibility = ["//visibility:public"],
+)
+
 # Edge case: Manifest with extensive annotations
 image_manifest(
     name = "annotated_manifest",
@@ -173,6 +190,14 @@ image_manifest(
     layers = [":mixed_layer"],
 )
 
+image_push(
+    name = "push_annotated",
+    image = ":annotated_manifest",
+    registry = "ghcr.io",
+    repository = "malt3/rules_img/e2e-generic-annotated",
+    visibility = ["//visibility:public"],
+)
+
 # Edge case: Multi-platform image index
 image_index(
     name = "multi_platform_index",
@@ -181,6 +206,14 @@ image_index(
         ":multi_layer_manifest",
         ":annotated_manifest",
     ],
+)
+
+image_push(
+    name = "push_index",
+    image = ":multi_platform_index",
+    registry = "ghcr.io",
+    repository = "malt3/rules_img/e2e-generic-index",
+    visibility = ["//visibility:public"],
 )
 
 # Edge case: Layer with many annotations
@@ -235,6 +268,14 @@ image_manifest(
     working_dir = "/app",
 )
 
+image_push(
+    name = "push_complex",
+    image = ":complex_manifest",
+    registry = "ghcr.io",
+    repository = "malt3/rules_img/e2e-generic-complex",
+    visibility = ["//visibility:public"],
+)
+
 # Build tests to ensure all targets can be built
 build_test(
     name = "layer_tests",
@@ -267,10 +308,22 @@ build_test(
 )
 
 build_test(
+    name = "push_tests",
+    targets = [
+        ":push_single_layer",
+        ":push_multi_layer",
+        ":push_annotated",
+        ":push_index",
+        ":push_complex",
+    ],
+)
+
+build_test(
     name = "all_tests",
     targets = [
         ":layer_tests",
         ":manifest_tests",
         ":index_tests",
+        ":push_tests",
     ],
 )

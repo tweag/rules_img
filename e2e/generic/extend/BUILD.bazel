@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_img//img:push.bzl", "image_push")
 load(":defs.bzl", "customized_image_index", "customized_image_layer", "customized_image_manifest")
 
 customized_image_layer(
@@ -22,11 +23,20 @@ customized_image_index(
     manifests = [":image"],
 )
 
+image_push(
+    name = "push",
+    image = ":index",
+    registry = "ghcr.io",
+    repository = "malt3/rules_img/e2e-generic-extend",
+    visibility = ["//visibility:public"],
+)
+
 build_test(
     name = "test",
     targets = [
         ":layer",
         ":image",
         ":index",
+        ":push",
     ],
 )

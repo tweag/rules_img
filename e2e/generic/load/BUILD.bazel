@@ -34,6 +34,7 @@ image_load(
     name = "load_image",
     image = ":image",
     tag = "ghcr.io/malt3/rules_img:sideloaded",
+    visibility = ["//visibility:public"],
 )
 
 # load an image with template variables
@@ -46,6 +47,7 @@ image_load(
     },
     image = ":image",
     tag = "{{.REGISTRY}}/{{.USER}}/rules_img:{{.TAG}}",
+    visibility = ["//visibility:public"],
 )
 
 # Load an index (multi-platform)
@@ -53,6 +55,7 @@ image_load(
     name = "load_index",
     image = ":index",
     tag = "ghcr.io/malt3/rules_img:sideloaded",
+    visibility = ["//visibility:public"],
 )
 
 # Test loading with a name that needs normalization
@@ -61,6 +64,7 @@ image_load(
     image = ":index",
     # this will be loaded as docker.io/library/funny_name:sideloaded
     tag = "funny_name:sideloaded",
+    visibility = ["//visibility:public"],
 )
 
 # Load alpine base image without modifying it
@@ -68,6 +72,7 @@ image_load(
     name = "load_alpine",
     image = "@alpine",
     tag = "ghcr.io/malt3/rules_img:alpine-sideloaded",
+    visibility = ["//visibility:public"],
 )
 
 # Load a cuda base image without modifying it
@@ -75,6 +80,7 @@ image_load(
     name = "load_cuda",
     image = "@cuda",
     tag = "ghcr.io/malt3/rules_img:cuda-sideloaded",
+    visibility = ["//visibility:public"],
 )
 
 build_test(
