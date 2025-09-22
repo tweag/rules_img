@@ -48,6 +48,8 @@ def _pull_impl(rctx):
     elif not rctx.attr.digest.startswith("sha256:"):
         have_valid_digest = False
     reference = rctx.attr.digest if have_valid_digest else rctx.attr.tag
+    if len(reference) == 0:
+        fail("either digest or tag must be specified")
 
     if rctx.attr.downloader == "img_tool":
         # pre-download all files using the img tool
@@ -61,7 +63,7 @@ def _pull_impl(rctx):
         )
 
     manifest_kwargs = dict(
-        canonical_id = rctx.attr.repository + ":" + rctx.attr.tag,
+        canonical_id = rctx.attr.repository + ((":" + rctx.attr.tag) if rctx.attr.tag else ("@" + rctx.attr.digest)),
     )
     if rctx.attr.registry == "docker.io":
         print("Specified docker.io as registry. Did you mean \"index.docker.io\"?")  # buildifier: disable=print
@@ -237,7 +239,7 @@ alias(
                 indent = "    ",
             ),
             repository = repr(rctx.attr.repository),
-            tag = repr(rctx.attr.tag),
+            tag = repr(rctx.attr.tag) if rctx.attr.tag else "None",
         ),
     )
 
@@ -285,7 +287,6 @@ corporate environments with registry mirrors or air-gapped setups.""",
 For Docker Hub, official images use "library/" prefix (e.g., "library/ubuntu").""",
         ),
         "tag": attr.string(
-            mandatory = True,
             doc = """The image tag to pull (e.g., "latest", "24.04", "v1.2.3").
 
 While required, it's recommended to also specify a digest for reproducible builds.""",
