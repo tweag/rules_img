@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -288,6 +289,11 @@ func platformMatches(manifestPlatform *registryv1.Platform, requestedPlatforms [
 }
 
 // getCurrentPlatform returns the current platform string
+// It checks the DOCKER_DEFAULT_PLATFORM environment variable first
+// If not set, it defaults to "linux/$(GOARCH)".
 func getCurrentPlatform() string {
-	return runtime.GOOS + "/" + runtime.GOARCH
+	if plt, ok := os.LookupEnv("DOCKER_DEFAULT_PLATFORM"); ok {
+		return plt
+	}
+	return "linux/" + runtime.GOARCH
 }
