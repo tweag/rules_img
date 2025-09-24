@@ -340,7 +340,7 @@ func overlayConfigFromFile(config *specv1.Image, filePath string, isBase bool) e
 
 	// inherit some fields if this is not a base config
 	if !isBase {
-		if !configFragment.Created.IsZero() {
+		if !(config.Created == nil) && !configFragment.Created.IsZero() {
 			config.Created = configFragment.Created
 		}
 		if configFragment.Author != "" {
