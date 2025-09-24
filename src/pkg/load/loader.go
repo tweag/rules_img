@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 	"slices"
 
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
@@ -205,8 +204,9 @@ func (l *loader) selectManifestForPlatform(op api.IndexedLoadDeployOperation) (i
 	}
 
 	// If no platform specified, use current platform
+	// (but assume linux, the only true docker os 🐧)
 	if len(platforms) == 0 {
-		platforms = []string{runtime.GOOS + "/" + runtime.GOARCH}
+		platforms = []string{getCurrentPlatform()}
 	}
 
 	// Find matching manifest
