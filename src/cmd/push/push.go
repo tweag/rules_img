@@ -63,6 +63,7 @@ func DeployDispatch(ctx context.Context, rawRequest []byte) {
 
 	if err := DeployWithExtras(ctx, rawRequest, []string(additionalTags), overrideRegistry, overrideRepository, platformList); err != nil {
 		fmt.Fprintf(os.Stderr, "Error during deploy: %v\n", err)
+		os.Exit(1)
 	}
 }
 
