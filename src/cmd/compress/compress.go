@@ -76,6 +76,7 @@ func CompressProcess(ctx context.Context, args []string) {
 	}
 	if openErr != nil {
 		fmt.Fprintf(os.Stderr, "Error opening output layer: %v\n", openErr)
+		os.Exit(1)
 	}
 
 	var outputFormat api.LayerFormat

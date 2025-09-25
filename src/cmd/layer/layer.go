@@ -233,6 +233,7 @@ func handleLayerState(
 	defer func() {
 		if err := tw.Close(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error closing tar writer: %v\n", err)
+			os.Exit(1)
 		}
 	}()
 	if err := tw.Import(casImporter); err != nil {
