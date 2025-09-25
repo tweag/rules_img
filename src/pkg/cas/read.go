@@ -162,7 +162,6 @@ func (c *CAS) streamReadOne(ctx context.Context, digest Digest) (io.ReadCloser, 
 	resp, err := c.byteStreamClient.Read(ctx, &bytestream_proto.ReadRequest{
 		ResourceName: fmt.Sprintf("blobs/%x/%d", digest.Hash, digest.SizeBytes),
 		ReadOffset:   0,
-		ReadLimit:    digest.SizeBytes,
 	})
 	if err != nil {
 		cancel()
