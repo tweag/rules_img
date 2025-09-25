@@ -46,8 +46,9 @@ func DeployDispatch(ctx context.Context, rawRequest []byte) {
 	// Parse os.Args, skipping the program name
 	if len(os.Args) > 1 {
 		if err := fs.Parse(os.Args[1:]); err != nil {
-			// Continue with no additional flags if parsing fails
-			fmt.Fprintf(os.Stderr, "Warning: failed to parse flags: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: failed to parse flags: %v\n", err)
+			fs.Usage()
+			os.Exit(1)
 		}
 	}
 

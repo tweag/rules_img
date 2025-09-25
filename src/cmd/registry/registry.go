@@ -201,7 +201,9 @@ func Run(ctx context.Context, args []string) {
 		Protocols:         protos,
 	}
 	fmt.Fprintf(os.Stderr, "Listening on %d\n", porti)
-	server.Serve(listener)
+	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Failed to serve HTTP server: %v", err)
+	}
 }
 
 func main() {
