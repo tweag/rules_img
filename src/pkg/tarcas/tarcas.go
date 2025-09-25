@@ -163,6 +163,7 @@ func (c *CAS[HM]) WriteRegularDeduplicated(hdr *tar.Header, r io.Reader) error {
 	header := cloneTarHeader(hdr)
 	header.Typeflag = tar.TypeLink
 	header.Linkname = linkPath
+	header.Size = 0
 	return c.writeHeaderOrDefer(&header, nil)
 }
 
