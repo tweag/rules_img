@@ -1,1 +1,11 @@
-[]
+[
+    {
+        "version": "v0.2.0",
+        "integrity": "sha256-FKyWrH9nsF9YOOWqgeRaEh/lN2TCmF+HDchuZRQlUNY=",
+        "os": "linux",
+        "cpu": "amd64",
+        "url_templates": [
+            "http://localhost:8000/img"
+        ]
+    }
+]

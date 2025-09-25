@@ -41,7 +41,7 @@ image_index(
 image_load(
     name = "load",
     image = ":multiarch_image",
-    tag = "ghcr.io/malt3/rules_img/js:sideloaded",
+    tag = "302232432727.dkr.ecr.us-east-2.amazonaws.com/account_access_app:latest",
 )
 
 image_push(
