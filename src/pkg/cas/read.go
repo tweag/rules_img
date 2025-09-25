@@ -78,7 +78,7 @@ func (c *CAS) FindMissingBlobs(ctx context.Context, digests []Digest) ([]Digest,
 		DigestFunction: digestFunction,
 	})
 	if err != nil {
-		return nil, err
+		return nil, casErr(err)
 	}
 	if len(resp.MissingBlobDigests) == 0 {
 		return nil, nil // no missing blobs
@@ -143,7 +143,7 @@ func (c *CAS) batchReadOne(ctx context.Context, digest Digest) ([]byte, error) {
 		DigestFunction: digest.protoDigestFunction(),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to read blob: %w", err)
+		return nil, fmt.Errorf("failed to read blob: %w", casErr(err))
 	}
 	if len(resp.Responses) != 1 {
 		return nil, errors.New("unexpected number of responses from BatchReadBlobs")
@@ -165,7 +165,7 @@ func (c *CAS) streamReadOne(ctx context.Context, digest Digest) (io.ReadCloser, 
 	})
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("failed to read blob: %w", err)
+		return nil, fmt.Errorf("failed to read blob: %w", casErr(err))
 	}
 	if resp == nil {
 		cancel()
@@ -251,7 +251,7 @@ func (c capabilities) supportedDigestFunction(algorithm string) bool {
 func learnCapabilities(ctx context.Context, capabilitiesClient remoteexecution_proto.CapabilitiesClient) (capabilities, error) {
 	resp, err := capabilitiesClient.GetCapabilities(ctx, &remoteexecution_proto.GetCapabilitiesRequest{})
 	if err != nil {
-		return capabilities{}, err
+		return capabilities{}, casErr(err)
 	}
 	if resp == nil {
 		return capabilities{}, errors.New("capabilities response is nil")
@@ -335,7 +335,7 @@ func (b *byteStreamReadCloser) Read(p []byte) (n int, err error) {
 		// we will return EOF after the buffer is drained
 		b.eof = true
 	} else if err != nil {
-		return 0, err
+		return 0, casErr(err)
 	}
 	b.readFromRemote += int64(readFromRemoteNow)
 

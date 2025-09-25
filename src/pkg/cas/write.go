@@ -40,13 +40,13 @@ func (c *CAS) batchUploadOne(ctx context.Context, digest Digest, data []byte) er
 		DigestFunction: digest.protoDigestFunction(),
 	})
 	if err != nil {
-		return fmt.Errorf("batch uploading blob %x: %w", digest.Hash, err)
+		return fmt.Errorf("batch uploading blob %x: %w", digest.Hash, casErr(err))
 	}
 	if len(resp.Responses) != 1 {
 		return fmt.Errorf("unexpected number of responses for batch upload: got %d, want 1", len(resp.Responses))
 	}
 	if resp.Responses[0].Status.Code != 0 {
-		return fmt.Errorf("batch upload failed for blob %x: %s", digest.Hash, resp.Responses[0].Status.String())
+		return fmt.Errorf("batch upload to remote cache failed for blob %x: %s", digest.Hash, resp.Responses[0].Status.String())
 	}
 	return nil
 }
@@ -54,7 +54,7 @@ func (c *CAS) batchUploadOne(ctx context.Context, digest Digest, data []byte) er
 func (c *CAS) streamUploadOne(ctx context.Context, digest Digest, r io.Reader) error {
 	stream, err := c.byteStreamClient.Write(ctx)
 	if err != nil {
-		return fmt.Errorf("creating bytestream client for writing: %w", err)
+		return fmt.Errorf("creating bytestream client for writing: %w", casErr(err))
 	}
 
 	resourceName := fmt.Sprintf("uploads/%s/blobs/%x/%d", uuid.NewString(), digest.Hash, digest.SizeBytes)
@@ -81,7 +81,7 @@ func (c *CAS) streamUploadOne(ctx context.Context, digest Digest, r io.Reader) e
 			if err == io.EOF {
 				eof = true
 			} else {
-				return fmt.Errorf("sending write request: %w", err)
+				return fmt.Errorf("sending write request: %w", casErr(err))
 			}
 		}
 		offset += int64(n)
