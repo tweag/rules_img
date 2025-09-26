@@ -1,0 +1,17 @@
+load("@rules_img//img:layer.bzl", "image_layer")
+
+image_layer(
+    name = "large_1GB",
+    srcs = {
+        "/1GB.biin": "@large_file_1GB//file",
+    },
+    tags = ["manual"],
+)
+
+image_layer(
+    name = "large_10GB",
+    srcs = {
+        "/10GB.bin": "@large_file_10GB//file",
+    },
+    tags = ["manual"],
+)
