@@ -9,6 +9,7 @@ import (
 
 	"github.com/tweag/rules_img/src/cmd/compress"
 	"github.com/tweag/rules_img/src/cmd/deploy"
+	"github.com/tweag/rules_img/src/cmd/dockersave"
 	"github.com/tweag/rules_img/src/cmd/downloadblob"
 	"github.com/tweag/rules_img/src/cmd/expandtemplate"
 	"github.com/tweag/rules_img/src/cmd/index"
@@ -25,6 +26,7 @@ const usage = `Usage: img [COMMAND] [ARGS...]
 
 Commands:
   compress         (re-)compresses a layer
+  docker-save      assembles a Docker save compatible directory or tarball
   download-blob    downloads a single blob from a registry
   expand-template  expands Go templates in push request JSON
   layer            creates a layer from files
@@ -74,6 +76,8 @@ func Run(ctx context.Context, args []string) {
 		deploy.DeployMergeProcess(ctx, args[2:])
 	case "compress":
 		compress.CompressProcess(ctx, args[2:])
+	case "docker-save":
+		dockersave.DockerSaveProcess(ctx, args[2:])
 	case "download-blob":
 		downloadblob.DownloadBlobProcess(ctx, args[2:])
 	case "oci-layout":

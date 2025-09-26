@@ -1,6 +1,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_img//img:image.bzl", "image_manifest")
 load("@rules_img//img:layer.bzl", "image_layer")
+load("@rules_img//img:load.bzl", "image_load")
 load("@rules_img//img:push.bzl", "image_push")
 
 image_layer(
@@ -27,11 +28,40 @@ image_push(
     visibility = ["//:__pkg__"],
 )
 
+image_load(
+    name = "load",
+    image = ":go_image",
+    tag = "foobar:baz",
+    visibility = ["//:__pkg__"],
+)
+
+filegroup(
+    name = "oci_layout",
+    srcs = [":go_image"],
+    output_group = "oci_layout",
+)
+
+filegroup(
+    name = "oci_tarball",
+    srcs = [":go_image"],
+    output_group = "oci_tarball",
+)
+
+filegroup(
+    name = "docker_tarball",
+    srcs = [":load"],
+    output_group = "tarball",
+)
+
 build_test(
     name = "test",
     targets = [
         ":go_layer",
         ":go_image",
         ":push",
+        ":load",
+        ":oci_layout",
+        ":oci_tarball",
+        ":docker_tarball",
     ],
 )
