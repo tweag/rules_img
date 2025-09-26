@@ -1,5 +1,7 @@
 """Image rule for assembling OCI images based on a set of layers."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+load("//img/private:stamp.bzl", "expand_or_write")
 load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/common:layer_helper.bzl", "allow_tar_files", "calculate_layer_info", "extension_to_compression")
 load("//img/private/common:transitions.bzl", "normalize_layer_transition")
@@ -9,6 +11,7 @@ load("//img/private/providers:layer_info.bzl", "LayerInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
 load("//img/private/providers:oci_layout_settings_info.bzl", "OCILayoutSettingsInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
+load("//img/private/providers:stamp_setting_info.bzl", "StampSettingInfo")
 
 def _to_layer_arg(layer):
     """Convert a layer to a command line argument."""
@@ -171,23 +174,45 @@ def _image_manifest_impl(ctx):
         inputs.append(ctx.file.config_fragment)
         args.add("--config-fragment", ctx.file.config_fragment.path)
 
-    # Add image config attributes
+    # Handle template expansion for labels, env, and annotations
+    templates = {
+        "env": ctx.attr.env,
+        "labels": ctx.attr.labels,
+        "annotations": ctx.attr.annotations,
+    }
+
+    # Try to expand templates - this will return None if no templates need expansion
+    config_json = expand_or_write(
+        ctx = ctx,
+        templates = templates,
+        output_name = ctx.label.name + "_config_templates.json",
+        only_if_stamping = True,
+    )
+
+    if config_json != None:
+        # Templates were expanded, use the config-templates flag
+        inputs.append(config_json)
+        args.add("--config-templates", config_json.path)
+    else:
+        # No templates to expand, use direct values
+        for key, value in ctx.attr.env.items():
+            args.add("--env", "%s=%s" % (key, value))
+        for key, value in ctx.attr.labels.items():
+            args.add("--label", "%s=%s" % (key, value))
+        for key, value in ctx.attr.annotations.items():
+            args.add("--annotation", "%s=%s" % (key, value))
+
+    # Add other image config attributes
     if ctx.attr.user:
         args.add("--user", ctx.attr.user)
-    for key, value in ctx.attr.env.items():
-        args.add("--env", "%s=%s" % (key, value))
     for entry in ctx.attr.entrypoint:
         args.add("--entrypoint", entry)
     for entry in ctx.attr.cmd:
         args.add("--cmd", entry)
     if ctx.attr.working_dir:
         args.add("--working-dir", ctx.attr.working_dir)
-    for key, value in ctx.attr.labels.items():
-        args.add("--label", "%s=%s" % (key, value))
     if ctx.attr.stop_signal:
         args.add("--stop-signal", ctx.attr.stop_signal)
-    for key, value in ctx.attr.annotations.items():
-        args.add("--annotation", "%s=%s" % (key, value))
 
     structured_config = dict(
         architecture = arch,
@@ -292,7 +317,10 @@ Output groups:
 This acts as a default value to use when the value is not specified when creating a container.""",
         ),
         "env": attr.string_dict(
-            doc = "Default environment variables to set when starting a container based on this image.",
+            doc = """Default environment variables to set when starting a container based on this image.
+
+Subject to [template expansion](/docs/templating.md).
+""",
             default = {},
         ),
         "entrypoint": attr.string_list(
@@ -307,11 +335,17 @@ This acts as a default value to use when the value is not specified when creatin
             doc = "Sets the current working directory of the entrypoint process in the container. This value acts as a default and may be replaced by a working directory specified when creating a container.",
         ),
         "labels": attr.string_dict(
-            doc = "This field contains arbitrary metadata for the container.",
+            doc = """This field contains arbitrary metadata for the container.
+
+Subject to [template expansion](/docs/templating.md).
+""",
             default = {},
         ),
         "annotations": attr.string_dict(
-            doc = "This field contains arbitrary metadata for the manifest.",
+            doc = """This field contains arbitrary metadata for the manifest.
+
+Subject to [template expansion](/docs/templating.md).
+""",
             default = {},
         ),
         "stop_signal": attr.string(
@@ -321,6 +355,37 @@ This acts as a default value to use when the value is not specified when creatin
             doc = "Optional JSON file containing a partial image config, which will be used as a base for the final image config.",
             allow_single_file = True,
         ),
+        "build_settings": attr.string_keyed_label_dict(
+            doc = """Build settings for template expansion.
+
+Maps template variable names to string_flag targets. These values can be used in
+env, labels, and annotations attributes using `{{.VARIABLE_NAME}}` syntax (Go template).
+
+Example:
+```python
+build_settings = {
+    "REGISTRY": "//settings:docker_registry",
+    "VERSION": "//settings:app_version",
+}
+```
+
+See [template expansion](/docs/templating.md) for more details.
+""",
+            providers = [BuildSettingInfo],
+        ),
+        "stamp": attr.string(
+            doc = """Enable build stamping for template expansion.
+
+Controls whether to include volatile build information:
+- **`auto`** (default): Uses the global stamping configuration
+- **`enabled`**: Always include stamp information (BUILD_TIMESTAMP, BUILD_USER, etc.) if Bazel's "--stamp" flag is set
+- **`disabled`**: Never include stamp information
+
+See [template expansion](/docs/templating.md) for available stamp variables.
+""",
+            default = "auto",
+            values = ["auto", "enabled", "disabled"],
+        ),
         "_os_cpu": attr.label(
             default = Label("//img/private/config:target_os_cpu"),
             providers = [TargetPlatformInfo],
@@ -328,6 +393,10 @@ This acts as a default value to use when the value is not specified when creatin
         "_oci_layout_settings": attr.label(
             default = Label("//img/private/settings:oci_layout"),
             providers = [OCILayoutSettingsInfo],
+        ),
+        "_stamp_settings": attr.label(
+            default = Label("//img/private/settings:stamp"),
+            providers = [StampSettingInfo],
         ),
     },
     provides = [ImageManifestInfo],

@@ -15,6 +15,7 @@ import (
 var (
 	manifestDescriptorArgs manifestDescriptors
 	annotationArgs         annotations
+	configTemplates        string
 	digestOutput           string
 )
 
@@ -35,6 +36,7 @@ func IndexProcess(ctx context.Context, args []string) {
 	}
 	flagSet.Var(&manifestDescriptorArgs, "manifest-descriptor", `File containing a descriptor for a manifest.`)
 	flagSet.Var(&annotationArgs, "annotation", `Key-value pair to add as an annotation`)
+	flagSet.StringVar(&configTemplates, "config-templates", "", `A JSON file containing template-expanded annotations values.`)
 	flagSet.StringVar(&digestOutput, "digest", "", `The (optional) output file for the digest of the manifest. This is useful for postprocessing.`)
 
 	if err := flagSet.Parse(args); err != nil {
@@ -49,13 +51,30 @@ func IndexProcess(ctx context.Context, args []string) {
 
 	indexPath := flagSet.Arg(0)
 
+	// Read config templates if provided
+	var templatesData *ConfigTemplates
+	if configTemplates != "" {
+		var err error
+		templatesData, err = readConfigTemplates(configTemplates)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to read config templates: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	// Use template annotations if available, otherwise use command line annotations
+	annotations := map[string]string(annotationArgs)
+	if templatesData != nil && templatesData.Annotations != nil {
+		annotations = templatesData.Annotations
+	}
+
 	index := specsv1.Index{
 		Versioned: specs.Versioned{
 			SchemaVersion: 2,
 		},
 		MediaType:   specsv1.MediaTypeImageIndex,
 		Manifests:   []specsv1.Descriptor(manifestDescriptorArgs),
-		Annotations: map[string]string(annotationArgs),
+		Annotations: annotations,
 	}
 
 	rawIndex, err := json.Marshal(index)
@@ -77,4 +96,25 @@ func IndexProcess(ctx context.Context, args []string) {
 			os.Exit(1)
 		}
 	}
+}
+
+// ConfigTemplates represents the structure of the config templates JSON file
+type ConfigTemplates struct {
+	Annotations map[string]string `json:"annotations"`
+}
+
+// readConfigTemplates reads and parses the config templates JSON file
+func readConfigTemplates(filePath string) (*ConfigTemplates, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("opening config templates file: %w", err)
+	}
+	defer file.Close()
+
+	var templates ConfigTemplates
+	if err := json.NewDecoder(file).Decode(&templates); err != nil {
+		return nil, fmt.Errorf("decoding config templates file: %w", err)
+	}
+
+	return &templates, nil
 }

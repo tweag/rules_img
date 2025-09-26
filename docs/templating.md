@@ -1,14 +1,15 @@
-# Templating and Stamping in image_push
+# Templating and Stamping
 
-The `image_push` rule supports Go templates for dynamic configuration of registry, repository, and tags. This feature enables flexible image naming based on build settings and Bazel's workspace status (stamping).
+The `image_manifest`, `image_index`, `image_push`, and `image_load` rules support Go templates for dynamic configuration. This feature enables flexible image naming and metadata based on build settings and Bazel's workspace status (stamping).
 
 ## Overview
 
 Templates allow you to:
 - Use different registries/repositories for different environments (dev, staging, prod)
 - Include version information from your build system
-- Add git commit hashes or timestamps to tags
+- Add git commit hashes or timestamps to tags and labels
 - Create conditional logic for tag naming
+- Inject dynamic metadata into container labels, environment variables, and annotations
 
 ## Basic Templating with Build Settings
 
@@ -74,7 +75,7 @@ This would push to:
 
 ## Stamping with Workspace Status
 
-Stamping allows you to include dynamic build information like git commits, timestamps, and version numbers in your container tags.
+Stamping allows you to include dynamic build information like git commits, timestamps, and version numbers in your container tags, labels, environment variables, and annotations.
 
 ### Requirements for Stamping
 
@@ -84,7 +85,7 @@ Stamping allows you to include dynamic build information like git commits, times
    - By default, Bazel disables stamping for build reproducibility and performance
    - You must explicitly add `--stamp` to your build command or `.bazelrc`
 
-2. **Target level**: Enable stamping for specific `image_push` targets
+2. **Target level**: Enable stamping for specific `image_push`, `image_load`, `image_manifest`, or `image_index` targets
    - Set `stamp = "enabled"` on the target, OR
    - Set `stamp = "auto"` (the default) and use `--@rules_img//img/settings:stamp=enabled`
 

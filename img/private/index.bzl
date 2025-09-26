@@ -1,5 +1,7 @@
 """Image index rule for composing multi-layer OCI images."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+load("//img/private:stamp.bzl", "expand_or_write")
 load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
 load("//img/private/common:transitions.bzl", "multi_platform_image_transition", "reset_platform_transition")
 load("//img/private/common:write_index_json.bzl", "write_index_json")
@@ -7,6 +9,7 @@ load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
 load("//img/private/providers:oci_layout_settings_info.bzl", "OCILayoutSettingsInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
+load("//img/private/providers:stamp_setting_info.bzl", "StampSettingInfo")
 
 def _build_oci_layout(ctx, format, index_out, manifests):
     """Build the OCI layout for a multi-platform image.
@@ -70,6 +73,22 @@ def _image_index_impl(ctx):
     for other in pull_infos:
         if pull_info != other:
             fail("index rule called with images that are based on different external images. This is not yet supported.")
+
+    # Prepare template data for annotations
+    templates = {}
+    if ctx.attr.annotations:
+        templates["annotations"] = ctx.attr.annotations
+
+    # Expand templates if needed
+    config_json = None
+    if templates:
+        config_json = expand_or_write(
+            ctx = ctx,
+            templates = templates,
+            output_name = ctx.label.name + "_config_templates.json",
+            only_if_stamping = True,
+        )
+
     index_out = ctx.actions.declare_file(ctx.attr.name + "_index.json")
     digest_out = ctx.actions.declare_file(ctx.label.name + "_digest")
     manifests = [manifest[ImageManifestInfo] for manifest in ctx.attr.manifests]
@@ -78,6 +97,7 @@ def _image_index_impl(ctx):
         output = index_out,
         digest = digest_out,
         manifests = manifests,
+        config_json = config_json,
     )
     providers = [
         DefaultInfo(files = depset([index_out])),
@@ -153,11 +173,48 @@ Output groups:
             doc = "(Optional) list of target platforms to build the manifest for. Uses a split transition. If specified, the 'manifests' attribute should contain exactly one manifest.",
         ),
         "annotations": attr.string_dict(
-            doc = "Arbitrary metadata for the image index.",
+            doc = """Arbitrary metadata for the image index.
+
+Subject to [template expansion](/docs/templating.md).""",
+        ),
+        "build_settings": attr.string_keyed_label_dict(
+            providers = [BuildSettingInfo],
+            doc = """Build settings for template expansion.
+
+Maps template variable names to string_flag targets. These values can be used in
+the annotations attribute using `{{.VARIABLE_NAME}}` syntax (Go template).
+
+Example:
+```python
+build_settings = {
+    "REGISTRY": "//settings:docker_registry",
+    "VERSION": "//settings:app_version",
+}
+```
+
+See [template expansion](/docs/templating.md) for more details.
+""",
+        ),
+        "stamp": attr.string(
+            default = "auto",
+            values = ["auto", "enabled", "disabled"],
+            doc = """Enable build stamping for template expansion.
+
+Controls whether to include volatile build information:
+- **`auto`** (default): Uses the global stamping configuration
+- **`enabled`**: Always include stamp information (BUILD_TIMESTAMP, BUILD_USER, etc.) if Bazel's "--stamp" flag is set
+- **`disabled`**: Never include stamp information
+
+See [template expansion](/docs/templating.md) for available stamp variables.
+""",
         ),
         "_oci_layout_settings": attr.label(
             default = Label("//img/private/settings:oci_layout"),
             providers = [OCILayoutSettingsInfo],
+        ),
+        "_stamp_settings": attr.label(
+            default = Label("//img/private/settings:stamp"),
+            providers = [StampSettingInfo],
         ),
     },
     toolchains = TOOLCHAINS,

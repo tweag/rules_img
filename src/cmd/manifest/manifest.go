@@ -23,6 +23,7 @@ var (
 	architecture          string
 	layerFromMetadataArgs fileList
 	configFragment        string
+	configTemplates       string
 	baseManifest          string
 	baseConfig            string
 	manifestOutput        string
@@ -58,6 +59,7 @@ func ManifestProcess(_ context.Context, args []string) {
 	flagSet.StringVar(&architecture, "architecture", "amd64", `The architecture of the image. Defaults to amd64.`)
 	flagSet.Var(&layerFromMetadataArgs, "layer-from-metadata", `Ordered list of layer metadata files that will make up the image, as produced by "img layer --metadata".`)
 	flagSet.StringVar(&configFragment, "config-fragment", "", `A JSON file containing a config fragment to be merged into the final config. This is useful for adding custom labels or other metadata to the image.`)
+	flagSet.StringVar(&configTemplates, "config-templates", "", `A JSON file containing template-expanded env, labels, and annotations values.`)
 	flagSet.StringVar(&baseManifest, "base-manifest", "", `A JSON file containing a base manifest to be merged into the final manifest. This is useful for adding custom layers or other metadata to the image.`)
 	flagSet.StringVar(&baseConfig, "base-config", "", `A JSON file containing a base config to be merged into the final config. This is useful for adding custom labels or other metadata to the image.`)
 	flagSet.StringVar(&manifestOutput, "manifest", "", `The output file for the final manifest.`)
@@ -93,7 +95,18 @@ func ManifestProcess(_ context.Context, args []string) {
 		layers[i] = layer
 	}
 
-	config, err := prepareConfig(layers)
+	// Read config templates once if provided
+	var templatesData *ConfigTemplates
+	if configTemplates != "" {
+		var err error
+		templatesData, err = readConfigTemplates(configTemplates)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to read config templates: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	config, err := prepareConfig(layers, templatesData)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to prepare config: %v\n", err)
 		os.Exit(1)
@@ -129,16 +142,22 @@ func ManifestProcess(_ context.Context, args []string) {
 		Layers: layerDescriptors,
 	}
 
-	if len(annotations) > 0 {
+	// Apply annotations from config templates or command line
+	annotationsToApply := annotations
+	if templatesData != nil && templatesData.Annotations != nil {
+		annotationsToApply = templatesData.Annotations
+	}
+
+	if len(annotationsToApply) > 0 {
 		manifest.Annotations = make(map[string]string)
 		// Add annotations in sorted order to ensure determinism
-		keys := make([]string, 0, len(annotations))
-		for key := range annotations {
+		keys := make([]string, 0, len(annotationsToApply))
+		for key := range annotationsToApply {
 			keys = append(keys, key)
 		}
 		slices.Sort(keys)
 		for _, key := range keys {
-			manifest.Annotations[key] = annotations[key]
+			manifest.Annotations[key] = annotationsToApply[key]
 		}
 	}
 
@@ -197,7 +216,7 @@ func ManifestProcess(_ context.Context, args []string) {
 	}
 }
 
-func prepareConfig(layers []api.Descriptor) (specv1.Image, error) {
+func prepareConfig(layers []api.Descriptor, templatesData *ConfigTemplates) (specv1.Image, error) {
 	// first, read the base config
 	// then, layer the config fragment on top of it
 	// finally, add our own stuff
@@ -214,7 +233,7 @@ func prepareConfig(layers []api.Descriptor) (specv1.Image, error) {
 		}
 	}
 
-	if err := overlayNewConfigValues(&config, layers); err != nil {
+	if err := overlayNewConfigValues(&config, layers, templatesData); err != nil {
 		return config, fmt.Errorf("overlaying new config values: %w", err)
 	}
 	return config, nil
@@ -351,7 +370,7 @@ func overlayConfigFromFile(config *specv1.Image, filePath string, isBase bool) e
 	return nil
 }
 
-func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor) error {
+func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor, templatesData *ConfigTemplates) error {
 	if config.OS != "" && operatingSystem != "" && config.OS != operatingSystem {
 		return fmt.Errorf("OS mismatch: %s != %s", config.OS, operatingSystem)
 	}
@@ -377,27 +396,32 @@ func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor) error
 		config.Config.User = user
 	}
 
-	// Apply environment variables
-	if len(env) > 0 {
+	// Apply environment variables from config templates or command line
+	envToApply := env
+	if templatesData != nil && templatesData.Env != nil {
+		envToApply = templatesData.Env
+	}
+
+	if len(envToApply) > 0 {
 		// First, build a map of existing env vars
 		existingEnv := make(map[string]bool)
 		for i, envVar := range config.Config.Env {
 			key := strings.SplitN(envVar, "=", 2)[0]
-			if _, exists := env[key]; exists {
+			if _, exists := envToApply[key]; exists {
 				// Update existing env var
-				config.Config.Env[i] = fmt.Sprintf("%s=%s", key, env[key])
+				config.Config.Env[i] = fmt.Sprintf("%s=%s", key, envToApply[key])
 				existingEnv[key] = true
 			}
 		}
 		// Add new env vars in sorted order to ensure determinism
-		keys := make([]string, 0, len(env))
-		for key := range env {
+		keys := make([]string, 0, len(envToApply))
+		for key := range envToApply {
 			keys = append(keys, key)
 		}
 		slices.Sort(keys)
 		for _, key := range keys {
 			if !existingEnv[key] {
-				config.Config.Env = append(config.Config.Env, fmt.Sprintf("%s=%s", key, env[key]))
+				config.Config.Env = append(config.Config.Env, fmt.Sprintf("%s=%s", key, envToApply[key]))
 			}
 		}
 	}
@@ -414,18 +438,24 @@ func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor) error
 		config.Config.WorkingDir = workingDir
 	}
 
-	if len(labels) > 0 {
+	// Apply labels from config templates or command line
+	labelsToApply := labels
+	if templatesData != nil && templatesData.Labels != nil {
+		labelsToApply = templatesData.Labels
+	}
+
+	if len(labelsToApply) > 0 {
 		if config.Config.Labels == nil {
 			config.Config.Labels = make(map[string]string)
 		}
 		// Add labels in sorted order to ensure determinism
-		keys := make([]string, 0, len(labels))
-		for key := range labels {
+		keys := make([]string, 0, len(labelsToApply))
+		for key := range labelsToApply {
 			keys = append(keys, key)
 		}
 		slices.Sort(keys)
 		for _, key := range keys {
-			config.Config.Labels[key] = labels[key]
+			config.Config.Labels[key] = labelsToApply[key]
 		}
 	}
 
@@ -434,4 +464,27 @@ func overlayNewConfigValues(config *specv1.Image, layers []api.Descriptor) error
 	}
 
 	return nil
+}
+
+// ConfigTemplates represents the structure of the config templates JSON file
+type ConfigTemplates struct {
+	Env         map[string]string `json:"env"`
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+}
+
+// readConfigTemplates reads and parses the config templates JSON file
+func readConfigTemplates(filePath string) (*ConfigTemplates, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("opening config templates file: %w", err)
+	}
+	defer file.Close()
+
+	var templates ConfigTemplates
+	if err := json.NewDecoder(file).Decode(&templates); err != nil {
+		return nil, fmt.Errorf("decoding config templates file: %w", err)
+	}
+
+	return &templates, nil
 }

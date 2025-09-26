@@ -161,7 +161,27 @@ func expandTemplates(inputPath, outputPath string, stampFiles []string) error {
 			continue
 		}
 
-		return fmt.Errorf("template value for key %q is neither a string nor a list of strings", key)
+		var valueMap map[string]string
+		if err := json.Unmarshal(rawValue, &valueMap); err == nil {
+			// Map of string to string template
+			expandedMap := make(map[string]string)
+			for k, v := range valueMap {
+				expanded, err := expandTemplate(v, templateData)
+				if err != nil {
+					return fmt.Errorf("expanding template for key %q map key %q: %w", key, k, err)
+				}
+				expandedMap[k] = expanded
+			}
+
+			marshaledMap, err := json.Marshal(expandedMap)
+			if err != nil {
+				return fmt.Errorf("marshaling expanded map for key %q: %w", key, err)
+			}
+			output[key] = json.RawMessage(marshaledMap)
+			continue
+		}
+
+		return fmt.Errorf("template value for key %q is neither a string, list of strings, nor map of strings", key)
 	}
 
 	// Write output JSON
