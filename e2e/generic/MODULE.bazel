@@ -21,6 +21,20 @@ bazel_dep(name = "platforms", version = "0.0.11")
 bazel_dep(name = "rules_python", version = "1.6.1")
 bazel_dep(name = "rules_pkg", version = "1.1.0")
 
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+    name = "large_file_1GB",
+    integrity = "sha256-n9ndX1LfKXTrcnPBT8Kqa85x87TcH3BOaHWoeuJ+kKA=",
+    urls = ["https://ash-speed.hetzner.com/1GB.bin"],
+)
+
+http_file(
+    name = "large_file_10GB",
+    integrity = "sha256-Vc5IJJOis3bBooauVUOr77JwiZLHC3lA9dbAjMZvNFw=",
+    urls = ["https://ash-speed.hetzner.com/10GB.bin"],
+)
+
 # Pull Alpine Linux as base image
 pull = use_repo_rule("@rules_img//img:pull.bzl", "pull")
 
