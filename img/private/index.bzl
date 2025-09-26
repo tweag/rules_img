@@ -8,23 +8,31 @@ load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
 load("//img/private/providers:oci_layout_settings_info.bzl", "OCILayoutSettingsInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
 
-def _build_oci_layout(ctx, index_out, manifests):
+def _build_oci_layout(ctx, format, index_out, manifests):
     """Build the OCI layout for a multi-platform image.
 
     Args:
         ctx: Rule context.
+        format: The output format, either "directory" or "tar".
         index_out: The index file.
         manifests: List of ImageManifestInfo providers.
 
     Returns:
         The OCI layout directory (tree artifact).
     """
-    oci_layout_dir = ctx.actions.declare_directory(ctx.label.name + "_oci_layout")
+    if format not in ["directory", "tar"]:
+        fail('oci layout format must be either "directory" or "tar"')
+    oci_layout_output = None
+    if format == "directory":
+        oci_layout_output = ctx.actions.declare_directory(ctx.label.name + "_oci_layout")
+    else:
+        oci_layout_output = ctx.actions.declare_file(ctx.label.name + "_oci_layout.tar")
 
     args = ctx.actions.args()
     args.add("oci-layout")
+    args.add("--format", format)
     args.add("--index", index_out.path)
-    args.add("--output", oci_layout_dir.path)
+    args.add("--output", oci_layout_output.path)
     if ctx.attr._oci_layout_settings[OCILayoutSettingsInfo].allow_shallow_oci_layout:
         args.add("--allow-missing-blobs")
 
@@ -47,14 +55,14 @@ def _build_oci_layout(ctx, index_out, manifests):
     img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
     ctx.actions.run(
         inputs = inputs,
-        outputs = [oci_layout_dir],
+        outputs = [oci_layout_output],
         executable = img_toolchain_info.tool_exe,
         arguments = [args],
         env = {"RULES_IMG": "1"},
         mnemonic = "OCIIndexLayout",
     )
 
-    return oci_layout_dir
+    return oci_layout_output
 
 def _image_index_impl(ctx):
     pull_infos = [manifest[PullInfo] for manifest in ctx.attr.manifests if PullInfo in manifest]
@@ -75,7 +83,8 @@ def _image_index_impl(ctx):
         DefaultInfo(files = depset([index_out])),
         OutputGroupInfo(
             digest = depset([digest_out]),
-            oci_layout = depset([_build_oci_layout(ctx, index_out, manifests)]),
+            oci_layout = depset([_build_oci_layout(ctx, "directory", index_out, manifests)]),
+            oci_tarball = depset([_build_oci_layout(ctx, "tar", index_out, manifests)]),
         ),
         ImageIndexInfo(
             index = index_out,
@@ -100,7 +109,7 @@ The rule supports two usage patterns:
 
 The rule produces:
 - OCI image index JSON file
-- An optional OCI layout directory (via output groups)
+- An optional OCI layout directory or tar (via output groups)
 - ImageIndexInfo provider for use by image_push
 
 Example (explicit manifests):
@@ -131,6 +140,7 @@ image_index(
 Output groups:
 - `digest`: Digest of the image (sha256:...)
 - `oci_layout`: Complete OCI layout directory with all platform blobs
+- `oci_tarball`: OCI layout packaged as a tar file for downstream use
 """,
     attrs = {
         "manifests": attr.label_list(

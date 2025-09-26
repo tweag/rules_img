@@ -56,11 +56,12 @@ def select_base(ctx):
             return manifest
     fail("no matching base image found for architecture {} and os {}".format(constraints_wanted["architecture"], constraints_wanted["os"]))
 
-def _build_oci_layout(ctx, manifest_out, config_out, layers):
+def _build_oci_layout(ctx, format, manifest_out, config_out, layers):
     """Build the OCI layout for the image.
 
     Args:
         ctx: Rule context.
+        format: The output format, either "directory" or "tar".
         manifest_out: The manifest file.
         config_out: The config file.
         layers: List of LayerInfo providers.
@@ -68,13 +69,20 @@ def _build_oci_layout(ctx, manifest_out, config_out, layers):
     Returns:
         The OCI layout directory (tree artifact).
     """
-    oci_layout_dir = ctx.actions.declare_directory(ctx.label.name + "_oci_layout")
+    if format not in ["directory", "tar"]:
+        fail('oci layout format must be either "directory" or "tar"')
+    oci_layout_output = None
+    if format == "directory":
+        oci_layout_output = ctx.actions.declare_directory(ctx.label.name + "_oci_layout")
+    else:
+        oci_layout_output = ctx.actions.declare_file(ctx.label.name + "_oci_layout.tar")
 
     args = ctx.actions.args()
     args.add("oci-layout")
+    args.add("--format", format)
     args.add("--manifest", manifest_out.path)
     args.add("--config", config_out.path)
-    args.add("--output", oci_layout_dir.path)
+    args.add("--output", oci_layout_output.path)
     if ctx.attr._oci_layout_settings[OCILayoutSettingsInfo].allow_shallow_oci_layout:
         args.add("--allow-missing-blobs")
 
@@ -90,14 +98,14 @@ def _build_oci_layout(ctx, manifest_out, config_out, layers):
     img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
     ctx.actions.run(
         inputs = inputs,
-        outputs = [oci_layout_dir],
+        outputs = [oci_layout_output],
         executable = img_toolchain_info.tool_exe,
         arguments = [args],
         env = {"RULES_IMG": "1"},
         mnemonic = "OCILayout",
     )
 
-    return oci_layout_dir
+    return oci_layout_output
 
 def _image_manifest_impl(ctx):
     inputs = []
@@ -212,7 +220,8 @@ def _image_manifest_impl(ctx):
         OutputGroupInfo(
             descriptor = depset([descriptor_out]),
             digest = depset([digest_out]),
-            oci_layout = depset([_build_oci_layout(ctx, manifest_out, config_out, layers)]),
+            oci_layout = depset([_build_oci_layout(ctx, "directory", manifest_out, config_out, layers)]),
+            oci_tarball = depset([_build_oci_layout(ctx, "tar", manifest_out, config_out, layers)]),
         ),
         ImageManifestInfo(
             base_image = base,
@@ -240,7 +249,7 @@ This rule assembles container images by combining:
 
 The rule produces:
 - OCI manifest and config JSON files
-- An optional OCI layout directory (via output groups)
+- An optional OCI layout directory or tar (via output groups)
 - ImageManifestInfo provider for use by image_index or image_push
 
 Example:
@@ -264,6 +273,7 @@ Output groups:
 - `descriptor`: OCI descriptor JSON file
 - `digest`: Digest of the image (sha256:...)
 - `oci_layout`: Complete OCI layout directory with blobs
+- `oci_tarball`: OCI layout packaged as a tar file for downstream use
 """,
     attrs = {
         "base": attr.label(

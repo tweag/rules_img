@@ -47,6 +47,7 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 	var configPaths stringSliceFlag
 	var useSymlinks bool
 	var allowMissingBlobs bool
+	var format string
 
 	flagSet := flag.NewFlagSet("oci-layout", flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -66,7 +67,8 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 	flagSet.StringVar(&manifestPath, "manifest", "", "Path to the image manifest (for single manifest)")
 	flagSet.StringVar(&indexPath, "index", "", "Path to the image index (for multi-platform)")
 	flagSet.StringVar(&configPath, "config", "", "Path to the image config (for single manifest)")
-	flagSet.StringVar(&outputDir, "output", "", "Output directory for OCI layout (required)")
+	flagSet.StringVar(&outputDir, "output", "", "Output path for OCI layout (required)")
+	flagSet.StringVar(&format, "format", "directory", "Output format: 'directory' or 'tar'")
 	flagSet.Var(&layerFlags, "layer", "Layer mapping in format metadata=blob (can be specified multiple times)")
 	flagSet.Var(&manifestPaths, "manifest-path", "Path to manifest file (for index, can be specified multiple times)")
 	flagSet.Var(&configPaths, "config-path", "Path to config file (for index, can be specified multiple times)")
@@ -85,6 +87,13 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
+	// Validate format parameter
+	if format != "directory" && format != "tar" {
+		fmt.Fprintf(os.Stderr, "Error: --format must be 'directory' or 'tar', got '%s'\n", format)
+		flagSet.Usage()
+		os.Exit(1)
+	}
+
 	var err error
 	if indexPath != "" {
 		if manifestPath != "" || configPath != "" {
@@ -99,7 +108,7 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 			fmt.Fprintf(os.Stderr, "Error: --index requires at least one --manifest-path and --config-path\n")
 			os.Exit(1)
 		}
-		err = assembleOCILayoutWithIndex(indexPath, outputDir, manifestPaths, configPaths, layerFlags, useSymlinks, allowMissingBlobs)
+		err = assembleOCILayoutWithIndex(indexPath, outputDir, format, manifestPaths, configPaths, layerFlags, useSymlinks, allowMissingBlobs)
 	} else {
 		if manifestPath == "" {
 			fmt.Fprintf(os.Stderr, "Error: either --manifest or --index is required\n")
@@ -115,7 +124,7 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 			fmt.Fprintf(os.Stderr, "Error: cannot use --manifest-path or --config-path without --index\n")
 			os.Exit(1)
 		}
-		err = assembleOCILayout(manifestPath, configPath, outputDir, layerFlags, useSymlinks, allowMissingBlobs)
+		err = assembleOCILayout(manifestPath, configPath, outputDir, format, layerFlags, useSymlinks, allowMissingBlobs)
 	}
 
 	if err != nil {
@@ -124,8 +133,26 @@ func OCILayoutProcess(ctx context.Context, args []string) {
 	}
 }
 
-func assembleOCILayout(manifestPath, configPath, outputDir string, layers layerMappingFlag, useSymlinks, allowMissingBlobs bool) error {
-	if err := setupOCILayout(outputDir); err != nil {
+// createSink creates the appropriate sink based on the format
+func createSink(outputPath, format string) (OCILayoutSink, error) {
+	switch format {
+	case "directory":
+		return NewDirectorySink(outputPath), nil
+	case "tar":
+		return NewTarSink(outputPath)
+	default:
+		return nil, fmt.Errorf("unsupported format: %s", format)
+	}
+}
+
+func assembleOCILayout(manifestPath, configPath, outputPath, format string, layers layerMappingFlag, useSymlinks, allowMissingBlobs bool) error {
+	sink, err := createSink(outputPath, format)
+	if err != nil {
+		return err
+	}
+	defer sink.Close()
+
+	if err := setupOCILayoutWithSink(sink); err != nil {
 		return err
 	}
 
@@ -176,13 +203,11 @@ func assembleOCILayout(manifestPath, configPath, outputDir string, layers layerM
 		return &MissingBlobsError{MissingBlobs: missingBlobs}
 	}
 
-	blobsDir := filepath.Join(outputDir, "blobs", "sha256")
-
 	// Copy manifest to blobs directory
 	manifestDigest := hashBytes(manifestData)
 	blobs[manifestDigest.Hex] = manifestPath
 
-	if err := copyBlobs(blobs, blobsDir, useSymlinks); err != nil {
+	if err := copyBlobsWithSink(sink, blobs, useSymlinks); err != nil {
 		return err
 	}
 
@@ -198,7 +223,7 @@ func assembleOCILayout(manifestPath, configPath, outputDir string, layers layerM
 		},
 	}
 
-	return writeJSON(filepath.Join(outputDir, "index.json"), index)
+	return writeJSONWithSink(sink, "index.json", index)
 }
 
 func copyFile(src, dst string, useSymlinks bool) error {
@@ -239,8 +264,14 @@ func hashBytes(data []byte) v1.Hash {
 	return h
 }
 
-func assembleOCILayoutWithIndex(indexPath, outputDir string, manifestPaths, configPaths []string, layers layerMappingFlag, useSymlinks, allowMissingBlobs bool) error {
-	if err := setupOCILayout(outputDir); err != nil {
+func assembleOCILayoutWithIndex(indexPath, outputPath, format string, manifestPaths, configPaths []string, layers layerMappingFlag, useSymlinks, allowMissingBlobs bool) error {
+	sink, err := createSink(outputPath, format)
+	if err != nil {
+		return err
+	}
+	defer sink.Close()
+
+	if err := setupOCILayoutWithSink(sink); err != nil {
 		return err
 	}
 
@@ -299,13 +330,12 @@ func assembleOCILayoutWithIndex(indexPath, outputDir string, manifestPaths, conf
 		return &MissingBlobsError{MissingBlobs: allMissingBlobs}
 	}
 
-	blobsDir := filepath.Join(outputDir, "blobs", "sha256")
-	if err := copyBlobs(blobs, blobsDir, useSymlinks); err != nil {
+	if err := copyBlobsWithSink(sink, blobs, useSymlinks); err != nil {
 		return err
 	}
 
 	// Copy the index file unmodified
-	return copyFile(indexPath, filepath.Join(outputDir, "index.json"), false)
+	return sink.CopyFile("index.json", indexPath, false)
 }
 
 func setupOCILayout(outputDir string) error {
@@ -320,6 +350,20 @@ func setupOCILayout(outputDir string) error {
 	return writeJSON(filepath.Join(outputDir, "oci-layout"), ociLayout)
 }
 
+func setupOCILayoutWithSink(sink OCILayoutSink) error {
+	if err := sink.CreateDir("blobs"); err != nil {
+		return fmt.Errorf("creating blobs directory: %w", err)
+	}
+	if err := sink.CreateDir("blobs/sha256"); err != nil {
+		return fmt.Errorf("creating blobs/sha256 directory: %w", err)
+	}
+
+	ociLayout := map[string]string{
+		"imageLayoutVersion": OCILayoutVersion,
+	}
+	return writeJSONWithSink(sink, "oci-layout", ociLayout)
+}
+
 func writeJSON(path string, v interface{}) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -328,10 +372,28 @@ func writeJSON(path string, v interface{}) error {
 	return os.WriteFile(path, data, 0644)
 }
 
+func writeJSONWithSink(sink OCILayoutSink, path string, v interface{}) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling %s: %w", path, err)
+	}
+	return sink.WriteFile(path, data, 0644)
+}
+
 func copyBlobs(blobs blobMap, blobsDir string, useSymlinks bool) error {
 	for digest, srcPath := range blobs {
 		dstPath := filepath.Join(blobsDir, digest)
 		if err := copyFile(srcPath, dstPath, useSymlinks); err != nil {
+			return fmt.Errorf("copying blob %s: %w", digest, err)
+		}
+	}
+	return nil
+}
+
+func copyBlobsWithSink(sink OCILayoutSink, blobs blobMap, useSymlinks bool) error {
+	for digest, srcPath := range blobs {
+		dstPath := filepath.Join("blobs", "sha256", digest)
+		if err := sink.CopyFile(dstPath, srcPath, useSymlinks); err != nil {
 			return fmt.Errorf("copying blob %s: %w", digest, err)
 		}
 	}

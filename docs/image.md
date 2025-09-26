@@ -27,7 +27,7 @@ The rule supports two usage patterns:
 
 The rule produces:
 - OCI image index JSON file
-- An optional OCI layout directory (via output groups)
+- An optional OCI layout directory or tar (via output groups)
 - ImageIndexInfo provider for use by image_push
 
 Example (explicit manifests):
@@ -58,6 +58,7 @@ image_index(
 Output groups:
 - `digest`: Digest of the image (sha256:...)
 - `oci_layout`: Complete OCI layout directory with all platform blobs
+- `oci_tarball`: OCI layout packaged as a tar file for downstream use
 
 **ATTRIBUTES**
 
@@ -90,7 +91,7 @@ This rule assembles container images by combining:
 
 The rule produces:
 - OCI manifest and config JSON files
-- An optional OCI layout directory (via output groups)
+- An optional OCI layout directory or tar (via output groups)
 - ImageManifestInfo provider for use by image_index or image_push
 
 Example:
@@ -114,6 +115,7 @@ Output groups:
 - `descriptor`: OCI descriptor JSON file
 - `digest`: Digest of the image (sha256:...)
 - `oci_layout`: Complete OCI layout directory with blobs
+- `oci_tarball`: OCI layout packaged as a tar file for downstream use
 
 **ATTRIBUTES**
 
