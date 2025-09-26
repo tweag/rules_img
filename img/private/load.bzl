@@ -91,12 +91,12 @@ def _compute_load_metadata(*, ctx, configuration_json):
     )
     return metadata_out
 
-def _build_docker_tarball(ctx, tag, manifest_info):
+def _build_docker_tarball(ctx, configuration_json, manifest_info):
     """Build the Docker save tarball for the image.
 
     Args:
         ctx: Rule context.
-        tag: The repository tag to use.
+        configuration_json: The configuration file with expanded templates.
         manifest_info: The ImageManifestInfo provider.
 
     Returns:
@@ -110,16 +110,11 @@ def _build_docker_tarball(ctx, tag, manifest_info):
     args.add("--config", manifest_info.config.path)
     args.add("--output", tarball_output.path)
     args.add("--format", "tar")
+    args.add("--configuration-file", configuration_json.path)
     if ctx.attr._oci_layout_settings[OCILayoutSettingsInfo].allow_shallow_oci_layout:
         args.add("--allow-missing-blobs")
 
-    # Add the tag as repo-tag
-    if tag:
-        args.add("--repo-tag", tag)
-    else:
-        args.add("--repo-tag", "image:latest")
-
-    inputs = [manifest_info.manifest, manifest_info.config]
+    inputs = [manifest_info.manifest, manifest_info.config, configuration_json]
 
     # Add layers with metadata=blob mapping
     for layer in manifest_info.layers:
@@ -205,7 +200,7 @@ def _image_load_impl(ctx):
     # Add tarball output group only for single-platform images (manifest_info)
     # Index info (multi-platform) is not supported by docker-save command
     if manifest_info != None:
-        tarball = _build_docker_tarball(ctx, ctx.attr.tag, manifest_info)
+        tarball = _build_docker_tarball(ctx, configuration_json, manifest_info)
         providers.append(OutputGroupInfo(
             tarball = depset([tarball]),
         ))
