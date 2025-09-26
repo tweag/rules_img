@@ -78,6 +78,9 @@ Key features:
 
 The rule produces an executable that can be run with `bazel run`.
 
+Output groups:
+- `tarball`: Docker save compatible tarball (only available for single-platform images)
+
 Example:
 
 ```python
@@ -116,6 +119,9 @@ bazel run //path/to:load_app
 
 # Load specific platform only
 bazel run //path/to:load_multiarch -- --platform linux/arm64
+
+# Build Docker save tarball
+bazel build //path/to:load_app --output_groups=tarball
 ```
 
 Performance notes:

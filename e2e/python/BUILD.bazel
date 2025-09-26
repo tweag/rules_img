@@ -45,6 +45,12 @@ image_index(
 )
 
 image_load(
+    name = "load_single_arch",
+    image = ":image",
+    tag = "ghcr.io/malt3/rules_img/python:sideloaded",
+)
+
+image_load(
     name = "load",
     image = ":multiarch_image",
     tag = "ghcr.io/malt3/rules_img/python:sideloaded",
@@ -66,6 +72,7 @@ build_test(
         ":layers",
         ":image",
         ":multiarch_image",
+        "load_single_arch",
         ":load",
         ":push",
     ],

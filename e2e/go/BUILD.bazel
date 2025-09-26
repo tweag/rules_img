@@ -19,6 +19,7 @@ multi_deploy(
     name = "deploy_all",
     operations = [
         "//customization:push",
+        "//image:load",
         "//image:push",
         "//multiarch:push",
     ],

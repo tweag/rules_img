@@ -9,6 +9,7 @@ go_library(
     deps = [
         "//cmd/compress",
         "//cmd/deploy",
+        "//cmd/dockersave",
         "//cmd/downloadblob",
         "//cmd/expandtemplate",
         "//cmd/index",

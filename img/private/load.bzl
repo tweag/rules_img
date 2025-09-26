@@ -10,6 +10,7 @@ load("//img/private/providers:image_toolchain_info.bzl", "ImageToolchainInfo")
 load("//img/private/providers:index_info.bzl", "ImageIndexInfo")
 load("//img/private/providers:load_settings_info.bzl", "LoadSettingsInfo")
 load("//img/private/providers:manifest_info.bzl", "ImageManifestInfo")
+load("//img/private/providers:oci_layout_settings_info.bzl", "OCILayoutSettingsInfo")
 load("//img/private/providers:pull_info.bzl", "PullInfo")
 load("//img/private/providers:stamp_setting_info.bzl", "StampSettingInfo")
 
@@ -90,6 +91,55 @@ def _compute_load_metadata(*, ctx, configuration_json):
     )
     return metadata_out
 
+def _build_docker_tarball(ctx, tag, manifest_info):
+    """Build the Docker save tarball for the image.
+
+    Args:
+        ctx: Rule context.
+        tag: The repository tag to use.
+        manifest_info: The ImageManifestInfo provider.
+
+    Returns:
+        The Docker save tarball file.
+    """
+    tarball_output = ctx.actions.declare_file(ctx.label.name + "_docker.tar")
+
+    args = ctx.actions.args()
+    args.add("docker-save")
+    args.add("--manifest", manifest_info.manifest.path)
+    args.add("--config", manifest_info.config.path)
+    args.add("--output", tarball_output.path)
+    args.add("--format", "tar")
+    if ctx.attr._oci_layout_settings[OCILayoutSettingsInfo].allow_shallow_oci_layout:
+        args.add("--allow-missing-blobs")
+
+    # Add the tag as repo-tag
+    if tag:
+        args.add("--repo-tag", tag)
+    else:
+        args.add("--repo-tag", "image:latest")
+
+    inputs = [manifest_info.manifest, manifest_info.config]
+
+    # Add layers with metadata=blob mapping
+    for layer in manifest_info.layers:
+        if layer.blob != None:
+            args.add("--layer", "{}={}".format(layer.metadata.path, layer.blob.path))
+            inputs.append(layer.metadata)
+            inputs.append(layer.blob)
+
+    img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
+    ctx.actions.run(
+        inputs = inputs,
+        outputs = [tarball_output],
+        executable = img_toolchain_info.tool_exe,
+        arguments = [args],
+        env = {"RULES_IMG": "1"},
+        mnemonic = "DockerSave",
+    )
+
+    return tarball_output
+
 def _image_load_impl(ctx):
     """Implementation of the load rule."""
     loader = ctx.actions.declare_file(ctx.label.name + ".exe")
@@ -130,7 +180,7 @@ def _image_load_impl(ctx):
     )
     root_symlinks["dispatch.json"] = dispatch_json
 
-    return [
+    providers = [
         DefaultInfo(
             files = depset([dispatch_json]),
             executable = loader,
@@ -152,6 +202,16 @@ def _image_load_impl(ctx):
         ),
     ]
 
+    # Add tarball output group only for single-platform images (manifest_info)
+    # Index info (multi-platform) is not supported by docker-save command
+    if manifest_info != None:
+        tarball = _build_docker_tarball(ctx, ctx.attr.tag, manifest_info)
+        providers.append(OutputGroupInfo(
+            tarball = depset([tarball]),
+        ))
+
+    return providers
+
 image_load = rule(
     implementation = _image_load_impl,
     doc = """Loads container images into a local daemon (Docker or containerd).
@@ -167,6 +227,9 @@ Key features:
 - **Platform filtering**: Use `--platform` flag at runtime to select specific platforms
 
 The rule produces an executable that can be run with `bazel run`.
+
+Output groups:
+- `tarball`: Docker save compatible tarball (only available for single-platform images)
 
 Example:
 
@@ -206,6 +269,9 @@ bazel run //path/to:load_app
 
 # Load specific platform only
 bazel run //path/to:load_multiarch -- --platform linux/arm64
+
+# Build Docker save tarball
+bazel build //path/to:load_app --output_groups=tarball
 ```
 
 Performance notes:
@@ -270,6 +336,10 @@ Available strategies:
         "_stamp_settings": attr.label(
             default = Label("//img/private/settings:stamp"),
             providers = [StampSettingInfo],
+        ),
+        "_oci_layout_settings": attr.label(
+            default = Label("//img/private/settings:oci_layout"),
+            providers = [OCILayoutSettingsInfo],
         ),
         "_tool": attr.label(
             cfg = host_platform_transition,
