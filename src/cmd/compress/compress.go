@@ -1,14 +1,16 @@
 package compress
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"flag"
-	"fmt"
-	"io"
-	"os"
-	"slices"
+    "bytes"
+    "context"
+    "encoding/json"
+    "flag"
+    "fmt"
+    "io"
+    "os"
+    "slices"
+    "strconv"
+    "runtime"
 
 	"github.com/tweag/rules_img/src/pkg/api"
 	"github.com/tweag/rules_img/src/pkg/compress"
@@ -25,6 +27,8 @@ var (
 
 func CompressProcess(ctx context.Context, args []string) {
 	annotations := make(annotationsFlag)
+	var compressorJobsFlag string
+	var compressionLevelFlag int
 	flagSet := flag.NewFlagSet("compress", flag.ExitOnError)
 	flagSet.Usage = func() {
 		fmt.Fprintf(flagSet.Output(), "(Re-)compresses a layer to the chosen format.\n\n")
@@ -44,6 +48,8 @@ func CompressProcess(ctx context.Context, args []string) {
 	flagSet.StringVar(&sourceFormat, "source-format", "", `The format of the source layer. Can be "tar" or "gzip".`)
 	flagSet.StringVar(&format, "format", "", `The format of the output layer. Can be "tar" or "gzip".`)
 	flagSet.BoolVar(&estargzFlag, "estargz", false, `Use estargz format for compression. This creates seekable gzip streams optimized for lazy pulling.`)
+    flagSet.StringVar(&compressorJobsFlag, "compressor-jobs", "1", `Number of compressor jobs. 1 uses single-threaded stdlib gzip. n>1 uses pgzip. "nproc" uses NumCPU.`)
+	flagSet.IntVar(&compressionLevelFlag, "compression-level", -1, `Compression level. For gzip: 0-9. If unset, use library default.`)
 	flagSet.Var(&annotations, "annotation", `Add an annotation as key=value. Can be specified multiple times.`)
 	flagSet.StringVar(&metadataOutputFile, "metadata", "", `Write the metadata to the specified file. The metadata is a JSON file containing info needed to use the layer as part of an OCI image.`)
 
@@ -103,7 +109,7 @@ func CompressProcess(ctx context.Context, args []string) {
 	}
 	defer outputHandle.Close()
 
-	compressorState, mediaType, err := recompress(reader, outputHandle, outputFormat, estargzFlag)
+	compressorState, mediaType, err := recompress(reader, outputHandle, outputFormat, estargzFlag, compressorJobsFlag, compressionLevelFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Recompressing layer: %v\n", err)
 		os.Exit(1)
@@ -123,7 +129,7 @@ func CompressProcess(ctx context.Context, args []string) {
 	}
 }
 
-func recompress(input io.Reader, output io.Writer, format api.LayerFormat, estargz bool) (compressorState api.AppenderState, mediaType string, err error) {
+func recompress(input io.Reader, output io.Writer, format api.LayerFormat, estargz bool, compressorJobsFlag string, compressionLevelFlag int) (compressorState api.AppenderState, mediaType string, err error) {
 	var CompressionAlgorithm api.CompressionAlgorithm
 	switch format {
 	case api.TarLayer:
@@ -136,7 +142,18 @@ func recompress(input io.Reader, output io.Writer, format api.LayerFormat, estar
 		return compressorState, "", fmt.Errorf("unsupported compression format: %s", format)
 	}
 	mediaType = string(format)
-	compressor, err := compress.TarAppenderFactory(string(api.SHA256), string(CompressionAlgorithm), estargz, output, compress.ContentType("tar"))
+	var opts []compress.Option
+    if compressionLevelFlag >= 0 {
+        opts = append(opts, compress.CompressionLevel(compressionLevelFlag))
+    }
+    if len(compressorJobsFlag) > 0 {
+        if compressorJobsFlag == "nproc" {
+            opts = append(opts, compress.CompressorJobs(runtime.NumCPU()))
+        } else if n, err := strconv.Atoi(compressorJobsFlag); err == nil {
+            opts = append(opts, compress.CompressorJobs(n))
+        }
+    }
+	compressor, err := compress.TarAppenderFactory(string(api.SHA256), string(CompressionAlgorithm), estargz, output, append(opts, compress.ContentType("tar"))...)
 	if err != nil {
 		return compressorState, "", fmt.Errorf("creating compressor: %w", err)
 	}

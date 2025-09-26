@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//img/private/common:build.bzl", "TOOLCHAIN", "TOOLCHAINS")
+load("//img/private/common:layer_helper.bzl", "compression_tuning_args")
 load("//img/private/providers:layer_info.bzl", "LayerInfo")
 
 def _file_type(f):
@@ -58,6 +59,9 @@ def _image_layer_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.name + out_ext)
     metadata_out = ctx.actions.declare_file(ctx.attr.name + "_metadata.json")
     args = ["layer", "--name", str(ctx.label), "--metadata", metadata_out.path, "--format", compression]
+
+    # Set compressor defaults based on compilation mode for gzip
+    args.extend(compression_tuning_args(ctx, compression, estargz_enabled))
     if estargz_enabled:
         args.append("--estargz")
     for key, value in ctx.attr.annotations.items():
@@ -231,6 +235,14 @@ Metadata specified here overrides any defaults from default_metadata.""",
         ),
         "_default_estargz": attr.label(
             default = Label("//img/settings:estargz"),
+            providers = [BuildSettingInfo],
+        ),
+        "_compression_jobs": attr.label(
+            default = Label("//img/settings:compression_jobs"),
+            providers = [BuildSettingInfo],
+        ),
+        "_compression_level": attr.label(
+            default = Label("//img/settings:compression_level"),
             providers = [BuildSettingInfo],
         ),
     },

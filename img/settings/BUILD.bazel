@@ -89,3 +89,31 @@ filegroup(
     srcs = glob(["**"]),
     visibility = ["//img/private/release:__subpackages__"],
 )
+
+string_flag(
+    name = "compression_jobs",
+    build_setting_default = "auto",
+    visibility = ["//visibility:public"],
+)
+
+string_flag(
+    name = "compression_level",
+    build_setting_default = "auto",
+    values = [
+        "auto",
+        "fastest",
+        "best",
+        "-1",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+    ],
+    visibility = ["//visibility:public"],
+)

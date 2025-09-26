@@ -171,6 +171,16 @@ func setupWriterPipeline[C Compressor, CM compressorMaker[C]](output io.Writer, 
 	} else {
 		compress = compressorMaker.NewWriter(outputTee)
 	}
+	// Configure optional concurrency for compressors that support it (e.g., pgzip)
+	switch any(compress).(type) {
+	case *pgzip.Writer:
+		if opts.compressorJobs != nil {
+			jobs := *opts.compressorJobs
+			if err := any(compress).(*pgzip.Writer).SetConcurrency(1<<20, jobs); err != nil {
+				return nil, compress, err
+			}
+		}
+	}
 	inputTee := io.MultiWriter(compress, contentHash)
 	return inputTee, compress, nil
 }

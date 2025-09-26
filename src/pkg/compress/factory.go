@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"io"
+	"runtime"
 
 	"github.com/klauspost/compress/zstd"
+	pgzip "github.com/klauspost/pgzip"
 
 	"github.com/tweag/rules_img/src/pkg/api"
 )
@@ -35,6 +37,20 @@ func (GZipMaker) NewWriterLevel(w io.Writer, level int) (*gzip.Writer, error) {
 func (GZipMaker) Name() string {
 	return "gzip"
 }
+
+// PGZipMaker uses klauspost/pgzip (parallel gzip)
+type PGZipMaker struct{}
+
+func (PGZipMaker) NewWriter(w io.Writer) *pgzip.Writer {
+	// default pgzip writer; caller may adjust concurrency via options in pipeline
+	return pgzip.NewWriter(w)
+}
+
+func (PGZipMaker) NewWriterLevel(w io.Writer, level int) (*pgzip.Writer, error) {
+	return pgzip.NewWriterLevel(w, level)
+}
+
+func (PGZipMaker) Name() string { return "gzip" }
 
 type nopCompressor struct {
 	underlying io.Writer
@@ -85,8 +101,16 @@ func NewSHA256GzipAppender(w io.Writer, options ...Option) (Appender[*gzip.Write
 	return New[*gzip.Writer, SHA256Maker, GZipMaker](w, options...)
 }
 
+func NewSHA256PGzipAppender(w io.Writer, options ...Option) (Appender[*pgzip.Writer], error) {
+	return New[*pgzip.Writer, SHA256Maker, PGZipMaker](w, options...)
+}
+
 func ResumeSHA256GzipAppender(state api.AppenderState, w io.Writer, options ...Option) (Appender[*gzip.Writer], error) {
 	return Resume[*gzip.Writer, SHA256Maker, GZipMaker](state, w, options...)
+}
+
+func ResumeSHA256PGzipAppender(state api.AppenderState, w io.Writer, options ...Option) (Appender[*pgzip.Writer], error) {
+	return Resume[*pgzip.Writer, SHA256Maker, PGZipMaker](state, w, options...)
 }
 
 func NewSHA256ZstdAppender(w io.Writer, options ...Option) (Appender[*zstd.Encoder], error) {
@@ -129,44 +153,100 @@ func ResumeSHA256EstargzZstdTarAppender(state api.AppenderState, w io.Writer, op
 	return &appender, nil
 }
 
-func AppenderFactory(hashAlgorithm, compressionAlgorithm string, w io.Writer, options ...Option) (api.Appender, error) {
+func collectOptions(optionsList ...Option) options {
+	opts := options{}
+	for _, o := range optionsList {
+		o.apply(&opts)
+	}
+	return opts
+}
+
+func AppenderFactory(hashAlgorithm, compressionAlgorithm string, w io.Writer, optionsList ...Option) (api.Appender, error) {
+	opts := collectOptions(optionsList...)
 	switch {
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "gzip":
-		return NewSHA256GzipAppender(w, options...)
+		// Use pgzip if jobs > 1 or == -1 (auto) and CPUs > 1
+		usePGzip := false
+		if opts.compressorJobs != nil {
+			jobs := *opts.compressorJobs
+			if jobs < 0 {
+				jobs = runtime.NumCPU()
+			}
+			if jobs > 1 {
+				usePGzip = true
+			}
+		}
+		if usePGzip {
+			return NewSHA256PGzipAppender(w, optionsList...)
+		}
+		return NewSHA256GzipAppender(w, optionsList...)
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "zstd":
-		return NewSHA256ZstdAppender(w, options...)
+		return NewSHA256ZstdAppender(w, optionsList...)
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "uncompressed":
-		return New[nopCompressor, SHA256Maker, UncompressedMaker](w, options...)
+		return New[nopCompressor, SHA256Maker, UncompressedMaker](w, optionsList...)
 	}
 	return nil, errors.New("unsupported hash or compression algorithm")
 }
 
-func ResumeFactory(hashAlgorithm, compressionAlgorithm string, state api.AppenderState, w io.Writer, options ...Option) (api.Appender, error) {
+func ResumeFactory(hashAlgorithm, compressionAlgorithm string, state api.AppenderState, w io.Writer, optionsList ...Option) (api.Appender, error) {
+	opts := collectOptions(optionsList...)
 	switch {
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "gzip":
-		return ResumeSHA256GzipAppender(state, w, options...)
+		usePGzip := false
+		if opts.compressorJobs != nil {
+			jobs := *opts.compressorJobs
+			if jobs < 0 {
+				jobs = runtime.NumCPU()
+			}
+			if jobs > 1 {
+				usePGzip = true
+			}
+		}
+		if usePGzip {
+			return ResumeSHA256PGzipAppender(state, w, optionsList...)
+		}
+		return ResumeSHA256GzipAppender(state, w, optionsList...)
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "zstd":
-		return ResumeSHA256ZstdAppender(state, w, options...)
+		return ResumeSHA256ZstdAppender(state, w, optionsList...)
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "uncompressed":
-		return Resume[nopCompressor, SHA256Maker, UncompressedMaker](state, w, options...)
+		return Resume[nopCompressor, SHA256Maker, UncompressedMaker](state, w, optionsList...)
 	}
 	return nil, errors.New("unsupported hash or compression algorithm")
 }
 
-func TarAppenderFactory(hashAlgorithm, compressionAlgorithm string, seekable bool, w io.Writer, options ...Option) (api.TarAppender, error) {
+func TarAppenderFactory(hashAlgorithm, compressionAlgorithm string, seekable bool, w io.Writer, optionsList ...Option) (api.TarAppender, error) {
+	opts := collectOptions(optionsList...)
 	switch {
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "gzip" && seekable:
-		return NewSHA256EstargzGzipTarAppender(w, options...)
+		// estargz path: cannot (easily) parallelize gzip here
+		return NewSHA256EstargzGzipTarAppender(w, optionsList...)
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "gzip" && !seekable:
-		appender, err := NewSHA256GzipAppender(w, options...)
+		usePGzip := false
+		if opts.compressorJobs != nil {
+			jobs := *opts.compressorJobs
+			if jobs < 0 {
+				jobs = runtime.NumCPU()
+			}
+			if jobs > 1 {
+				usePGzip = true
+			}
+		}
+		if usePGzip {
+			appender, err := NewSHA256PGzipAppender(w, optionsList...)
+			if err != nil {
+				return nil, err
+			}
+			return appender.TarAppender(), nil
+		}
+		appender, err := NewSHA256GzipAppender(w, optionsList...)
 		if err != nil {
 			return nil, err
 		}
 		return appender.TarAppender(), nil
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "zstd" && seekable:
-		return NewSHA256EstargzZstdTarAppender(w, options...)
+		return NewSHA256EstargzZstdTarAppender(w, optionsList...)
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "zstd" && !seekable:
-		appender, err := NewSHA256ZstdAppender(w, options...)
+		appender, err := NewSHA256ZstdAppender(w, optionsList...)
 		if err != nil {
 			return nil, err
 		}
@@ -175,20 +255,38 @@ func TarAppenderFactory(hashAlgorithm, compressionAlgorithm string, seekable boo
 	return nil, errors.New("unsupported hash or compression algorithm")
 }
 
-func ResumeTarFactory(hashAlgorithm, compressionAlgorithm string, seekable bool, state api.AppenderState, w io.Writer, options ...Option) (api.TarAppender, error) {
+func ResumeTarFactory(hashAlgorithm, compressionAlgorithm string, seekable bool, state api.AppenderState, w io.Writer, optionsList ...Option) (api.TarAppender, error) {
+	opts := collectOptions(optionsList...)
 	switch {
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "gzip" && seekable:
-		return ResumeSHA256EstargzGzipTarAppender(state, w, options...)
+		return ResumeSHA256EstargzGzipTarAppender(state, w, optionsList...)
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "gzip" && !seekable:
-		appender, err := ResumeSHA256GzipAppender(state, w, options...)
+		usePGzip := false
+		if opts.compressorJobs != nil {
+			jobs := *opts.compressorJobs
+			if jobs < 0 {
+				jobs = runtime.NumCPU()
+			}
+			if jobs > 1 {
+				usePGzip = true
+			}
+		}
+		if usePGzip {
+			appender, err := ResumeSHA256PGzipAppender(state, w, optionsList...)
+			if err != nil {
+				return nil, err
+			}
+			return appender.TarAppender(), nil
+		}
+		appender, err := ResumeSHA256GzipAppender(state, w, optionsList...)
 		if err != nil {
 			return nil, err
 		}
 		return appender.TarAppender(), nil
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "zstd" && seekable:
-		return ResumeSHA256EstargzZstdTarAppender(state, w, options...)
+		return ResumeSHA256EstargzZstdTarAppender(state, w, optionsList...)
 	case hashAlgorithm == "sha256" && compressionAlgorithm == "zstd" && !seekable:
-		appender, err := ResumeSHA256ZstdAppender(state, w, options...)
+		appender, err := ResumeSHA256ZstdAppender(state, w, optionsList...)
 		if err != nil {
 			return nil, err
 		}
