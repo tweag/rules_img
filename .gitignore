@@ -6,3 +6,4 @@ bazel-*
 .direnv
 .env
 node_modules
+prebuilt_lockfile.json
