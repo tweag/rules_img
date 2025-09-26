@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "factory.go",
         "options.go",
-        "sizebuffer.go",
         "tarcas.go",
         "tarmetadata.go",
     ],
