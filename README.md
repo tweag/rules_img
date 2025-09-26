@@ -35,6 +35,19 @@ bazel_dep(name = "rules_img", version = "0.2.3")
 # The compression algorithm to use ("gzip" or "zstd")
 common --@rules_img//img/settings:compress=zstd
 
+# Number of parallel compression workers (gzip only)
+# "1" uses single-threaded stdlib gzip, "auto" uses compilation mode defaults,
+# "nproc" uses all available CPUs, or specify a number (e.g., "4").
+# Any number above 1 uses pgzip, which results in slightly larger files,
+# but is otherwise fully compatible with the gzip format.
+common --@rules_img//img/settings:compression_jobs=auto
+
+# Compression level
+# gzip: 0-9, where 0=no compression, 1=fast compression, 9=best compression
+# zstd: 1-4, where 1=fast compression, 4=best compressions
+# "auto" uses compilation mode defaults (-1 for default, 1 for fastbuild, 9 for opt)
+common --@rules_img//img/settings:compression_level=auto
+
 # Support for seekable eStargz layers
 # with the containerd stargz-snapshotter
 common --@rules_img//img/settings:estargz=enabled
