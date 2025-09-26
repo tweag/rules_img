@@ -6,6 +6,7 @@ import (
 	"hash"
 	"io"
 
+	pgzip "github.com/klauspost/pgzip"
 	"github.com/tweag/rules_img/src/pkg/api"
 )
 
