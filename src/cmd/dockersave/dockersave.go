@@ -40,6 +40,30 @@ type DockerManifest struct {
 	Layers   []string `json:"Layers"`
 }
 
+// readTagFromConfigFile reads the tag field from a configuration file
+func readTagFromConfigFile(configPath string) (string, error) {
+	if configPath == "" {
+		return "", nil
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", fmt.Errorf("reading configuration file: %w", err)
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(data, &config); err != nil {
+		return "", fmt.Errorf("parsing configuration file: %w", err)
+	}
+
+	tag, ok := config["tag"].(string)
+	if !ok {
+		return "", nil // tag field not present or not a string
+	}
+
+	return tag, nil
+}
+
 func DockerSaveProcess(ctx context.Context, args []string) {
 	var manifestPath string
 	var configPath string
@@ -49,6 +73,7 @@ func DockerSaveProcess(ctx context.Context, args []string) {
 	var repoTags stringSliceFlag
 	var useSymlinks bool
 	var allowMissingBlobs bool
+	var configurationFilePath string
 
 	flagSet := flag.NewFlagSet("docker-save", flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -58,6 +83,7 @@ func DockerSaveProcess(ctx context.Context, args []string) {
 		examples := []string{
 			"img docker-save --manifest manifest.json --config config.json --layer layer1_meta.json=layer1.tar.gz --repo-tag my/image:latest --output docker-save.tar",
 			"img docker-save --manifest manifest.json --config config.json --layer layer1_meta.json=layer1.tar.gz --repo-tag my/image:latest --repo-tag my/image:v1.0 --format directory --output docker-save",
+			"img docker-save --manifest manifest.json --config config.json --layer layer1_meta.json=layer1.tar.gz --configuration-file config.json --output docker-save.tar",
 		}
 		fmt.Fprintf(flagSet.Output(), "\nExamples:\n")
 		for _, example := range examples {
@@ -67,12 +93,13 @@ func DockerSaveProcess(ctx context.Context, args []string) {
 
 	flagSet.StringVar(&manifestPath, "manifest", "", "Path to the image manifest (required)")
 	flagSet.StringVar(&configPath, "config", "", "Path to the image config (required)")
-	flagSet.StringVar(&outputPath, "output", "", "Output path for Docker save format (required)")
+	flagSet.StringVar(&outputPath, "output", "", "Output path for Docker save format (required). Use '-' for stdout")
 	flagSet.StringVar(&format, "format", "tar", "Output format: 'directory' or 'tar'")
 	flagSet.Var(&layerFlags, "layer", "Layer mapping in format metadata=blob (can be specified multiple times)")
 	flagSet.Var(&repoTags, "repo-tag", "Repository tag for the image (can be specified multiple times)")
 	flagSet.BoolVar(&useSymlinks, "symlink", false, "Use symlinks instead of copying files")
 	flagSet.BoolVar(&allowMissingBlobs, "allow-missing-blobs", false, "Allow missing blobs instead of failing the build")
+	flagSet.StringVar(&configurationFilePath, "configuration-file", "", "Path to configuration file containing tag information (optional)")
 
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
@@ -103,7 +130,19 @@ func DockerSaveProcess(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
-	// Default repo tag if none provided
+	// Read tag from configuration file if provided and no --repo-tag was specified
+	if len(repoTags) == 0 && configurationFilePath != "" {
+		configTag, err := readTagFromConfigFile(configurationFilePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading configuration file: %v\n", err)
+			os.Exit(1)
+		}
+		if configTag != "" {
+			repoTags = []string{configTag}
+		}
+	}
+
+	// Default repo tag if none provided from either flags or config
 	if len(repoTags) == 0 {
 		repoTags = []string{"image:latest"}
 	}
@@ -215,7 +254,7 @@ func assembleDockerSave(manifestPath, configPath, outputPath, format string, lay
 		return fmt.Errorf("marshaling Docker manifest: %w", err)
 	}
 
-	return sink.WriteFile("manifest.json", manifestJSON, 0644)
+	return sink.WriteFile("manifest.json", manifestJSON, 0o644)
 }
 
 func copyBlobs(sink DockerSaveSink, blobs blobMap, useSymlinks bool) error {
