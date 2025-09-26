@@ -61,6 +61,15 @@ type TarSink struct {
 
 // NewTarSink creates a new tar sink
 func NewTarSink(tarPath string) (*TarSink, error) {
+	if tarPath == "-" {
+		// Write to stdout
+		writer := tar.NewWriter(os.Stdout)
+		return &TarSink{
+			file:   nil, // No file to close for stdout
+			writer: writer,
+		}, nil
+	}
+
 	file, err := os.Create(tarPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating tar file: %w", err)
@@ -144,8 +153,11 @@ func (t *TarSink) Close() error {
 		errs = append(errs, fmt.Errorf("closing tar writer: %w", err))
 	}
 
-	if err := t.file.Close(); err != nil {
-		errs = append(errs, fmt.Errorf("closing tar file: %w", err))
+	// Only close file if it's not nil (stdout case)
+	if t.file != nil {
+		if err := t.file.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("closing tar file: %w", err))
+		}
 	}
 
 	if len(errs) > 0 {
