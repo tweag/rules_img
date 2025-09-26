@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"runtime"
 
 	"github.com/tweag/rules_img/src/pkg/api"
 )
@@ -171,6 +172,21 @@ func setupWriterPipeline[C Compressor, CM compressorMaker[C]](output io.Writer, 
 	} else {
 		compress = compressorMaker.NewWriter(outputTee)
 	}
+	// Configure optional concurrency for compressors that support it (e.g., pgzip)
+    if opts.compressorJobs != nil {
+        jobs := *opts.compressorJobs
+        if jobs < 0 {
+            jobs = runtime.NumCPU()
+        }
+        if jobs > 0 {
+            // pgzip exposes SetConcurrency(size, threads) error
+            type pgzipConcurrency interface{ SetConcurrency(int, int) error }
+            if v, ok := any(compress).(pgzipConcurrency); ok {
+                // 1 MiB blocks, jobs workers; ignore error silently
+                _ = v.SetConcurrency(1<<20, jobs)
+            }
+        }
+    }
 	inputTee := io.MultiWriter(compress, contentHash)
 	return inputTee, compress, nil
 }
