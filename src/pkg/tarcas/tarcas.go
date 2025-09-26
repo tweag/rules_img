@@ -169,14 +169,19 @@ func (c *CAS[HM]) WriteRegularDeduplicated(hdr *tar.Header, r io.Reader) error {
 
 func (c *CAS[HM]) Store(r io.Reader) (string, []byte, int64, error) {
 	var helper HM
-	var buf bytes.Buffer
+	buf := NewSizeAwareBuffer(-1)
+	defer buf.Close()
 	h := helper.New()
-	n, err := io.Copy(io.MultiWriter(h, &buf), r)
+	n, err := io.Copy(io.MultiWriter(h, buf), r)
 	if err != nil {
 		return "", nil, n, err
 	}
 	hash := h.Sum(nil)
-	contentPath, err := c.StoreKnownHashAndSize(&buf, hash, n)
+	reader, err := buf.Reader()
+	if err != nil {
+		return "", nil, n, err
+	}
+	contentPath, err := c.StoreKnownHashAndSize(reader, hash, n)
 	return contentPath, hash, n, err
 }
 
@@ -207,14 +212,19 @@ func (c *CAS[HM]) StoreKnownHashAndSize(r io.Reader, hash []byte, size int64) (s
 func (c *CAS[HM]) StoreNode(r io.Reader, hdr *tar.Header) (linkPath string, blobHash []byte, size int64, err error) {
 	// TODO: cache content hashing in vfs
 	var helper HM
-	var buf bytes.Buffer
+	buf := NewSizeAwareBuffer(-1)
+	defer buf.Close()
 	h := helper.New()
-	n, err := io.Copy(io.MultiWriter(h, &buf), r)
+	n, err := io.Copy(io.MultiWriter(h, buf), r)
 	if err != nil {
 		return "", nil, n, err
 	}
 	blobHash = h.Sum(nil)
-	linkPath, err = c.StoreNodeKnownHash(&buf, hdr, blobHash)
+	reader, err := buf.Reader()
+	if err != nil {
+		return "", nil, n, err
+	}
+	linkPath, err = c.StoreNodeKnownHash(reader, hdr, blobHash)
 	return linkPath, blobHash, n, err
 }
 
