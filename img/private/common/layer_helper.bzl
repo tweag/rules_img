@@ -1,5 +1,6 @@
 """Helper functions for working with tar files."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//img/private/common:build.bzl", "TOOLCHAIN")
 load("//img/private/providers:layer_info.bzl", "LayerInfo")
 
@@ -14,6 +15,50 @@ extension_to_compression = {
     "tar.zst": "zstd",
     "tzst": "zstd",
 }
+
+def compression_tuning_args(ctx, compression):
+    """Compression tuning arguments for img tools based on build mode.
+
+    Returns additional CLI arguments to tune gzip compression defaults
+    according to Bazel's compilation mode. For gzip compression this
+    function prefers faster, parallel compression in fastbuild, and
+    smaller, single-threaded high-compression in opt. Other compression
+    algorithms are left unchanged.
+
+    Args:
+        ctx: Rule context used to read `COMPILATION_MODE`.
+        compression: String name of the target compression algorithm
+            (e.g., "gzip", "zstd", "none").
+
+    Returns:
+        list[string]: Flat list of flags and values, suitable for
+        `ctx.actions.args().add_all(...)`.
+    """
+
+    # Set compressor defaults based on compilation mode for gzip
+    if compression != "gzip":
+        return []
+
+    # Start with mode-based defaults
+    mode = ctx.var.get("COMPILATION_MODE", "fastbuild")
+    jobs = "nproc" if mode != "opt" else "1"
+    level = "-1"  # default compression
+    if mode == "opt":
+        level = "9"  # high compression
+    elif mode == "fastbuild":
+        level = "1"  # faster, lower compression
+
+    # Apply global overrides if present as hidden attrs
+    if hasattr(ctx.attr, "_compression_jobs") and ctx.attr._compression_jobs != None:
+        val = ctx.attr._compression_jobs[BuildSettingInfo].value
+        if val and val != "auto":
+            jobs = val
+    if hasattr(ctx.attr, "_compression_level") and ctx.attr._compression_level != None:
+        lvl = ctx.attr._compression_level[BuildSettingInfo].value
+        if lvl and lvl != "auto":
+            level = lvl
+
+    return ["--compressor-jobs", jobs, "--compression-level", level]
 
 def calculate_layer_info(*, ctx, media_type, tar_file, metadata_file, estargz, annotations = {}):
     """Calculates the layer info for a tar file.
@@ -76,6 +121,7 @@ def recompress_layer(*, ctx, media_type, tar_file, metadata_file, output, target
     for key, value in annotations.items():
         args.add("--annotation", "{}={}".format(key, value))
     args.add("--metadata", metadata_file.path)
+    args.add_all(compression_tuning_args(ctx, target_compression))
     args.add(tar_file.path)
     args.add(output)
     img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
@@ -120,6 +166,7 @@ def optimize_layer(*, ctx, media_type, tar_file, metadata_file, output, target_c
         args.add("--annotation", "{}={}".format(key, value))
     args.add("--metadata", metadata_file.path)
     args.add("--import-tar", tar_file.path)
+    args.add_all(compression_tuning_args(ctx, target_compression))
     args.add(output)
     img_toolchain_info = ctx.toolchains[TOOLCHAIN].imgtoolchaininfo
     ctx.actions.run(

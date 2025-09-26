@@ -157,6 +157,14 @@ When enabled, the layer will be optimized for lazy pulling and will be compatibl
             default = Label("//img/settings:estargz"),
             providers = [BuildSettingInfo],
         ),
+        "_compression_jobs": attr.label(
+            default = Label("//img/settings:compression_jobs"),
+            providers = [BuildSettingInfo],
+        ),
+        "_compression_level": attr.label(
+            default = Label("//img/settings:compression_level"),
+            providers = [BuildSettingInfo],
+        ),
     },
     toolchains = TOOLCHAINS,
     provides = [LayerInfo],
