@@ -57,19 +57,25 @@ def should_stamp(*, ctx, template_strings):
         want_stamp = want_stamp,
     )
 
-def expand_or_write(*, ctx, templates, output_name):
+def expand_or_write(*, ctx, templates, output_name, only_if_stamping = False):
     """Either expand templates or write JSON directly based on build_settings.
 
     Args:
         ctx: The rule context
         templates: The templates dictionary (dict of template name to value (str) or values (list of str))
         output_name: The name for the output file
+        only_if_stamping: If True, only create the file if stamping is needed (templates contain {{}})
 
     Returns:
-        The File object for the final JSON
+        The File object for the final JSON, or None if only_if_stamping=True and no stamping needed
     """
     build_settings = get_build_settings(ctx)
     stamp_settings = should_stamp(ctx = ctx, template_strings = [json.encode(v) for v in templates.values()])
+
+    # If only_if_stamping is True and no stamping is needed, return None
+    if only_if_stamping and not stamp_settings.want_stamp:
+        return None
+
     final_json = ctx.actions.declare_file(output_name)
 
     if build_settings or stamp_settings.want_stamp:
