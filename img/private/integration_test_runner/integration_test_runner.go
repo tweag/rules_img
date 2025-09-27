@@ -34,14 +34,6 @@ func prepareWorkspace(workspaceDir, sourceDir string) error {
 		return fmt.Errorf("failed to find bazel dep override: %v", err)
 	}
 
-	credentialHelper, err := runfiles.Rlocation("tweag-credential-helper/installer/installer.exe")
-	if err != nil {
-		return fmt.Errorf("failed to find credential helper: %v", err)
-	}
-	credentialHelper, err = filepath.EvalSymlinks(credentialHelper)
-	if err != nil {
-		return fmt.Errorf("failed to resolve credential helper symlink: %v", err)
-	}
 	if err := copyFSWithSymlinks(workspaceDir, sourceDir); err != nil {
 		return fmt.Errorf("failed to copy source dir: %v", err)
 	}
@@ -62,34 +54,6 @@ func prepareWorkspace(workspaceDir, sourceDir string) error {
 	// Also check that MODULE.bazel doesn't exist (additional validation)
 	if _, err := os.Stat(moduleFile); err == nil && isWorkspaceMode {
 		return fmt.Errorf("both WORKSPACE.bazel and MODULE.bazel found - this should not happen")
-	}
-	if runtime.GOOS == "windows" {
-		// on Windows, absolute paths in .bazelrc are not supported, so we need to use a relative path
-		// to the credential helper binary that is inside the workspace directory
-		destinationCredentialHelper := filepath.Join(workspaceDir, "credential-helper.exe")
-		destination, err := os.Create(destinationCredentialHelper)
-		if err != nil {
-			return fmt.Errorf("failed to create destination for copying: %v", err)
-		}
-		defer destination.Close()
-		source, err := os.Open(credentialHelper)
-		if err != nil {
-			return fmt.Errorf("failed to open credential helper for copying: %v", err)
-		}
-
-		if _, err := io.Copy(destination, source); err != nil {
-			return fmt.Errorf("failed to copy credential helper: %v", err)
-		}
-		// mark executable
-		if err := os.Chmod(destinationCredentialHelper, 0o755); err != nil {
-			return fmt.Errorf("failed to chmod credential helper: %v", err)
-		}
-		credentialHelper = "%workspace%/credential-helper.exe"
-
-		// work around issue with credential-helper agent on Windows
-		// by disabling the cache and running it in the foreground.
-		// see https://github.com/tweag/credential-helper/issues/22 for more details
-		os.Setenv("CREDENTIAL_HELPER_STANDALONE", "1")
 	}
 
 	// Handle patching based on mode (MODULE.bazel vs WORKSPACE.bazel)
@@ -193,14 +157,12 @@ func prepareWorkspace(workspaceDir, sourceDir string) error {
 common --enable_workspace
 common --registry=%s --registry=https://bcr.bazel.build/
 common --distdir=%s
-common --credential_helper=%s
-`, localBCRUrlPath, filepath.ToSlash(distdir), credentialHelper)
+`, localBCRUrlPath, filepath.ToSlash(distdir))
 	} else {
 		// For MODULE mode, include the local BCR registry
 		bazelrc = fmt.Sprintf(`common --registry=%s --registry=https://bcr.bazel.build/
 common --distdir=%s
-common --credential_helper=%s
-`, localBCRUrlPath, filepath.ToSlash(distdir), credentialHelper)
+`, localBCRUrlPath, filepath.ToSlash(distdir))
 	}
 	return os.WriteFile(filepath.Join(workspaceDir, ".bazelrc.generated"), []byte(bazelrc), 0o644)
 }
