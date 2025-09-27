@@ -35,6 +35,10 @@ func (a addFile) Tree() (fs.FS, error) {
 	return treeartifact.TreeArtifactFS(a.File), nil
 }
 
+func (a addFile) Path() string {
+	return a.File
+}
+
 type addFiles []addFile
 
 func (a *addFiles) String() string {

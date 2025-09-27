@@ -13,6 +13,12 @@ type Node interface {
 	Tree() (fs.FS, error)
 }
 
+// PathNode extends Node with path information for optimization
+type PathNode interface {
+	Node
+	Path() string
+}
+
 type runfilesFS struct {
 	entries       map[string]Node
 	sortedEntries []string
