@@ -5,7 +5,10 @@ image_layer(
     srcs = {
         "/1GB.biin": "@large_file_1GB//file",
     },
-    tags = ["manual"],
+    tags = [
+        "manual",
+        "no-cache",
+    ],
 )
 
 image_layer(
@@ -13,5 +16,8 @@ image_layer(
     srcs = {
         "/10GB.bin": "@large_file_10GB//file",
     },
-    tags = ["manual"],
+    tags = [
+        "manual",
+        "no-cache",
+    ],
 )

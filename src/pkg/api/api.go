@@ -141,6 +141,8 @@ type TarWriter interface {
 	WriteHeader(hdr *tar.Header) error
 	WriteRegular(hdr *tar.Header, r io.Reader) error
 	WriteRegularDeduplicated(hdr *tar.Header, r io.Reader) error
+	WriteRegularFromPath(hdr *tar.Header, filePath string) error
+	WriteRegularFromPathDeduplicated(hdr *tar.Header, filePath string) error
 }
 
 type TarCAS interface {
