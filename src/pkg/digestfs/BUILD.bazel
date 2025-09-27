@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "digestfs",
+    srcs = ["digestfs.go"],
+    importpath = "github.com/tweag/rules_img/src/pkg/digestfs",
+    visibility = ["//visibility:public"],
+)
