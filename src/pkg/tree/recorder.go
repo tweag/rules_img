@@ -86,14 +86,44 @@ func (r Recorder) ImportTar(tarFile string) error {
 func (r Recorder) RegularFileFromPath(filePath, target string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("opening file %s: %w", filePath, err)
 	}
 	defer file.Close()
+
 	fInfo, err := file.Stat()
 	if err != nil {
 		return err
 	}
-	return r.RegularFile(file, fInfo, target)
+
+	realHdr, err := tar.FileInfoHeader(fInfo, "")
+	if err != nil {
+		return err
+	}
+	if realHdr.Typeflag != tar.TypeReg {
+		return errors.New("recorder for regular files invoked on mismatching type")
+	}
+
+	hdr := &tar.Header{
+		Typeflag: tar.TypeReg,
+		Name:     target,
+		Size:     realHdr.Size,
+		Mode:     0o755,
+		// leave out any extra metadata (for better reproducibility)
+	}
+
+	// Apply metadata if provider is set
+	if r.metadata != nil {
+		if err := r.metadata.ApplyToHeader(hdr, target); err != nil {
+			return fmt.Errorf("applying metadata: %w", err)
+		}
+	}
+
+	// Use optimized path-based methods
+	if r.deduplicate {
+		return r.tf.WriteRegularFromPathDeduplicated(hdr, filePath)
+	} else {
+		return r.tf.WriteRegularFromPath(hdr, filePath)
+	}
 }
 
 func (r Recorder) RegularFile(f io.Reader, info fs.FileInfo, target string) error {
@@ -178,20 +208,28 @@ func (r Recorder) Executable(binaryPath, target string, accessor runfilesSupplie
 	for p, node := range accessor.Items() {
 		switch node.Type() {
 		case api.RegularFile:
-			f, err := node.Open()
-			if err != nil {
-				return err
-			}
-			info, err := f.Stat()
-			if err != nil {
+			// Try to use optimized path-based method if available
+			if pathNode, ok := node.(runfiles.PathNode); ok {
+				if err := r.RegularFileFromPath(pathNode.Path(), path.Join(target+".runfiles", p)); err != nil {
+					return err
+				}
+			} else {
+				// Fallback to original method
+				f, err := node.Open()
+				if err != nil {
+					return err
+				}
+				info, err := f.Stat()
+				if err != nil {
+					f.Close()
+					return err
+				}
+				if err := r.RegularFile(f, info, path.Join(target+".runfiles", p)); err != nil {
+					f.Close()
+					return err
+				}
 				f.Close()
-				return err
 			}
-			if err := r.RegularFile(f, info, path.Join(target+".runfiles", p)); err != nil {
-				f.Close()
-				return err
-			}
-			f.Close()
 		case api.Directory:
 			fsys, err := node.Tree()
 			if err != nil {

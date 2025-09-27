@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/tweag/rules_img/src/pkg/api"
+	"github.com/tweag/rules_img/src/pkg/digestfs"
 	"github.com/tweag/rules_img/src/pkg/tree/merkle"
 )
 
@@ -27,6 +28,7 @@ type CAS[HM hashHelper] struct {
 	storedNodes   map[string]struct{}
 	storedTrees   map[string]struct{}
 	closed        bool
+	digestFS      *digestfs.FileSystem
 	options
 }
 
@@ -39,6 +41,7 @@ func New[HM hashHelper](appender api.TarAppender, opts ...Option) *CAS[HM] {
 		opt.apply(&options)
 	}
 
+	var helper HM
 	return &CAS[HM]{
 		tarAppender:  appender,
 		hashOrder:    [][]byte{},
@@ -47,6 +50,7 @@ func New[HM hashHelper](appender api.TarAppender, opts ...Option) *CAS[HM] {
 		storedHashes: make(map[string]struct{}),
 		storedNodes:  make(map[string]struct{}),
 		storedTrees:  make(map[string]struct{}),
+		digestFS:     digestfs.New(helper),
 		options:      options,
 	}
 }
@@ -133,6 +137,72 @@ func (c *CAS[HM]) WriteRegular(hdr *tar.Header, r io.Reader) error {
 		return fmt.Errorf("WriteRegular called with non-regular header: %s", hdr.Name)
 	}
 	return c.writeHeaderOrDefer(hdr, r)
+}
+
+func (c *CAS[HM]) WriteRegularFromPath(hdr *tar.Header, filePath string) error {
+	if hdr.Typeflag != tar.TypeReg {
+		return fmt.Errorf("WriteRegularFromPath called with non-regular header: %s", hdr.Name)
+	}
+
+	df, err := c.digestFS.OpenFile(filePath)
+	if err != nil {
+		return err
+	}
+	defer df.Close()
+
+	return c.writeHeaderOrDefer(hdr, df)
+}
+
+func (c *CAS[HM]) WriteRegularFromPathDeduplicated(hdr *tar.Header, filePath string) error {
+	if hdr.Typeflag != tar.TypeReg {
+		return fmt.Errorf("WriteRegularFromPathDeduplicated called with non-regular header: %s", hdr.Name)
+	}
+
+	df, err := c.digestFS.OpenFile(filePath)
+	if err != nil {
+		return err
+	}
+	defer df.Close()
+
+	// Get digest and size efficiently from digestFS
+	hash, err := df.Digest()
+	if err != nil {
+		return err
+	}
+
+	size := df.Size()
+	if size != hdr.Size {
+		return fmt.Errorf("expected file of size %d, got %d", hdr.Size, size)
+	}
+
+	// Reset to start for reading
+	if _, err := df.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+
+	var linkPath string
+	var storeErr error
+
+	if isBlobTarHeader(hdr) {
+		linkPath, storeErr = c.StoreKnownHashAndSize(df, hash, size)
+	} else {
+		linkPath, storeErr = c.StoreNodeKnownHash(df, hdr, hash)
+	}
+	if storeErr != nil {
+		return storeErr
+	}
+
+	if linkPath == hdr.Name {
+		// If we were writing to the CAS object itself,
+		// we don't need to write a hardlink.
+		return nil
+	}
+
+	header := cloneTarHeader(hdr)
+	header.Typeflag = tar.TypeLink
+	header.Linkname = linkPath
+	header.Size = 0
+	return c.writeHeaderOrDefer(&header, nil)
 }
 
 func (c *CAS[HM]) WriteRegularDeduplicated(hdr *tar.Header, r io.Reader) error {
@@ -259,6 +329,48 @@ func (c *CAS[HM]) StoreNodeKnownHash(r io.Reader, hdr *tar.Header, blobHash []by
 	c.storedNodes[string(nodeHash)] = struct{}{}
 	c.nodeOrder = append(c.nodeOrder, nodeHash)
 	return linkPath, nil
+}
+
+func (c *CAS[HM]) StoreFileFromPath(filePath string) (string, []byte, int64, error) {
+	df, err := c.digestFS.OpenFile(filePath)
+	if err != nil {
+		return "", nil, 0, err
+	}
+	defer df.Close()
+
+	hash, err := df.Digest()
+	if err != nil {
+		return "", nil, 0, err
+	}
+
+	size := df.Size()
+	if _, err := df.Seek(0, io.SeekStart); err != nil {
+		return "", nil, 0, err
+	}
+
+	contentPath, err := c.StoreKnownHashAndSize(df, hash, size)
+	return contentPath, hash, size, err
+}
+
+func (c *CAS[HM]) StoreNodeFromPath(filePath string, hdr *tar.Header) (linkPath string, blobHash []byte, size int64, err error) {
+	df, err := c.digestFS.OpenFile(filePath)
+	if err != nil {
+		return "", nil, 0, err
+	}
+	defer df.Close()
+
+	hash, err := df.Digest()
+	if err != nil {
+		return "", nil, 0, err
+	}
+
+	size = df.Size()
+	if _, err := df.Seek(0, io.SeekStart); err != nil {
+		return "", nil, 0, err
+	}
+
+	linkPath, err = c.StoreNodeKnownHash(df, hdr, hash)
+	return linkPath, hash, size, err
 }
 
 func (c *CAS[HM]) StoreTree(fsys fs.FS) (linkPath string, err error) {
