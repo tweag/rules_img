@@ -19,6 +19,7 @@ func DownloadBlobProcess(ctx context.Context, args []string) {
 	var repository string
 	var outputPath string
 	var registries stringSliceFlag
+	var executable bool
 
 	flagSet := flag.NewFlagSet("download-blob", flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -39,6 +40,7 @@ func DownloadBlobProcess(ctx context.Context, args []string) {
 	flagSet.StringVar(&repository, "repository", "", "Repository name of the image (required)")
 	flagSet.StringVar(&outputPath, "output", "", "Output file path (required)")
 	flagSet.Var(&registries, "registry", "Registry to use (can be specified multiple times, defaults to docker.io)")
+	flagSet.BoolVar(&executable, "executable", false, "Mark the output file executable")
 
 	if err := flagSet.Parse(args); err != nil {
 		flagSet.Usage()
@@ -79,6 +81,18 @@ func DownloadBlobProcess(ctx context.Context, args []string) {
 		}
 		lastErr = err
 		fmt.Fprintf(os.Stderr, "Failed to download from %s: %v\n", registry, err)
+	}
+
+	if executable {
+		if err := os.Chmod(outputPath, 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to set executable permission on output file: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		if err := os.Chmod(outputPath, 0o644); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to remove executable permission on output file: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	fmt.Fprintf(os.Stderr, "Error: Failed to download blob from all registries: %v\n", lastErr)
