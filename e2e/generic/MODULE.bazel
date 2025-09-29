@@ -50,3 +50,12 @@ pull(
     registry = "index.docker.io",
     repository = "library/nginx",
 )
+
+# minimal information:
+# Just the digest and the repository.
+# This relies on the default registry (index.docker.io) for compatibility with rules_oci.
+pull(
+    name = "debian",
+    digest = "sha256:432f545c6ba13b79e2681f4cc4858788b0ab099fc1cca799cc0fae4687c69070",
+    repository = "debian",
+)

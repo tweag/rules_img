@@ -146,6 +146,10 @@ def _pull_impl(rctx):
         registries.append(rctx.attr.registry)
     if len(rctx.attr.registries) > 0:
         registries.extend(rctx.attr.registries)
+    if len(registries) == 0:
+        # default to Docker Hub.
+        # This exists mostly for compatibility with rules_oci.
+        registries.append("index.docker.io")
 
     name = getattr(rctx, "original_name", rctx.attr.name)
     if not hasattr(rctx, "original_name"):
