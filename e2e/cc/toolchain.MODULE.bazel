@@ -130,20 +130,20 @@ register_toolchains(
     dev_dependency = True,
 )
 
-http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+pull_blob_archive = use_repo_rule("@rules_img//img/private/repository_rules:pull_blob.bzl", "pull_blob_archive")
 
 SYSROOT_DIGESTS = {
     "amd64": {
-        "libc++": "11a8a41980d1bf8d7d5b7b279d251b6e851d383b80553e2ecc97523d644acc28",
-        "libstdc++": "dacc1586eec2b990dd9e2837ac0ff482ec2eb79805d9bf71eddf1520908ce7f5",
+        "libc++": "sha256:11a8a41980d1bf8d7d5b7b279d251b6e851d383b80553e2ecc97523d644acc28",
+        "libstdc++": "sha256:dacc1586eec2b990dd9e2837ac0ff482ec2eb79805d9bf71eddf1520908ce7f5",
     },
     "arm64": {
-        "libc++": "b4b6fe951373fc41456f8af25b7afa130b9d27f6eede1aef00218db5f820a4ba",
-        "libstdc++": "5faf55afb23fb3278194c3ac27d4b7e1edf633f21ff11fa0301b90bb47b9141f",
+        "libc++": "sha256:b4b6fe951373fc41456f8af25b7afa130b9d27f6eede1aef00218db5f820a4ba",
+        "libstdc++": "sha256:5faf55afb23fb3278194c3ac27d4b7e1edf633f21ff11fa0301b90bb47b9141f",
     },
 }
 
-http_archive(
+pull_blob_archive(
     name = "llvm_sysroot_linux_amd64_libcxx",
     build_file_content = """
 filegroup(
@@ -152,12 +152,13 @@ filegroup(
   visibility = ["//visibility:public"],
 )
 """,
-    sha256 = SYSROOT_DIGESTS["amd64"]["libc++"],
+    digest = SYSROOT_DIGESTS["amd64"]["libc++"],
+    registry = "ghcr.io",
+    repository = "malt3/sysroots/libcxx",
     type = "tzst",
-    urls = ["https://ghcr.io/v2/malt3/sysroots/libcxx/blobs/sha256:" + SYSROOT_DIGESTS["amd64"]["libc++"]],
 )
 
-http_archive(
+pull_blob_archive(
     name = "llvm_sysroot_linux_amd64_libstdcxx",
     build_file_content = """
 filegroup(
@@ -166,12 +167,13 @@ filegroup(
   visibility = ["//visibility:public"],
 )
 """,
-    sha256 = SYSROOT_DIGESTS["amd64"]["libstdc++"],
+    digest = SYSROOT_DIGESTS["amd64"]["libstdc++"],
+    registry = "ghcr.io",
+    repository = "malt3/sysroots/libstdcxx",
     type = "tzst",
-    urls = ["https://ghcr.io/v2/malt3/sysroots/libstdcxx/blobs/sha256:" + SYSROOT_DIGESTS["amd64"]["libstdc++"]],
 )
 
-http_archive(
+pull_blob_archive(
     name = "llvm_sysroot_linux_arm64_libcxx",
     build_file_content = """
 filegroup(
@@ -180,12 +182,13 @@ filegroup(
   visibility = ["//visibility:public"],
 )
 """,
-    sha256 = SYSROOT_DIGESTS["arm64"]["libc++"],
+    digest = SYSROOT_DIGESTS["arm64"]["libc++"],
+    registry = "ghcr.io",
+    repository = "malt3/sysroots/libcxx",
     type = "tzst",
-    urls = ["https://ghcr.io/v2/malt3/sysroots/libcxx/blobs/sha256:" + SYSROOT_DIGESTS["arm64"]["libc++"]],
 )
 
-http_archive(
+pull_blob_archive(
     name = "llvm_sysroot_linux_arm64_libstdcxx",
     build_file_content = """
 filegroup(
@@ -194,37 +197,42 @@ filegroup(
   visibility = ["//visibility:public"],
 )
 """,
-    sha256 = SYSROOT_DIGESTS["arm64"]["libstdc++"],
+    digest = SYSROOT_DIGESTS["arm64"]["libstdc++"],
+    registry = "ghcr.io",
+    repository = "malt3/sysroots/libstdcxx",
     type = "tzst",
-    urls = ["https://ghcr.io/v2/malt3/sysroots/libstdcxx/blobs/sha256:" + SYSROOT_DIGESTS["arm64"]["libstdc++"]],
 )
 
-http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+pull_blob_file = use_repo_rule("@rules_img//img/private/repository_rules:pull_blob.bzl", "pull_blob_file")
 
-http_file(
+pull_blob_file(
     name = "base_image_arm64_libcxx",
+    digest = SYSROOT_DIGESTS["arm64"]["libc++"],
     downloaded_file_path = "sysroot.tzst",
-    sha256 = SYSROOT_DIGESTS["arm64"]["libc++"],
-    urls = ["https://ghcr.io/v2/malt3/sysroots/libcxx/blobs/sha256:" + SYSROOT_DIGESTS["arm64"]["libc++"]],
+    registry = "ghcr.io",
+    repository = "malt3/sysroots/libcxx",
 )
 
-http_file(
+pull_blob_file(
     name = "base_image_arm64_libstdcxx",
+    digest = SYSROOT_DIGESTS["arm64"]["libstdc++"],
     downloaded_file_path = "sysroot.tzst",
-    sha256 = SYSROOT_DIGESTS["arm64"]["libstdc++"],
-    urls = ["https://ghcr.io/v2/malt3/sysroots/libstdcxx/blobs/sha256:" + SYSROOT_DIGESTS["arm64"]["libstdc++"]],
+    registry = "ghcr.io",
+    repository = "malt3/sysroots/libstdcxx",
 )
 
-http_file(
+pull_blob_file(
     name = "base_image_amd64_libcxx",
+    digest = SYSROOT_DIGESTS["amd64"]["libc++"],
     downloaded_file_path = "sysroot.tzst",
-    sha256 = SYSROOT_DIGESTS["amd64"]["libc++"],
-    urls = ["https://ghcr.io/v2/malt3/sysroots/libcxx/blobs/sha256:" + SYSROOT_DIGESTS["amd64"]["libc++"]],
+    registry = "ghcr.io",
+    repository = "malt3/sysroots/libcxx",
 )
 
-http_file(
+pull_blob_file(
     name = "base_image_amd64_libstdcxx",
+    digest = SYSROOT_DIGESTS["amd64"]["libstdc++"],
     downloaded_file_path = "sysroot.tzst",
-    sha256 = SYSROOT_DIGESTS["amd64"]["libstdc++"],
-    urls = ["https://ghcr.io/v2/malt3/sysroots/libstdcxx/blobs/sha256:" + SYSROOT_DIGESTS["amd64"]["libstdc++"]],
+    registry = "ghcr.io",
+    repository = "malt3/sysroots/libstdcxx",
 )
