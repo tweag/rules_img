@@ -39,6 +39,14 @@ func (vfs *VFS) Layer(digest registryv1.Hash) (registryv1.Layer, error) {
 	return entry, nil
 }
 
+func (vfs *VFS) ManifestBlob(digest registryv1.Hash) (registryv1.Layer, error) {
+	entry, found := vfs.manifests[digest.String()]
+	if !found {
+		return nil, fmt.Errorf("manifest with digest %s not found in VFS", digest.String())
+	}
+	return entry, nil
+}
+
 func (vfs *VFS) Image(digest registryv1.Hash) (registryv1.Image, error) {
 	return newImage(vfs, digest)
 }
