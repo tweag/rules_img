@@ -113,10 +113,15 @@ func (l *loader) loadContainerd(ctx context.Context, op api.IndexedLoadDeployOpe
 
 	ctx = containerd.WithNamespace(ctx, "moby")
 
+	ociDigest, err := ocidigest.Parse(op.Root.Digest)
+	if err != nil {
+		return fmt.Errorf("parsing root digest %s: %w", op.Root.Digest, err)
+	}
+
 	imageService := client.ImageService()
 	target := ocispec.Descriptor{
 		MediaType: op.Root.MediaType,
-		Digest:    ocidigest.FromString(op.Root.Digest),
+		Digest:    ociDigest,
 		Size:      op.Root.Size,
 	}
 	normalizedTag := NormalizeDockerReference(op.Tag)
@@ -394,13 +399,27 @@ func (ts *taskSet) collectBlobsForIndex(indexDigest registryv1.Hash) ([]blobWork
 	}
 
 	var allBlobs []blobWorkItem
-	for _, manifestDesc := range indexManifest.Manifests {
+	indexLabels := make(map[string]string)
+	for i, manifestDesc := range indexManifest.Manifests {
 		blobs, err := ts.collectBlobsForManifest(manifestDesc.Digest)
 		if err != nil {
 			return nil, err
 		}
 		allBlobs = append(allBlobs, blobs...)
+		indexLabels[fmt.Sprintf("containerd.io/gc.ref.content.m.%d", i)] = manifestDesc.Digest.String()
 	}
+
+	// Add the index itself as a blob to upload
+	indexLayer, err := ts.vfs.ManifestBlob(indexDigest)
+	if err != nil {
+		return nil, fmt.Errorf("getting manifest blob for %s: %w", indexDigest.String(), err)
+	}
+
+	allBlobs = append(allBlobs, blobWorkItem{
+		layer:  indexLayer,
+		labels: indexLabels,
+	})
+
 	return allBlobs, nil
 }
 
@@ -434,6 +453,16 @@ func (ts *taskSet) collectBlobsForManifest(imageDigest registryv1.Hash) ([]blobW
 		})
 	}
 
+	// Add the manifest itself as a blob to upload
+	manifestLayer, err := ts.vfs.ManifestBlob(imageDigest)
+	if err != nil {
+		return nil, fmt.Errorf("getting manifest blob for %s: %w", imageDigest.String(), err)
+	}
+	blobs = append(blobs, blobWorkItem{
+		layer:  manifestLayer,
+		labels: labels,
+	})
+
 	return blobs, nil
 }
 
@@ -441,6 +470,7 @@ type vfs interface {
 	ImageIndex(digest registryv1.Hash) (registryv1.ImageIndex, error)
 	Image(digest registryv1.Hash) (registryv1.Image, error)
 	Layer(digest registryv1.Hash) (registryv1.Layer, error)
+	ManifestBlob(digest registryv1.Hash) (registryv1.Layer, error)
 	DigestsFromRoot(root registryv1.Hash) ([]registryv1.Hash, error)
 	SizeOf(digest registryv1.Hash) (int64, error)
 }
