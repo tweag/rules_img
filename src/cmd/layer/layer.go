@@ -15,6 +15,7 @@ import (
 	"github.com/tweag/rules_img/src/pkg/api"
 	"github.com/tweag/rules_img/src/pkg/compress"
 	"github.com/tweag/rules_img/src/pkg/contentmanifest"
+	"github.com/tweag/rules_img/src/pkg/digestfs"
 	"github.com/tweag/rules_img/src/pkg/tarcas"
 	"github.com/tweag/rules_img/src/pkg/tree"
 	"github.com/tweag/rules_img/src/pkg/tree/runfiles"
@@ -221,6 +222,13 @@ func handleLayerState(
 	casImporter api.CASStateSupplier, casExporter api.CASStateExporter, outputFile io.Writer, layerMetadata *LayerMetadata,
 	compressorJobsFlag string, compressionLevelFlag int,
 ) (compressorState api.AppenderState, err error) {
+	// Create shared digestfs with precaching
+	digestFS := digestfs.New(&tarcas.SHA256Helper{})
+	precacher := digestfs.NewPrecacher(digestFS, 4) // 4 workers as requested
+	defer precacher.Close()
+
+	// Start precaching files in the background
+	startPrecaching(precacher, addFiles, addExecutables)
 	var opts []compress.Option
 	// compression level
 	if compressionLevelFlag >= 0 {
@@ -249,7 +257,7 @@ func handleLayerState(
 		}
 	}()
 
-	tw, err := tarcas.CASFactory("sha256", compressor)
+	tw, err := tarcas.CASFactoryWithDigestFS("sha256", compressor, digestFS)
 	if err != nil {
 		return compressorState, fmt.Errorf("creating Content-addressable storage inside tar file: %w", err)
 	}
@@ -372,4 +380,37 @@ func writeMetadata(name string, compressionAlgorithm api.CompressionAlgorithm, u
 		return fmt.Errorf("encoding metadata: %w", err)
 	}
 	return nil
+}
+
+// startPrecaching begins background digest calculation for files that will be processed
+func startPrecaching(precacher *digestfs.Precacher, addFiles addFiles, addExecutables executables) {
+	// Collect all files that will need digest calculation
+	var filesToPrecache []string
+
+	// Add files from addFiles operations
+	for _, op := range addFiles {
+		if op.FileType == api.RegularFile {
+			filesToPrecache = append(filesToPrecache, op.File)
+		}
+	}
+
+	// Add executable files and their runfiles
+	for _, op := range addExecutables {
+		filesToPrecache = append(filesToPrecache, op.Executable)
+
+		// Add runfiles if available
+		if op.RunfilesParameterFile != "" {
+			runfilesList, err := readParamFile(op.RunfilesParameterFile)
+			if err == nil {
+				for _, f := range runfilesList {
+					if f.FileType == api.RegularFile {
+						filesToPrecache = append(filesToPrecache, f.File)
+					}
+				}
+			}
+		}
+	}
+
+	// Start precaching in the background
+	precacher.PrecacheFiles(filesToPrecache)
 }

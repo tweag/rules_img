@@ -214,6 +214,47 @@ func (f *cachedDigestFile) Digest() ([]byte, error) {
 	return digest, err
 }
 
+func (f *cachedDigestFile) precache() error {
+	f.fs.mu.Lock()
+
+	// Check if digest is already cached
+	if _, exists := f.fs.digestCache[f.realPath]; exists {
+		f.fs.mu.Unlock()
+		return nil
+	}
+
+	// Check if there's already a running lookup for this file
+	if _, exists := f.fs.runningLookups[f.realPath]; exists {
+		// There's already a calculation in progress. Nothing to do.
+		f.fs.mu.Unlock()
+		return nil
+	}
+
+	// We need to start a new calculation
+	lookup := &runningLookup{
+		ch: make(chan struct{}),
+	}
+	f.fs.runningLookups[f.realPath] = lookup
+	f.fs.mu.Unlock()
+
+	// Perform the calculation (outside the lock)
+	digest, err := f.calculateDigest()
+
+	// Update the cache and notify waiters
+	f.fs.mu.Lock()
+	if err != nil {
+		lookup.err = err
+	} else {
+		f.fs.digestCache[f.realPath] = digest
+		lookup.digest = digest
+	}
+	delete(f.fs.runningLookups, f.realPath)
+	f.fs.mu.Unlock()
+	close(lookup.ch) // Notify all waiters
+
+	return err
+}
+
 func (f *cachedDigestFile) calculateDigest() ([]byte, error) {
 	// Save current position and reset to start
 	currentPos, err := f.file.Seek(0, io.SeekCurrent)

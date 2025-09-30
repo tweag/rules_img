@@ -55,6 +55,28 @@ func New[HM hashHelper](appender api.TarAppender, opts ...Option) *CAS[HM] {
 	}
 }
 
+func NewWithDigestFS[HM hashHelper](appender api.TarAppender, digestFS *digestfs.FileSystem, opts ...Option) *CAS[HM] {
+	options := options{
+		structure:                 CASFirst,
+		writeHeaderCallbackFilter: WriteHeaderCallbackFilterDefault,
+	}
+	for _, opt := range opts {
+		opt.apply(&options)
+	}
+
+	return &CAS[HM]{
+		tarAppender:  appender,
+		hashOrder:    [][]byte{},
+		nodeOrder:    [][]byte{},
+		treeOrder:    [][]byte{},
+		storedHashes: make(map[string]struct{}),
+		storedNodes:  make(map[string]struct{}),
+		storedTrees:  make(map[string]struct{}),
+		digestFS:     digestFS,
+		options:      options,
+	}
+}
+
 func (c *CAS[HM]) writeHeaderAndData(hdr *tar.Header, data io.Reader) error {
 	// Create a tar entry with header and data combined
 	var buf bytes.Buffer
