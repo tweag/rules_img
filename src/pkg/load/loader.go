@@ -305,7 +305,7 @@ func (l *loader) connect(ctx context.Context, daemon string) (*containerd.Client
 		return nil, fmt.Errorf("connecting to containerd: %w", err)
 	}
 	l.clientConn = client
-	l.haveContainerd = false
+	l.haveContainerd = true
 	l.triedContainerd = true
 	return l.clientConn, nil
 }
