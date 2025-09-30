@@ -35,7 +35,7 @@ def _prebuilt_collection_hub_repo_impl(rctx):
         "BUILD.bazel",
         """\
 load("@rules_img//img/private:image_toolchain.bzl", "image_toolchain")
-load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@bazel_lib//:bzl_library.bzl", "bzl_library")
 
 bzl_library(
     name = "defs",
