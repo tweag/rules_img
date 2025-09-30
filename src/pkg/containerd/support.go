@@ -64,6 +64,13 @@ func FindContainerdSocket() (string, error) {
 	socketPaths := []string{
 		"/run/containerd/containerd.sock",
 		"/var/run/containerd/containerd.sock",
+		"/run/docker/containerd/containerd.sock",
+		"/var/run/docker/containerd/containerd.sock",
+	}
+
+	if xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR"); xdgRuntimeDir != "" {
+		socketPaths = append(socketPaths, filepath.Join(xdgRuntimeDir, "containerd/containerd.sock"))
+		socketPaths = append(socketPaths, filepath.Join(xdgRuntimeDir, "docker/containerd/containerd.sock"))
 	}
 
 	// Use CONTAINERD_ADDRESS env var if set
