@@ -299,9 +299,15 @@ func (l *loader) connect(ctx context.Context, daemon string) (*containerd.Client
 	client, err := ConnectToContainerd(ctx)
 	if err != nil {
 		fmt.Printf("Connecting to containerd failed: %v\n", err)
-		// Print warning about performance impact
+		// Print warning about performance impact and digest differences
 		fmt.Fprintln(os.Stderr, "\n\033[33mWARNING: Docker is not using containerd storage backend.\033[0m")
 		fmt.Fprintln(os.Stderr, "This will use 'docker load' which is significantly slower than direct containerd loading.")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "\033[33mIMPORTANT: The digest of the image will be different due to the use of 'docker load'.\033[0m")
+		fmt.Fprintln(os.Stderr, "Docker load creates a custom Docker manifest that doesn't adhere to OCI spec.")
+		fmt.Fprintln(os.Stderr, "If you can load into the containerd backend, you can load the exact OCI image with the expected digest.")
+		fmt.Fprintln(os.Stderr, "See: https://github.com/bazel-contrib/rules_img/issues/76")
+		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "To improve performance, configure Docker to use containerd:")
 		fmt.Fprintln(os.Stderr, "  https://docs.docker.com/storage/containerd/")
 		fmt.Fprintln(os.Stderr, "")
