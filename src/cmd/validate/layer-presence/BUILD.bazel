@@ -6,7 +6,7 @@ go_library(
         "flags.go",
         "layerpresence.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/cmd/validate/layer-presence",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/validate/layer-presence",
     visibility = ["//visibility:public"],
     deps = ["//pkg/api"],
 )

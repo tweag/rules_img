@@ -6,7 +6,7 @@ go_library(
         "load.go",
         "loader.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/load",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/load",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

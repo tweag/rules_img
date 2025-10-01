@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	credhelper "github.com/tweag/rules_img/src/pkg/auth/credential"
-	"github.com/tweag/rules_img/src/pkg/auth/grpcheaderinterceptor"
+	credhelper "github.com/bazel-contrib/rules_img/src/pkg/auth/credential"
+	"github.com/bazel-contrib/rules_img/src/pkg/auth/grpcheaderinterceptor"
 )
 
 func Client(uri string, helper credhelper.Helper, opts ...grpc.DialOption) (*grpc.ClientConn, error) {

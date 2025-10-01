@@ -7,7 +7,7 @@ go_library(
         "flags.go",
         "sink.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/cmd/dockersave",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/dockersave",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_malt3_go_containerregistry//pkg/v1:pkg",

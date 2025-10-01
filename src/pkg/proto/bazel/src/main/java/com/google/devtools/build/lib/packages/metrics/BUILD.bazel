@@ -12,7 +12,7 @@ proto_library(
 go_proto_library(
     name = "metrics",
     compilers = ["@rules_go//proto:go_proto"],
-    importpath = "github.com/tweag/rules_img/src/pkg/proto/bazel/src/main/java/com/google/devtools/build/lib/packages/metrics",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/proto/bazel/src/main/java/com/google/devtools/build/lib/packages/metrics",
     proto = ":devtools_build_lib_packages_metrics_proto",
     visibility = ["//visibility:public"],
 )

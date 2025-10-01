@@ -16,8 +16,8 @@ import (
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
 	registrytypes "github.com/malt3/go-containerregistry/pkg/v1/types"
 
-	"github.com/tweag/rules_img/src/pkg/api"
-	"github.com/tweag/rules_img/src/pkg/cas"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/cas"
 )
 
 // VFS represents a virtual file system for deployment manifests and their associated blobs.

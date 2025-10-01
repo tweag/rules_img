@@ -3,6 +3,6 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "treeartifact",
     srcs = ["treeartifact.go"],
-    importpath = "github.com/tweag/rules_img/src/pkg/tree/treeartifact",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/tree/treeartifact",
     visibility = ["//visibility:public"],
 )

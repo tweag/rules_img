@@ -7,7 +7,7 @@ go_library(
         "multiimporter.go",
         "nopexporter.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/contentmanifest",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/contentmanifest",
     visibility = ["//visibility:public"],
     deps = ["//pkg/api"],
 )

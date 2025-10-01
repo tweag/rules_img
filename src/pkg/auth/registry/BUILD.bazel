@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "registry",
     srcs = ["registry.go"],
-    importpath = "github.com/tweag/rules_img/src/pkg/auth/registry",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/auth/registry",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_malt3_go_containerregistry//pkg/authn",

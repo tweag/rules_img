@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "tree",
     srcs = ["recorder.go"],
-    importpath = "github.com/tweag/rules_img/src/pkg/tree",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/tree",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

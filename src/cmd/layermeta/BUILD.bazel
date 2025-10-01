@@ -6,7 +6,7 @@ go_library(
         "flagtypes.go",
         "layermeta.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/cmd/layermeta",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/layermeta",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

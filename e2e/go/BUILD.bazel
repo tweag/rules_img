@@ -4,7 +4,7 @@ load("@rules_img//img:multi_deploy.bzl", "multi_deploy")
 go_library(
     name = "app_lib",
     srcs = ["main.go"],
-    importpath = "github.com/tweag/rules_img/e2e/go/image",
+    importpath = "github.com/bazel-contrib/rules_img/e2e/go/image",
     visibility = ["//visibility:private"],
 )
 

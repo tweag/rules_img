@@ -11,10 +11,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/tweag/rules_img/src/pkg/api"
-	"github.com/tweag/rules_img/src/pkg/fileopener"
-	"github.com/tweag/rules_img/src/pkg/tree/runfiles"
-	"github.com/tweag/rules_img/src/pkg/tree/treeartifact"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/fileopener"
+	"github.com/bazel-contrib/rules_img/src/pkg/tree/runfiles"
+	"github.com/bazel-contrib/rules_img/src/pkg/tree/treeartifact"
 )
 
 type Recorder struct {

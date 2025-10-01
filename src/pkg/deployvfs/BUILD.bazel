@@ -7,7 +7,7 @@ go_library(
         "image.go",
         "index.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/deployvfs",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/deployvfs",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

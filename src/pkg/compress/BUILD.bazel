@@ -8,7 +8,7 @@ go_library(
         "factory.go",
         "options.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/compress",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/compress",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

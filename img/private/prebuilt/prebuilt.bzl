@@ -97,7 +97,7 @@ _prebuilt_attrs = {
     "os": attr.string(values = ["darwin", "linux", "windows"]),
     "cpu": attr.string(values = ["amd64", "arm64"]),
     "url_templates": attr.string_list(
-        default = ["https://github.com/tweag/rules_img/releases/download/{version}/img_{os}_{cpu}{dot}{extension}"],
+        default = ["https://github.com/bazel-contrib/rules_img/releases/download/{version}/img_{os}_{cpu}{dot}{extension}"],
     ),
 }
 

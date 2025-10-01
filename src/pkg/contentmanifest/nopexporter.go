@@ -1,6 +1,6 @@
 package contentmanifest
 
-import "github.com/tweag/rules_img/src/pkg/api"
+import "github.com/bazel-contrib/rules_img/src/pkg/api"
 
 type nopexporter struct{}
 

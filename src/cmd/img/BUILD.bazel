@@ -4,7 +4,7 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library")
 go_library(
     name = "img_lib",
     srcs = ["img.go"],
-    importpath = "github.com/tweag/rules_img/src/cmd/img",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/img",
     visibility = ["//visibility:private"],
     deps = [
         "//cmd/compress",

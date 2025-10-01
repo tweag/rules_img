@@ -6,8 +6,8 @@ import (
 	"hash"
 	"io"
 
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
 	pgzip "github.com/klauspost/pgzip"
-	"github.com/tweag/rules_img/src/pkg/api"
 )
 
 // Appender appends data to a compressed blob, while

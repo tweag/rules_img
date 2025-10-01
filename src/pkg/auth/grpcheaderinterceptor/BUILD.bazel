@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "grpcheaderinterceptor",
     srcs = ["grpcheaderinterceptor.go"],
-    importpath = "github.com/tweag/rules_img/src/pkg/auth/grpcheaderinterceptor",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/auth/grpcheaderinterceptor",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/auth/credential",

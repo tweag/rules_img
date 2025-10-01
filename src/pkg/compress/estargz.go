@@ -8,7 +8,7 @@ import (
 	"github.com/containerd/stargz-snapshotter/estargz/zstdchunked"
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/tweag/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
 )
 
 // TarAppender appends tar entries to a compressed blob using estargz,

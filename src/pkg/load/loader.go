@@ -11,9 +11,9 @@ import (
 	ocidigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	"github.com/tweag/rules_img/src/pkg/api"
-	"github.com/tweag/rules_img/src/pkg/containerd"
-	"github.com/tweag/rules_img/src/pkg/docker"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/containerd"
+	"github.com/bazel-contrib/rules_img/src/pkg/docker"
 )
 
 type builder struct {

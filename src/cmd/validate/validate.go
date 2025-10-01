@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	layerpresence "github.com/tweag/rules_img/src/cmd/validate/layer-presence"
+	layerpresence "github.com/bazel-contrib/rules_img/src/cmd/validate/layer-presence"
 )
 
 const usage = `Usage img validate [COMMAND] [ARGS...]

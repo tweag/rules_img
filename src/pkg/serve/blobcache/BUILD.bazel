@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "blobcache",
     srcs = ["blobcache.go"],
-    importpath = "github.com/tweag/rules_img/src/pkg/serve/blobcache",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/serve/blobcache",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/proto/blobcache",

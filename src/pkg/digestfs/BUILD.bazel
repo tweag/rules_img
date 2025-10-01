@@ -6,6 +6,6 @@ go_library(
         "digestfs.go",
         "precacher.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/digestfs",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/digestfs",
     visibility = ["//visibility:public"],
 )

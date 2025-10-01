@@ -6,7 +6,7 @@ go_library(
         "compress.go",
         "flagtypes.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/cmd/compress",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/compress",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

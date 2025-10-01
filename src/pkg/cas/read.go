@@ -11,7 +11,7 @@ import (
 	bytestream_proto "google.golang.org/genproto/googleapis/bytestream"
 	"google.golang.org/grpc"
 
-	remoteexecution_proto "github.com/tweag/rules_img/src/pkg/proto/remote-apis/build/bazel/remote/execution/v2"
+	remoteexecution_proto "github.com/bazel-contrib/rules_img/src/pkg/proto/remote-apis/build/bazel/remote/execution/v2"
 )
 
 type CAS struct {

@@ -8,7 +8,7 @@ go_library(
         "metadata.go",
         "paramfile.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/cmd/layer",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/layer",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

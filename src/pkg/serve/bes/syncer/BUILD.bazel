@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "syncer",
     srcs = ["syncer.go"],
-    importpath = "github.com/tweag/rules_img/src/pkg/serve/bes/syncer",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/serve/bes/syncer",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

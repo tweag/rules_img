@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
-	remoteexecution_proto "github.com/tweag/rules_img/src/pkg/proto/remote-apis/build/bazel/remote/execution/v2"
+	remoteexecution_proto "github.com/bazel-contrib/rules_img/src/pkg/proto/remote-apis/build/bazel/remote/execution/v2"
 )
 
 func (c *CAS) WriteBlob(ctx context.Context, digest Digest, r io.Reader) error {

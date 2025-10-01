@@ -6,7 +6,7 @@ go_library(
         "merge.go",
         "metadata.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/cmd/deploy",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/deploy",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

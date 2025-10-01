@@ -12,7 +12,7 @@ import (
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
 
-	reg "github.com/tweag/rules_img/src/pkg/auth/registry"
+	reg "github.com/bazel-contrib/rules_img/src/pkg/auth/registry"
 )
 
 type UpstreamBlobHandler struct {

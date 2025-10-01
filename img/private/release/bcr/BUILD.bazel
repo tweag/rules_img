@@ -5,7 +5,7 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library")
 go_library(
     name = "bcr_lib",
     srcs = ["bcr.go"],
-    importpath = "github.com/tweag/rules_img/img/private/release/bcr",
+    importpath = "github.com/bazel-contrib/rules_img/img/private/release/bcr",
     visibility = ["//visibility:private"],
 )
 

@@ -12,8 +12,8 @@ import (
 	v1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"google.golang.org/grpc"
 
-	"github.com/tweag/rules_img/src/pkg/cas"
-	combined "github.com/tweag/rules_img/src/pkg/serve/registry"
+	"github.com/bazel-contrib/rules_img/src/pkg/cas"
+	combined "github.com/bazel-contrib/rules_img/src/pkg/serve/registry"
 )
 
 type REAPIBlobHandler struct {

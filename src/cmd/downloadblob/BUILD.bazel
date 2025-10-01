@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "downloadblob",
     srcs = ["downloadblob.go"],
-    importpath = "github.com/tweag/rules_img/src/cmd/downloadblob",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/downloadblob",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/auth/registry",

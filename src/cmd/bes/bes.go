@@ -13,12 +13,12 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/tweag/rules_img/src/pkg/auth/credential"
-	"github.com/tweag/rules_img/src/pkg/auth/protohelper"
-	"github.com/tweag/rules_img/src/pkg/cas"
-	bes_proto "github.com/tweag/rules_img/src/pkg/proto/build_event_service"
-	"github.com/tweag/rules_img/src/pkg/serve/bes"
-	"github.com/tweag/rules_img/src/pkg/serve/bes/syncer"
+	"github.com/bazel-contrib/rules_img/src/pkg/auth/credential"
+	"github.com/bazel-contrib/rules_img/src/pkg/auth/protohelper"
+	"github.com/bazel-contrib/rules_img/src/pkg/cas"
+	bes_proto "github.com/bazel-contrib/rules_img/src/pkg/proto/build_event_service"
+	"github.com/bazel-contrib/rules_img/src/pkg/serve/bes"
+	"github.com/bazel-contrib/rules_img/src/pkg/serve/bes/syncer"
 )
 
 const usage = `Usage: bes [ARGS...]`

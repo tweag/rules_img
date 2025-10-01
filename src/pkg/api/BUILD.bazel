@@ -8,6 +8,6 @@ go_library(
         "commands.go",
         "deploy.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/api",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/api",
     visibility = ["//visibility:public"],
 )

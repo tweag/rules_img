@@ -7,7 +7,7 @@ load(":release_files_updated.bzl", "release_files_test")
 go_library(
     name = "gazelle_plugin",
     srcs = ["all_files.go"],
-    importpath = "github.com/tweag/rules_img/img/private/release/gazelle_plugin",
+    importpath = "github.com/bazel-contrib/rules_img/img/private/release/gazelle_plugin",
     visibility = ["//visibility:public"],
     deps = [
         "@gazelle//config",

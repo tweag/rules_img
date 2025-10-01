@@ -7,19 +7,19 @@ import (
 
 	"github.com/bazelbuild/rules_go/go/runfiles"
 
-	"github.com/tweag/rules_img/src/cmd/compress"
-	"github.com/tweag/rules_img/src/cmd/deploy"
-	"github.com/tweag/rules_img/src/cmd/dockersave"
-	"github.com/tweag/rules_img/src/cmd/downloadblob"
-	"github.com/tweag/rules_img/src/cmd/expandtemplate"
-	"github.com/tweag/rules_img/src/cmd/index"
-	"github.com/tweag/rules_img/src/cmd/layer"
-	"github.com/tweag/rules_img/src/cmd/layermeta"
-	"github.com/tweag/rules_img/src/cmd/manifest"
-	"github.com/tweag/rules_img/src/cmd/ocilayout"
-	"github.com/tweag/rules_img/src/cmd/pull"
-	"github.com/tweag/rules_img/src/cmd/push"
-	"github.com/tweag/rules_img/src/cmd/validate"
+	"github.com/bazel-contrib/rules_img/src/cmd/compress"
+	"github.com/bazel-contrib/rules_img/src/cmd/deploy"
+	"github.com/bazel-contrib/rules_img/src/cmd/dockersave"
+	"github.com/bazel-contrib/rules_img/src/cmd/downloadblob"
+	"github.com/bazel-contrib/rules_img/src/cmd/expandtemplate"
+	"github.com/bazel-contrib/rules_img/src/cmd/index"
+	"github.com/bazel-contrib/rules_img/src/cmd/layer"
+	"github.com/bazel-contrib/rules_img/src/cmd/layermeta"
+	"github.com/bazel-contrib/rules_img/src/cmd/manifest"
+	"github.com/bazel-contrib/rules_img/src/cmd/ocilayout"
+	"github.com/bazel-contrib/rules_img/src/cmd/pull"
+	"github.com/bazel-contrib/rules_img/src/cmd/push"
+	"github.com/bazel-contrib/rules_img/src/cmd/validate"
 )
 
 const usage = `Usage: img [COMMAND] [ARGS...]

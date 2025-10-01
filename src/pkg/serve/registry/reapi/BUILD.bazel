@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "reapi",
     srcs = ["reapi.go"],
-    importpath = "github.com/tweag/rules_img/src/pkg/serve/registry/reapi",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/serve/registry/reapi",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/cas",

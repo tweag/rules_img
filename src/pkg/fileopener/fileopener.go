@@ -8,7 +8,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/tweag/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
 )
 
 func CompressionReaderWithFormat(r io.Reader, format api.CompressionAlgorithm) (io.Reader, error) {
