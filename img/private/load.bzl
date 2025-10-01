@@ -68,16 +68,20 @@ def _compute_load_metadata(*, ctx, configuration_json):
         args.add("--root-path", manifest_info.manifest.path)
         args.add("--root-kind", "manifest")
         args.add("--manifest-path", "0=" + manifest_info.manifest.path)
+        args.add("--config-path", "0=" + manifest_info.config.path)
         args.add("--missing-blobs-for-manifest", "0=" + (",".join(manifest_info.missing_blobs)))
         inputs.append(manifest_info.manifest)
+        inputs.append(manifest_info.config)
     if index_info != None:
         args.add("--root-path", index_info.index.path)
         args.add("--root-kind", "index")
         for i, manifest in enumerate(index_info.manifests):
             args.add("--manifest-path", "{}={}".format(i, manifest.manifest.path))
+            args.add("--config-path", "{}={}".format(i, manifest.config.path))
             args.add("--missing-blobs-for-manifest", "{}={}".format(i, ",".join(manifest.missing_blobs)))
         inputs.append(index_info.index)
         inputs.extend([manifest.manifest for manifest in index_info.manifests])
+        inputs.extend([manifest.config for manifest in index_info.manifests])
 
     metadata_out = ctx.actions.declare_file(ctx.label.name + ".json")
     args.add(metadata_out.path)

@@ -23,6 +23,7 @@ var (
 	configurationPath       string
 	strategy                string
 	manifestPaths           []string
+	configPaths             []string
 	missingBlobsForManifest [][]string
 	originalRegistries      []string
 	originalRepository      string
@@ -75,6 +76,23 @@ func DeployMetadataProcess(ctx context.Context, args []string) {
 		manifestPaths[index] = path
 		return nil
 	})
+	flagSet.Func("config-path", `Path to a container image config file. Format: index=path (e.g., 0=foo.json). Can be specified multiple times.`, func(value string) error {
+		parts := strings.SplitN(value, "=", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("config-path must be in format index=path")
+		}
+		index, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return fmt.Errorf("invalid index in config-path: %w", err)
+		}
+		path := parts[1]
+		// Expand slice if necessary
+		for len(configPaths) <= index {
+			configPaths = append(configPaths, "")
+		}
+		configPaths[index] = path
+		return nil
+	})
 	flagSet.Func("missing-blobs-for-manifest", `Missing blobs for a manifest. Format: index=blob1,blob2,... (e.g., 0=sha256:abc,sha256:def). Can be specified multiple times.`, func(value string) error {
 		parts := strings.SplitN(value, "=", 2)
 		if len(parts) != 2 {
@@ -117,6 +135,11 @@ func DeployMetadataProcess(ctx context.Context, args []string) {
 	}
 	if configurationPath == "" {
 		fmt.Fprintln(os.Stderr, "Error: --configuration-file is required")
+		flagSet.Usage()
+		os.Exit(1)
+	}
+	if len(manifestPaths) != len(configPaths) {
+		fmt.Fprintln(os.Stderr, "Error: the number of --manifest-path and --config-path arguments must be the same")
 		flagSet.Usage()
 		os.Exit(1)
 	}
@@ -210,11 +233,24 @@ func WriteMetadata(ctx context.Context, outputPath string) error {
 			Digest:    manifest.Config.Digest.String(),
 			Size:      manifest.Config.Size,
 		}
+		configData, err := os.ReadFile(configPaths[i])
+		if err != nil {
+			return fmt.Errorf("reading config file %s: %w", configPaths[i], err)
+		}
+		configFile, err := registryv1.ParseConfigFile(bytes.NewReader(configData))
+		if err != nil {
+			return fmt.Errorf("parsing config file %s: %w", configPaths[i], err)
+		}
+
+		if len(configFile.RootFS.DiffIDs) != len(manifest.Layers) {
+			return fmt.Errorf("number of DiffIDs (%d) does not match number of layers (%d) in manifest %s", len(configFile.RootFS.DiffIDs), len(manifest.Layers), manifestPath)
+		}
 
 		// Extract layer descriptors
 		layerBlobs := make([]api.Descriptor, len(manifest.Layers))
 		for j, layer := range manifest.Layers {
 			layerBlobs[j] = api.Descriptor{
+				DiffID:    configFile.RootFS.DiffIDs[j].String(),
 				MediaType: string(layer.MediaType),
 				Digest:    layer.Digest.String(),
 				Size:      layer.Size,
