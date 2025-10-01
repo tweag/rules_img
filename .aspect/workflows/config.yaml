@@ -1,0 +1,44 @@
+# See https://docs.aspect.build/workflows/configuration
+# Nested workspaces with MODULE.bazel files
+workspaces:
+    .:
+        icon: docker
+        label: rules_img
+    # TODO(malte): fix and re-enable
+    # src:
+    #     label: Go application
+    # TODO(malte): enable e2e tests when green
+    # e2e/cc:
+    #     label: C++ integration tests
+    # e2e/go:
+    #     label: Go integration tests
+    # e2e/generic:
+    #     label: Generic integration tests
+    # e2e/js:
+    #     label: JavaScript integration tests
+    # e2e/python:
+    #     label: Python e2e tests
+tasks:
+    # Note: we don't support Bazel 6 or earlier
+    # TODO(malte): enable Bazel 7 when green
+    # - test:
+    #       name: Bazel 7
+    #       id: bazel-7
+    #       env:
+    #           USE_BAZEL_VERSION: 7.x
+    - test:
+          name: Bazel 8
+          id: bazel-8
+          env:
+              USE_BAZEL_VERSION: 8.x
+    # TODO(malte): enable Bazel 9 when green
+    # - test:
+    #       name: Bazel 9
+    #       id: bazel-9
+    #       env:
+    #           USE_BAZEL_VERSION: rolling
+    - buildifier:
+        queue: aspect-small
+        target: //util:buildifier.check
+notifications:
+    github: {}
