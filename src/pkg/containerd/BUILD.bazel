@@ -6,6 +6,7 @@ go_library(
         "client.go",
         "content.go",
         "images.go",
+        "lease.go",
         "namespace.go",
         "support.go",
     ],
@@ -14,6 +15,7 @@ go_library(
     deps = [
         "@com_github_containerd_containerd_api//services/content/v1:content",
         "@com_github_containerd_containerd_api//services/images/v1:images",
+        "@com_github_containerd_containerd_api//services/leases/v1:leases",
         "@com_github_containerd_containerd_api//types",
         "@com_github_opencontainers_go_digest//:go-digest",
         "@com_github_opencontainers_image_spec//specs-go/v1:specs-go",

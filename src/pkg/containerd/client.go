@@ -8,6 +8,7 @@ import (
 
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
 	imagesapi "github.com/containerd/containerd/api/services/images/v1"
+	leasesapi "github.com/containerd/containerd/api/services/leases/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -17,6 +18,7 @@ type Client struct {
 	conn          *grpc.ClientConn
 	contentClient contentapi.ContentClient
 	imagesClient  imagesapi.ImagesClient
+	leasesClient  leasesapi.LeasesClient
 	address       string
 }
 
@@ -52,6 +54,7 @@ func New(address string) (*Client, error) {
 		conn:          conn,
 		contentClient: contentapi.NewContentClient(conn),
 		imagesClient:  imagesapi.NewImagesClient(conn),
+		leasesClient:  leasesapi.NewLeasesClient(conn),
 		address:       address,
 	}, nil
 }
@@ -64,6 +67,10 @@ func (c *Client) Close() error {
 // ContentStore returns the content store
 func (c *Client) ContentStore() Store {
 	return &contentStore{client: c.contentClient}
+}
+
+func (c *Client) LeaseService() LeaseService {
+	return &leaseService{client: c.leasesClient}
 }
 
 // ImageService returns the image service

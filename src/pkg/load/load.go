@@ -1,6 +1,7 @@
 package load
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -140,25 +141,14 @@ func uploadBlob(ctx context.Context, contentStore containerd.Store, blob blobWor
 		Size:      size,
 	}
 
-	info, err := contentStore.Info(ctx, digest)
-	if err == nil && info.Digest == digest {
-		return nil
-	}
-
-	reader, err := blob.layer.Compressed()
-	if err != nil {
-		return fmt.Errorf("getting reader for upload: %w", err)
-	}
-	defer reader.Close()
-
-	if err := storeBlob(ctx, contentStore, descriptor, reader, blob.labels); err != nil {
+	if err := storeBlob(ctx, contentStore, descriptor, blob.layer, blob.labels); err != nil {
 		return fmt.Errorf("storing blob in containerd: %w", err)
 	}
 
 	return nil
 }
 
-func storeBlob(ctx context.Context, store containerd.Store, desc ocispec.Descriptor, reader io.Reader, labels map[string]string) error {
+func storeBlob(ctx context.Context, store containerd.Store, desc ocispec.Descriptor, layer registryv1.Layer, labels map[string]string) error {
 	// Check if the blob already exists
 	info, err := store.Info(ctx, desc.Digest)
 	if err == nil && info.Digest == desc.Digest && info.Size == desc.Size {
@@ -173,8 +163,20 @@ func storeBlob(ctx context.Context, store containerd.Store, desc ocispec.Descrip
 	}
 	defer writer.Close()
 
-	if _, err := io.Copy(writer, reader); err != nil {
+	bufferedWriter := bufio.NewWriter(writer)
+
+	reader, err := layer.Compressed()
+	if err != nil {
+		return fmt.Errorf("getting reader for upload: %w", err)
+	}
+	defer reader.Close()
+
+	if _, err := io.Copy(bufferedWriter, reader); err != nil {
 		return fmt.Errorf("copying data to writer: %w", err)
+	}
+
+	if err := bufferedWriter.Flush(); err != nil {
+		return fmt.Errorf("flushing buffered writer: %w", err)
 	}
 
 	// Prepare commit options
