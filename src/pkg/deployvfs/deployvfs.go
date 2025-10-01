@@ -489,7 +489,22 @@ func (b blobEntry) Digest() (registryv1.Hash, error) {
 }
 
 func (b blobEntry) DiffID() (registryv1.Hash, error) {
-	panic("DiffID on vfs path is not implemented")
+	// Only return DiffID for layers
+	mediaType, err := b.MediaType()
+	if err != nil {
+		return registryv1.Hash{}, fmt.Errorf("getting media type: %w", err)
+	}
+
+	if !mediaType.IsLayer() {
+		return registryv1.Hash{}, fmt.Errorf("DiffID is only available for layers, got media type: %s", mediaType)
+	}
+
+	// Check if DiffID is set in the descriptor
+	if b.Descriptor.DiffID == "" {
+		return registryv1.Hash{}, fmt.Errorf("DiffID not set for layer with digest %s", b.Descriptor.Digest)
+	}
+
+	return registryv1.NewHash(b.Descriptor.DiffID)
 }
 
 func (b blobEntry) Compressed() (io.ReadCloser, error) {
