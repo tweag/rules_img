@@ -69,6 +69,10 @@ common --@rules_img//img/settings:load_strategy=eager
 # "docker" or "containerd"
 common --@rules_img//img/settings:load_daemon=docker
 
+# Path to the docker loader binary to use for docker load operations
+# Falls back to $LOADER env var if not set, otherwise defaults to "docker"
+common --@rules_img//img/settings:docker_loader_path=docker
+
 # Bazel remote cache to use for lazy pushing of container images.
 # Uses the same format as Bazel's --remote_cache flag.
 # Falls back to $IMG_REAPI_ENDPOINT env var.

@@ -149,6 +149,9 @@ func (l *loader) loadViaDocker(ctx context.Context, op api.IndexedLoadDeployOper
 	errCh := make(chan error, 1)
 	go func() {
 		err := docker.Load(pr)
+		if err != nil {
+			pr.CloseWithError(err)
+		}
 		pr.Close()
 		errCh <- err
 	}()

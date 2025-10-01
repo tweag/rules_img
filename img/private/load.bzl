@@ -185,10 +185,12 @@ def _image_load_impl(ctx):
             environment = {
                 "IMG_REAPI_ENDPOINT": ctx.attr._load_settings[LoadSettingsInfo].remote_cache,
                 "IMG_CREDENTIAL_HELPER": ctx.attr._load_settings[LoadSettingsInfo].credential_helper,
+                "LOADER": ctx.attr._load_settings[LoadSettingsInfo].docker_loader_path,
             },
             inherited_environment = [
                 "IMG_REAPI_ENDPOINT",
                 "IMG_CREDENTIAL_HELPER",
+                "LOADER",
             ],
         ),
         DeployInfo(
