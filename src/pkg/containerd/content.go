@@ -15,12 +15,14 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 // Store is the content store interface
 type Store interface {
 	Info(ctx context.Context, dgst digest.Digest) (Info, error)
 	Writer(ctx context.Context, opts ...WriterOpt) (Writer, error)
+	Update(ctx context.Context, dgst digest.Digest, info Info) error
 }
 
 type contentStore struct {
@@ -296,6 +298,21 @@ func (w *contentWriter) Digest() digest.Digest {
 func (w *contentWriter) Truncate(size int64) error {
 	// Not implemented for our use case
 	return fmt.Errorf("truncate not supported")
+}
+
+// Update updates the content info (labels)
+func (s *contentStore) Update(ctx context.Context, dgst digest.Digest, info Info) error {
+	_, err := s.client.Update(ctx, &api.UpdateRequest{
+		Info: &api.Info{
+			Digest: dgst.String(),
+			Size:   info.Size,
+			Labels: info.Labels,
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{
+			Paths: []string{"labels"},
+		},
+	})
+	return err
 }
 
 // Helper functions and types

@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	ocigodigest "github.com/opencontainers/go-digest"
@@ -74,6 +76,30 @@ func computeManifestGCLabels(manifest *registryv1.Manifest) map[string]string {
 		labels[fmt.Sprintf("containerd.io/gc.ref.content.l.%d", i)] = layer.Digest.String()
 	}
 	return labels
+}
+
+func computeLayerLabels(layer registryv1.Layer) (map[string]string, error) {
+	// check media type:
+	mediaType, err := layer.MediaType()
+	if err != nil {
+		return nil, fmt.Errorf("getting layer media type: %w", err)
+	}
+	// only store uncompressed digest for known types
+	switch mediaType {
+	case ocispec.MediaTypeImageLayerGzip,
+		ocispec.MediaTypeImageLayerZstd:
+		// ok
+	default:
+		// skip uncompressed layers
+		return nil, nil
+	}
+	diffID, err := layer.DiffID()
+	if err != nil {
+		return nil, fmt.Errorf("getting layer diffID: %w", err)
+	}
+	return map[string]string{
+		"containerd.io/gc.ref.content.uncompressed": diffID.String(),
+	}, nil
 }
 
 func uploadBlobsParallel(ctx context.Context, contentStore containerd.Store, blobs []blobWorkItem, numWorkers int) error {
@@ -177,10 +203,18 @@ func storeBlob(ctx context.Context, store containerd.Store, desc ocispec.Descrip
 		return fmt.Errorf("copying data to writer: %w", err)
 	}
 
-	// Prepare commit options
-	commitOpts := []containerd.Opt{}
+	// Prepare commit options with gc.root label for temporary pinning
+	commitLabels := make(map[string]string)
 	if len(labels) > 0 {
-		commitOpts = append(commitOpts, containerd.WithLabels(labels))
+		maps.Copy(commitLabels, labels)
+	}
+	// Add gc.root label to temporarily pin the blob during upload
+	gcLabel := time.Now().UTC().Format(time.RFC3339)
+	commitLabels["containerd.io/gc.root"] = gcLabel
+
+	commitOpts := []containerd.Opt{}
+	if len(commitLabels) > 0 {
+		commitOpts = append(commitOpts, containerd.WithLabels(commitLabels))
 	}
 
 	if err := writer.Commit(ctx, desc.Size, desc.Digest, commitOpts...); err != nil {
@@ -194,17 +228,42 @@ func storeBlob(ctx context.Context, store containerd.Store, desc ocispec.Descrip
 	return nil
 }
 
-func digest(data []byte) ocigodigest.Digest {
-	return ocigodigest.FromBytes(data)
-}
+func removeGCRootLabels(ctx context.Context, contentStore containerd.Store, blobs []blobWorkItem) error {
+	var errs []error
+	for _, blob := range blobs {
+		digest, err := blob.layer.Digest()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("getting digest for GC label removal: %w", err))
+			continue
+		}
 
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
+		ociDigest := ocigodigest.Digest(digest.String())
+
+		// Get current info
+		info, err := contentStore.Info(ctx, ociDigest)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("getting info for blob %s: %w", ociDigest, err))
+			continue
+		}
+
+		// Remove gc.root label if it exists
+		if info.Labels != nil {
+			if _, exists := info.Labels["containerd.io/gc.root"]; exists {
+				delete(info.Labels, "containerd.io/gc.root")
+
+				// Update the content with the modified labels
+				if err := contentStore.Update(ctx, ociDigest, info); err != nil {
+					errs = append(errs, fmt.Errorf("updating labels for blob %s: %w", ociDigest, err))
+					continue
+				}
+			}
 		}
 	}
-	return false
+
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to remove GC labels from %d blobs: %v", len(errs), errs)
+	}
+	return nil
 }
 
 func NormalizeDockerReference(ref string) string {

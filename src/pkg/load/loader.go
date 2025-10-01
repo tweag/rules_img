@@ -88,6 +88,11 @@ func (l *loader) LoadAll(ctx context.Context, ops []api.IndexedLoadDeployOperati
 				}
 				pushedTags = append(pushedTags, NormalizeDockerReference(op.Tag))
 			}
+
+			// Remove gc.root labels from all blobs after successful image creation
+			if err := removeGCRootLabels(ctx, contentStore, blobs); err != nil {
+				return nil, fmt.Errorf("removing GC root labels: %w", err)
+			}
 		case "docker":
 			// Load all images via docker load
 			for _, op := range ops {
@@ -444,7 +449,7 @@ func (ts *taskSet) collectBlobsForManifest(imageDigest registryv1.Hash) ([]blobW
 		return nil, fmt.Errorf("getting image manifest for root %s: %w", imageDigest, err)
 	}
 
-	labels := computeManifestGCLabels(imageManifest)
+	manifestLabels := computeManifestGCLabels(imageManifest)
 
 	var blobs []blobWorkItem
 	for _, entry := range entries {
@@ -453,9 +458,14 @@ func (ts *taskSet) collectBlobsForManifest(imageDigest registryv1.Hash) ([]blobW
 			return nil, fmt.Errorf("getting layer %s: %w", entry.String(), err)
 		}
 
+		layerLabels, err := computeLayerLabels(layer)
+		if err != nil {
+			return nil, fmt.Errorf("computing labels for layer %s: %w", entry.String(), err)
+		}
+
 		blobs = append(blobs, blobWorkItem{
 			layer:  layer,
-			labels: labels,
+			labels: layerLabels,
 		})
 	}
 
@@ -466,7 +476,7 @@ func (ts *taskSet) collectBlobsForManifest(imageDigest registryv1.Hash) ([]blobW
 	}
 	blobs = append(blobs, blobWorkItem{
 		layer:  manifestLayer,
-		labels: labels,
+		labels: manifestLabels,
 	})
 
 	return blobs, nil
