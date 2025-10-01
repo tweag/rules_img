@@ -1,0 +1,43 @@
+# See https://docs.aspect.build/workflows/configuration
+# Nested workspaces with MODULE.bazel files
+workspaces:
+    .:
+        icon: docker
+        label: rules_img
+    src:
+        label: Go application
+    e2e/cc:
+        label: C++ integration tests
+    e2e/go:
+        label: Go integration tests
+    e2e/generic:
+        label: Generic integration tests
+    e2e/js:
+        label: JavaScript integration tests
+    e2e/python:
+        label: Python e2e tests
+tasks:
+    - test:
+          name: Bazel 6
+          id: bazel-6
+          env:
+              USE_BAZEL_VERSION: 6.x
+    - test:
+          name: Bazel 7
+          id: bazel-7
+          env:
+              USE_BAZEL_VERSION: 7.x
+    - test:
+          name: Bazel 8
+          id: bazel-8
+          env:
+              USE_BAZEL_VERSION: 8.x
+    - test:
+          name: Bazel 9
+          id: bazel-9
+          env:
+              USE_BAZEL_VERSION: rolling
+    - buildifier:
+          queue: aspect-medium
+notifications:
+    github: {}
