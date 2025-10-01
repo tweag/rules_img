@@ -38,6 +38,6 @@ tasks:
           env:
               USE_BAZEL_VERSION: rolling
     - buildifier:
-          queue: aspect-medium
+          queue: aspect-small
 notifications:
     github: {}
