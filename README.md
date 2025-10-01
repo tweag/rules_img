@@ -7,6 +7,8 @@
 
 Supports both **Bzlmod** and **WORKSPACE** setups. For WORKSPACE setup instructions, see the [releases page](https://github.com/tweag/rules_img/releases).
 
+`rules_img` was originally written by (and receives ongoing support from) <br>
+<a target="_blank" rel="noopener noreferrer" href="https://tweag.io/#gh-light-mode-only"><img src="./docs/visuals/tweag_light_mode.svg" alt="Tweag" style="width: 10rem;"></a><a target="_blank" rel="noopener noreferrer" href="https://tweag.io/#gh-dark-mode-only"><img src="./docs/visuals/tweag_dark_mode.svg" alt="Tweag" style="width: 10rem;"></a>.
 </div>
 
 ## Features
