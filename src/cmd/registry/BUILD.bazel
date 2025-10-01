@@ -7,7 +7,7 @@ go_library(
         "flagtypes.go",
         "registry.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/cmd/registry",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/registry",
     visibility = ["//visibility:private"],
     deps = [
         "//pkg/auth/credential",

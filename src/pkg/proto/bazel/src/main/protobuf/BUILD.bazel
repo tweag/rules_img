@@ -21,7 +21,7 @@ go_proto_library(
     compilers = [
         "@rules_go//proto:go_proto",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/proto/bazel/src/main/protobuf",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/proto/bazel/src/main/protobuf",
     proto = ":proto",
     visibility = ["//visibility:public"],
 )

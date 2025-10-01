@@ -10,7 +10,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	pgzip "github.com/klauspost/pgzip"
 
-	"github.com/tweag/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
 )
 
 type SHA256Maker struct{}

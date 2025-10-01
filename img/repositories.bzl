@@ -20,7 +20,7 @@ def _img_prebuilt_tool_from_lockfile_impl(rctx):
     # Download the tool using the same logic as prebuilt_img_tool_repo
     extension = "exe" if target_tool["os"] == "windows" else ""
     dot = "." if len(extension) > 0 else ""
-    url_templates = target_tool.get("url_templates", ["https://github.com/tweag/rules_img/releases/download/{version}/img_{os}_{cpu}{dot}{extension}"])
+    url_templates = target_tool.get("url_templates", ["https://github.com/bazel-contrib/rules_img/releases/download/{version}/img_{os}_{cpu}{dot}{extension}"])
 
     urls = [template.format(
         version = target_tool["version"],

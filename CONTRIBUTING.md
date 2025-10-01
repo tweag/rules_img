@@ -36,8 +36,8 @@ You can also [join our Discord][discord-join] server and talk to us directly.
 
 Please refer to [`HACKING.md`](/HACKING.md) to set up a development environment, test the code on a Bazel project and run integration tests.
 
-[discussions]: https://github.com/tweag/rules_img/discussions
+[discussions]: https://github.com/bazel-contrib/rules_img/discussions
 [push-strategies]: /docs/push-strategies.md
-[new-issue-bug]: https://github.com/tweag/rules_img/issues/new?assignees=&labels=type%3A+bug&projects=&template=bug_report.md
+[new-issue-bug]: https://github.com/bazel-contrib/rules_img/issues/new?assignees=&labels=type%3A+bug&projects=&template=bug_report.md
 [discord-join]: https://discord.gg/vYDnJYBmax
 [tweag]: https://www.tweag.io/

@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "pull",
     srcs = ["pull.go"],
-    importpath = "github.com/tweag/rules_img/src/cmd/pull",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/pull",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/auth/registry",

@@ -5,7 +5,7 @@
 
 **Modern Bazel rules for building OCI container images with advanced performance optimizations**
 
-Supports both **Bzlmod** and **WORKSPACE** setups. For WORKSPACE setup instructions, see the [releases page](https://github.com/tweag/rules_img/releases).
+Supports both **Bzlmod** and **WORKSPACE** setups. For WORKSPACE setup instructions, see the [releases page](https://github.com/bazel-contrib/rules_img/releases).
 
 </div>
 

@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tweag/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
 )
 
 func readParamFile(paramFile string) (addFiles, error) {

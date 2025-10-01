@@ -5,8 +5,8 @@ import (
 	"errors"
 	"hash"
 
-	"github.com/tweag/rules_img/src/pkg/api"
-	"github.com/tweag/rules_img/src/pkg/digestfs"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/digestfs"
 )
 
 type SHA256Helper struct{}

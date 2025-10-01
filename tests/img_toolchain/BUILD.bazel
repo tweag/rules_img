@@ -5,7 +5,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "img_toolchain",
     srcs = ["framework.go"],
-    importpath = "github.com/tweag/rules_img/tests/img_toolchain",
+    importpath = "github.com/bazel-contrib/rules_img/tests/img_toolchain",
     visibility = ["//visibility:public"],
     deps = [
         "@rules_go//go/runfiles",

@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tweag/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
 )
 
 type layerMetadata map[int]api.Descriptor

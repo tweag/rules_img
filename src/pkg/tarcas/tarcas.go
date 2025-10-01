@@ -12,9 +12,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/tweag/rules_img/src/pkg/api"
-	"github.com/tweag/rules_img/src/pkg/digestfs"
-	"github.com/tweag/rules_img/src/pkg/tree/merkle"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/digestfs"
+	"github.com/bazel-contrib/rules_img/src/pkg/tree/merkle"
 )
 
 type CAS[HM hashHelper] struct {

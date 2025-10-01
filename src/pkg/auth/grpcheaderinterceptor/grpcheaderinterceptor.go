@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/tweag/rules_img/src/pkg/auth/credential"
+	"github.com/bazel-contrib/rules_img/src/pkg/auth/credential"
 )
 
 type authenticatingInterceptor struct {

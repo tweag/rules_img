@@ -6,9 +6,9 @@ import (
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"google.golang.org/grpc"
 
-	blobcache_proto "github.com/tweag/rules_img/src/pkg/proto/blobcache"
-	remoteexecution_proto "github.com/tweag/rules_img/src/pkg/proto/remote-apis/build/bazel/remote/execution/v2"
-	"github.com/tweag/rules_img/src/pkg/serve/registry"
+	blobcache_proto "github.com/bazel-contrib/rules_img/src/pkg/proto/blobcache"
+	remoteexecution_proto "github.com/bazel-contrib/rules_img/src/pkg/proto/remote-apis/build/bazel/remote/execution/v2"
+	"github.com/bazel-contrib/rules_img/src/pkg/serve/registry"
 )
 
 type server struct {

@@ -9,7 +9,7 @@ go_library(
         "namespace.go",
         "support.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/containerd",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/containerd",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_containerd_containerd_api//services/content/v1:content",

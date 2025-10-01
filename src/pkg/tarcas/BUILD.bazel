@@ -8,7 +8,7 @@ go_library(
         "tarcas.go",
         "tarmetadata.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/tarcas",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/tarcas",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api",

@@ -10,7 +10,7 @@ proto_library(
 
 go_proto_library(
     name = "semver",
-    importpath = "github.com/tweag/rules_img/src/pkg/proto/remote-apis/build/bazel/semver",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/proto/remote-apis/build/bazel/semver",
     proto = ":semver_proto",
     visibility = ["//visibility:public"],
 )

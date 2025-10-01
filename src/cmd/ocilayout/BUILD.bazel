@@ -9,7 +9,7 @@ go_library(
         "ocilayout.go",
         "sink.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/cmd/ocilayout",
+    importpath = "github.com/bazel-contrib/rules_img/src/cmd/ocilayout",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_malt3_go_containerregistry//pkg/v1:pkg",

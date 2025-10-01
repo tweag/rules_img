@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "bes",
     srcs = ["bes.go"],
-    importpath = "github.com/tweag/rules_img/src/pkg/serve/bes",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/serve/bes",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/proto/bazel/src/main/java/com/google/devtools/build/lib/buildeventstream",

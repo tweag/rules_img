@@ -6,7 +6,7 @@ go_library(
         "load.go",
         "stream.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/docker",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/docker",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_malt3_go_containerregistry//pkg/v1:pkg",

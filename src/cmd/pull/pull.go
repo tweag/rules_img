@@ -14,7 +14,7 @@ import (
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
 
-	reg "github.com/tweag/rules_img/src/pkg/auth/registry"
+	reg "github.com/bazel-contrib/rules_img/src/pkg/auth/registry"
 )
 
 func PullProcess(ctx context.Context, args []string) {
@@ -99,23 +99,23 @@ func PullProcess(ctx context.Context, args []string) {
 }
 
 type downloadJob struct {
-	layer registryv1.Layer
+	layer     registryv1.Layer
 	outputDir string
 }
 
 type workerPool struct {
-	jobs chan downloadJob
+	jobs    chan downloadJob
 	results chan error
-	wg *sync.WaitGroup
-	ctx context.Context
+	wg      *sync.WaitGroup
+	ctx     context.Context
 }
 
 func newWorkerPool(ctx context.Context, numWorkers int) *workerPool {
 	return &workerPool{
-		jobs: make(chan downloadJob, numWorkers*2),
+		jobs:    make(chan downloadJob, numWorkers*2),
 		results: make(chan error, numWorkers*2),
-		wg: &sync.WaitGroup{},
-		ctx: ctx,
+		wg:      &sync.WaitGroup{},
+		ctx:     ctx,
 	}
 }
 
@@ -223,15 +223,15 @@ func pullFromRegistry(ctx context.Context, registry, repository, tag, digest, ou
 }
 
 type manifestJob struct {
-	index registryv1.ImageIndex
-	desc registryv1.Descriptor
+	index     registryv1.ImageIndex
+	desc      registryv1.Descriptor
 	outputDir string
-	i int
+	i         int
 }
 
 type manifestResult struct {
 	layers []registryv1.Layer
-	err error
+	err    error
 }
 
 func downloadIndex(ctx context.Context, index registryv1.ImageIndex, outputDir string, concurrency int) ([]registryv1.Layer, error) {

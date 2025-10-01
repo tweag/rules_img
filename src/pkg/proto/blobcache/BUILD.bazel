@@ -17,7 +17,7 @@ go_proto_library(
         "@rules_go//proto:go_proto",
         "@rules_go//proto:go_grpc_v2",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/proto/blobcache",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/proto/blobcache",
     proto = ":blobcache_proto",
     visibility = ["//visibility:public"],
     deps = [

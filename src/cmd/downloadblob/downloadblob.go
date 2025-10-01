@@ -11,7 +11,7 @@ import (
 	"github.com/malt3/go-containerregistry/pkg/name"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
 
-	reg "github.com/tweag/rules_img/src/pkg/auth/registry"
+	reg "github.com/bazel-contrib/rules_img/src/pkg/auth/registry"
 )
 
 func DownloadBlobProcess(ctx context.Context, args []string) {

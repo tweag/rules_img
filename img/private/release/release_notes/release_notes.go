@@ -76,7 +76,7 @@ Add the following to your ` + "`" + `MODULE.bazel` + "`" + ` file:
 bazel_dep(name = "rules_img", version = "{{.VersionWithoutV}}")
 ` + "```" + `
 
-For further instructions, see the [README](https://github.com/tweag/rules_img#readme).
+For further instructions, see the [README](https://github.com/bazel-contrib/rules_img#readme).
 
 ## Using WORKSPACE
 
@@ -88,7 +88,7 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 http_archive(
     name = "rules_img",
     sha256 = "{{.SHA256Hash}}",
-    urls = ["https://github.com/tweag/rules_img/releases/download/{{.Version}}/rules_img-{{.Version}}.tar.gz"],
+    urls = ["https://github.com/bazel-contrib/rules_img/releases/download/{{.Version}}/rules_img-{{.Version}}.tar.gz"],
 )
 
 # Load dependencies
@@ -111,14 +111,14 @@ pull(
 )
 ` + "```" + `
 
-For more examples, see the [README](https://github.com/tweag/rules_img#readme).
+For more examples, see the [README](https://github.com/bazel-contrib/rules_img#readme).
 `
 
 type ReleaseData struct {
-	Version          string
-	VersionWithoutV  string
-	TarballName      string
-	SHA256Hash       string
+	Version         string
+	VersionWithoutV string
+	TarballName     string
+	SHA256Hash      string
 }
 
 func generateReleaseNotes(version, versionWithoutV, tarballName, sha256Hash string) (string, error) {

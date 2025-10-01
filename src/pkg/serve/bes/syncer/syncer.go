@@ -21,9 +21,9 @@ import (
 	"github.com/malt3/go-containerregistry/pkg/v1/types"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/tweag/rules_img/src/pkg/api"
-	"github.com/tweag/rules_img/src/pkg/auth/registry"
-	"github.com/tweag/rules_img/src/pkg/cas"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/auth/registry"
+	"github.com/bazel-contrib/rules_img/src/pkg/cas"
 )
 
 // uploadJob represents a single blob upload task for the worker pool.

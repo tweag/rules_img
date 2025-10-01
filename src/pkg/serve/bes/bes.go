@@ -12,9 +12,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	build_event_stream_proto "github.com/tweag/rules_img/src/pkg/proto/bazel/src/main/java/com/google/devtools/build/lib/buildeventstream"
-	bes_proto "github.com/tweag/rules_img/src/pkg/proto/build_event_service"
-	"github.com/tweag/rules_img/src/pkg/serve/bes/syncer"
+	build_event_stream_proto "github.com/bazel-contrib/rules_img/src/pkg/proto/bazel/src/main/java/com/google/devtools/build/lib/buildeventstream"
+	bes_proto "github.com/bazel-contrib/rules_img/src/pkg/proto/build_event_service"
+	"github.com/bazel-contrib/rules_img/src/pkg/serve/bes/syncer"
 )
 
 type CommitMode int

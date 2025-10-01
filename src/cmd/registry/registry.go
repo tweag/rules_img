@@ -15,14 +15,14 @@ import (
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"google.golang.org/grpc"
 
-	"github.com/tweag/rules_img/src/pkg/auth/credential"
-	"github.com/tweag/rules_img/src/pkg/auth/protohelper"
-	blobcache_proto "github.com/tweag/rules_img/src/pkg/proto/blobcache"
-	"github.com/tweag/rules_img/src/pkg/serve/blobcache"
-	combined "github.com/tweag/rules_img/src/pkg/serve/registry"
-	"github.com/tweag/rules_img/src/pkg/serve/registry/reapi"
-	"github.com/tweag/rules_img/src/pkg/serve/registry/s3"
-	"github.com/tweag/rules_img/src/pkg/serve/registry/upstream"
+	"github.com/bazel-contrib/rules_img/src/pkg/auth/credential"
+	"github.com/bazel-contrib/rules_img/src/pkg/auth/protohelper"
+	blobcache_proto "github.com/bazel-contrib/rules_img/src/pkg/proto/blobcache"
+	"github.com/bazel-contrib/rules_img/src/pkg/serve/blobcache"
+	combined "github.com/bazel-contrib/rules_img/src/pkg/serve/registry"
+	"github.com/bazel-contrib/rules_img/src/pkg/serve/registry/reapi"
+	"github.com/bazel-contrib/rules_img/src/pkg/serve/registry/s3"
+	"github.com/bazel-contrib/rules_img/src/pkg/serve/registry/upstream"
 )
 
 const usage = `Usage: registry [ARGS...]`

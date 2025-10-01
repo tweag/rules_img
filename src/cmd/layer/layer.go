@@ -12,13 +12,13 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/tweag/rules_img/src/pkg/api"
-	"github.com/tweag/rules_img/src/pkg/compress"
-	"github.com/tweag/rules_img/src/pkg/contentmanifest"
-	"github.com/tweag/rules_img/src/pkg/digestfs"
-	"github.com/tweag/rules_img/src/pkg/tarcas"
-	"github.com/tweag/rules_img/src/pkg/tree"
-	"github.com/tweag/rules_img/src/pkg/tree/runfiles"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/compress"
+	"github.com/bazel-contrib/rules_img/src/pkg/contentmanifest"
+	"github.com/bazel-contrib/rules_img/src/pkg/digestfs"
+	"github.com/bazel-contrib/rules_img/src/pkg/tarcas"
+	"github.com/bazel-contrib/rules_img/src/pkg/tree"
+	"github.com/bazel-contrib/rules_img/src/pkg/tree/runfiles"
 )
 
 func LayerProcess(ctx context.Context, args []string) {

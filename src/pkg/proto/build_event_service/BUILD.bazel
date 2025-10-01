@@ -7,7 +7,7 @@ go_proto_library(
     compilers = [
         "@rules_go//proto:go_grpc",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/proto/build_event_service",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/proto/build_event_service",
     proto = "@googleapis//google/devtools/build/v1:build_proto",
     visibility = ["//visibility:public"],
     deps = [

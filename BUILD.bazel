@@ -1,6 +1,6 @@
 exports_files(["MODULE.bazel"])
 
-# gazelle:prefix github.com/tweag/rules_img
+# gazelle:prefix github.com/bazel-contrib/rules_img
 
 filegroup(
     name = "all_files",

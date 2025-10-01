@@ -15,7 +15,7 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go"
 	specv1 "github.com/opencontainers/image-spec/specs-go/v1"
 
-	"github.com/tweag/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
 )
 
 var (

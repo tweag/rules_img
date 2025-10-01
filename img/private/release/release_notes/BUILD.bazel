@@ -11,6 +11,6 @@ go_binary(
 go_library(
     name = "release_notes_lib",
     srcs = ["release_notes.go"],
-    importpath = "github.com/tweag/rules_img/img/private/release/release_notes",
+    importpath = "github.com/bazel-contrib/rules_img/img/private/release/release_notes",
     visibility = ["//visibility:private"],
 )

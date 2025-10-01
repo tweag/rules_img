@@ -7,7 +7,7 @@ go_library(
         "read.go",
         "write.go",
     ],
-    importpath = "github.com/tweag/rules_img/src/pkg/cas",
+    importpath = "github.com/bazel-contrib/rules_img/src/pkg/cas",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/proto/remote-apis/build/bazel/remote/execution/v2",

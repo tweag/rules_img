@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package pkg.proto.blobcache;
 
-option go_package = "github.com/tweag/rules_img/pkg/proto/blobcache;blobcache";
+option go_package = "github.com/bazel-contrib/rules_img/pkg/proto/blobcache;blobcache";
 
 import "build/bazel/remote/execution/v2/remote_execution.proto";
 

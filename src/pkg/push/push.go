@@ -11,10 +11,10 @@ import (
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	"github.com/malt3/go-containerregistry/pkg/v1/remote"
 
-	"github.com/tweag/rules_img/src/pkg/api"
-	"github.com/tweag/rules_img/src/pkg/proto/blobcache"
-	blobcache_proto "github.com/tweag/rules_img/src/pkg/proto/blobcache"
-	remoteexecution_proto "github.com/tweag/rules_img/src/pkg/proto/remote-apis/build/bazel/remote/execution/v2"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/proto/blobcache"
+	blobcache_proto "github.com/bazel-contrib/rules_img/src/pkg/proto/blobcache"
+	remoteexecution_proto "github.com/bazel-contrib/rules_img/src/pkg/proto/remote-apis/build/bazel/remote/execution/v2"
 )
 
 type builder struct {

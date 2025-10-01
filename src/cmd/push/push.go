@@ -14,15 +14,15 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/tweag/rules_img/src/pkg/api"
-	"github.com/tweag/rules_img/src/pkg/auth/credential"
-	"github.com/tweag/rules_img/src/pkg/auth/protohelper"
-	"github.com/tweag/rules_img/src/pkg/auth/registry"
-	"github.com/tweag/rules_img/src/pkg/cas"
-	"github.com/tweag/rules_img/src/pkg/deployvfs"
-	"github.com/tweag/rules_img/src/pkg/load"
-	"github.com/tweag/rules_img/src/pkg/proto/blobcache"
-	"github.com/tweag/rules_img/src/pkg/push"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/auth/credential"
+	"github.com/bazel-contrib/rules_img/src/pkg/auth/protohelper"
+	"github.com/bazel-contrib/rules_img/src/pkg/auth/registry"
+	"github.com/bazel-contrib/rules_img/src/pkg/cas"
+	"github.com/bazel-contrib/rules_img/src/pkg/deployvfs"
+	"github.com/bazel-contrib/rules_img/src/pkg/load"
+	"github.com/bazel-contrib/rules_img/src/pkg/proto/blobcache"
+	"github.com/bazel-contrib/rules_img/src/pkg/push"
 )
 
 func PushProcess(ctx context.Context, args []string) {

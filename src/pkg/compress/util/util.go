@@ -7,8 +7,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/tweag/rules_img/src/pkg/api"
-	"github.com/tweag/rules_img/src/pkg/compress"
+	"github.com/bazel-contrib/rules_img/src/pkg/api"
+	"github.com/bazel-contrib/rules_img/src/pkg/compress"
 )
 
 var (
