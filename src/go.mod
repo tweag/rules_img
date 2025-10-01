@@ -18,11 +18,11 @@ require (
 	github.com/malt3/go-containerregistry v0.0.0-20250724131542-7e98b20e9b45
 	github.com/opencontainers/go-digest v1.0.0
 	golang.org/x/sync v0.16.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422
+	google.golang.org/genproto/googleapis/api v0.0.0-20250929231259-57b25ae835d4
 	google.golang.org/genproto/googleapis/bytestream v0.0.0-20240730163845-b1a4ccb954bf
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250106144421-5f5ef82da422
-	google.golang.org/grpc v1.67.3
-	google.golang.org/protobuf v1.36.7
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250922171735-9219d122eba9
+	google.golang.org/grpc v1.71.0
+	google.golang.org/protobuf v1.36.9
 )
 
 require (
