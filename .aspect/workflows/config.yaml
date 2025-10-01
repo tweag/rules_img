@@ -4,9 +4,12 @@ workspaces:
     .:
         icon: docker
         label: rules_img
-    # TODO(malte): fix and re-enable
-    # src:
-    #     label: Go application
+    src:
+        icon: golang-mascot
+        label: Go application
+        tasks:
+            - buildifier:
+                without: true
     # TODO(malte): enable e2e tests when green
     # e2e/cc:
     #     label: C++ integration tests
