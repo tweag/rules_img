@@ -56,7 +56,7 @@ func (s *contentStore) Writer(ctx context.Context, opts ...WriterOpt) (Writer, e
 
 	// Generate a unique ref if not provided
 	if wOpts.Ref == "" {
-		wOpts.Ref = generateRef()
+		wOpts.Ref = generateContentWriteRef()
 	}
 
 	stream, err := s.client.Write(ctx)
@@ -71,8 +71,8 @@ func (s *contentStore) Writer(ctx context.Context, opts ...WriterOpt) (Writer, e
 		ref:      wOpts.Ref,
 		expected: wOpts.Digest,
 		total:    wOpts.Size,
+		digester: digest.SHA256.Digester(),
 		offset:   0,
-		buffer:   make([]byte, 0, 4096), // 4KB buffer
 	}, nil
 }
 
@@ -93,7 +93,6 @@ type contentWriter struct {
 	expected digest.Digest
 	total    int64
 	offset   int64
-	buffer   []byte
 	mu       sync.Mutex
 	closed   bool
 	started  bool
@@ -109,84 +108,40 @@ func (w *contentWriter) Write(p []byte) (n int, err error) {
 		return 0, fmt.Errorf("writer is closed")
 	}
 
-	// If this is the first write and we haven't started yet, do the STAT
-	if !w.started && len(p) == 0 {
+	if len(p) == 0 {
 		// Empty write, just return
 		return 0, nil
-	}
-
-	// Send initial write request with empty data if not started
-	if !w.started {
-		req := &api.WriteContentRequest{
-			Action:   api.WriteAction_WRITE,
-			Ref:      w.ref,
-			Offset:   0,
-			Data:     []byte{}, // Empty data to allocate the ref
-			// Don't set Total/Expected here - save it for COMMIT
-		}
-		if err := w.stream.Send(req); err != nil {
-			return 0, fmt.Errorf("sending initial write request: %w", err)
-		}
-
-		// Receive initial response
-		resp, err := w.stream.Recv()
-		if err != nil {
-			return 0, fmt.Errorf("receiving initial write response: %w", err)
-		}
-
-		// Update offset from response
-		w.offset = resp.Offset
-		w.started = true
-
-	}
-
-	if w.digester == nil {
-		w.digester = digest.SHA256.Digester()
-	}
-
-	// Write to digester
-	w.digester.Hash().Write(p)
-
-	// Buffer data and send in chunks
-	w.buffer = append(w.buffer, p...)
-
-	// Send data when buffer is large enough (4KB for smaller files)
-	if len(w.buffer) >= 4*1024 {
-		if err := w.flush(); err != nil {
-			return 0, err
-		}
-	}
-
-	return len(p), nil
-}
-
-func (w *contentWriter) flush() error {
-	if len(w.buffer) == 0 {
-		return nil
 	}
 
 	req := &api.WriteContentRequest{
 		Action: api.WriteAction_WRITE,
 		Ref:    w.ref,
 		Offset: w.offset,
-		Data:   w.buffer,
+		Data:   p,
 	}
 
 	if err := w.stream.Send(req); err != nil {
-		return err
+		return 0, err
 	}
 
 	// Receive acknowledgment for the write
 	resp, err := w.stream.Recv()
 	if err != nil {
-		return fmt.Errorf("receiving write ack: %w", err)
+		return 0, fmt.Errorf("receiving write ack: %w", err)
+	}
+
+	written := resp.Offset - w.offset
+	if written != int64(len(p)) {
+		return 0, fmt.Errorf("written %d bytes, expected %d", written, len(p))
 	}
 
 	// Update offset from server response
 	w.offset = resp.Offset
-	w.buffer = w.buffer[:0]
+	w.started = true
+	// Write to digester
+	w.digester.Hash().Write(p)
 
-	return nil
+	return len(p), nil
 }
 
 // Close closes the writer
@@ -220,12 +175,6 @@ func (w *contentWriter) Commit(ctx context.Context, size int64, expected digest.
 		Labels:   cOpts.Labels,
 	}
 
-	// Include any buffered data in the COMMIT request
-	if len(w.buffer) > 0 {
-		req.Data = w.buffer
-	}
-
-
 	if err := w.stream.Send(req); err != nil {
 		return fmt.Errorf("sending commit: %w", err)
 	}
@@ -240,6 +189,7 @@ func (w *contentWriter) Commit(ctx context.Context, size int64, expected digest.
 		resp, err := w.stream.Recv()
 		if err == io.EOF {
 			// Some impls may EOF without an explicit final response
+			fmt.Printf("EOF receiving commit response for %s\n", req.Expected)
 			break
 		}
 		if err != nil {
@@ -256,12 +206,14 @@ func (w *contentWriter) Commit(ctx context.Context, size int64, expected digest.
 			if size > 0 && resp.Offset != size {
 				return fmt.Errorf("commit response reports partial write: %d of %d", resp.Offset, size)
 			}
+			if resp.Digest != req.Expected {
+				return fmt.Errorf("commit response digest mismatch: %s != %s", resp.Digest, req.Expected)
+			}
+			fmt.Printf("Received commit response for %s\n", req.Expected)
 			break
 		}
 	}
 
-	// Clear buffer now that it has been sent with COMMIT
-	w.buffer = w.buffer[:0]
 	w.closed = true
 	return nil
 }
@@ -300,7 +252,7 @@ func (w *contentWriter) Truncate(size int64) error {
 
 // Helper functions and types
 
-func generateRef() string {
+func generateContentWriteRef() string {
 	b := make([]byte, 16)
 	rand.Read(b)
 	return "write-" + hex.EncodeToString(b)

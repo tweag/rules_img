@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"slices"
+	"time"
 
 	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
 	ocidigest "github.com/opencontainers/go-digest"
@@ -76,6 +77,19 @@ func (l *loader) LoadAll(ctx context.Context, ops []api.IndexedLoadDeployOperati
 			if !l.haveContainerd {
 				return nil, fmt.Errorf("containerd not available for loading images, but containerd daemon requested as load target")
 			}
+
+			leaseService := client.LeaseService()
+
+			lease, err := leaseService.Create(ctx, map[string]string{
+				// max age of the lease
+				"containerd.io/gc.expire": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
+			})
+			if err != nil {
+				return nil, fmt.Errorf("creating lease: %w", err)
+			}
+			defer leaseService.Delete(ctx, lease)
+
+			ctx = containerd.WithLease(ctx, lease)
 
 			// Load all blobs in parallel...
 			contentStore := client.ContentStore()
@@ -430,11 +444,6 @@ func (ts *taskSet) collectBlobsForIndex(indexDigest registryv1.Hash) ([]blobWork
 }
 
 func (ts *taskSet) collectBlobsForManifest(imageDigest registryv1.Hash) ([]blobWorkItem, error) {
-	entries, err := ts.vfs.DigestsFromRoot(imageDigest)
-	if err != nil {
-		return nil, fmt.Errorf("listing blobs in VFS: %w", err)
-	}
-
 	image, err := ts.vfs.Image(imageDigest)
 	if err != nil {
 		return nil, fmt.Errorf("getting image for root %s: %w", imageDigest, err)
@@ -444,19 +453,26 @@ func (ts *taskSet) collectBlobsForManifest(imageDigest registryv1.Hash) ([]blobW
 		return nil, fmt.Errorf("getting image manifest for root %s: %w", imageDigest, err)
 	}
 
-	labels := computeManifestGCLabels(imageManifest)
-
 	var blobs []blobWorkItem
-	for _, entry := range entries {
-		layer, err := ts.vfs.Layer(entry)
+	handleLayer := func(entry registryv1.Descriptor) error {
+		layer, err := ts.vfs.Layer(entry.Digest)
 		if err != nil {
-			return nil, fmt.Errorf("getting layer %s: %w", entry.String(), err)
+			return fmt.Errorf("getting layer %s: %w", entry.Digest.String(), err)
 		}
-
 		blobs = append(blobs, blobWorkItem{
-			layer:  layer,
-			labels: labels,
+			layer: layer,
 		})
+		return nil
+	}
+
+	if err := handleLayer(imageManifest.Config); err != nil {
+		return nil, err
+	}
+
+	for _, entry := range imageManifest.Layers {
+		if err := handleLayer(entry); err != nil {
+			return nil, err
+		}
 	}
 
 	// Add the manifest itself as a blob to upload
@@ -466,7 +482,7 @@ func (ts *taskSet) collectBlobsForManifest(imageDigest registryv1.Hash) ([]blobW
 	}
 	blobs = append(blobs, blobWorkItem{
 		layer:  manifestLayer,
-		labels: labels,
+		labels: computeManifestGCLabels(imageManifest),
 	})
 
 	return blobs, nil
