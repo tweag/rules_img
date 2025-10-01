@@ -72,15 +72,15 @@ normalize_layer_transition = transition(
     outputs = [_original_platforms_setting],
 )
 
-def _host_platform_transition_impl(settings, _attr):
+def _host_platform_transition_impl(_settings, _attr):
     return {
-        "//command_line_option:extra_execution_platforms": [str(platform) for platform in settings[_platforms_setting]],
+        "//command_line_option:platforms": [Label("@platforms//host")],
     }
 
 host_platform_transition = transition(
     implementation = _host_platform_transition_impl,
     inputs = [_platforms_setting],
     outputs = [
-        "//command_line_option:extra_execution_platforms",
+        "//command_line_option:platforms",
     ],
 )
