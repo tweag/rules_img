@@ -3,7 +3,7 @@ module(name = "js_e2e")
 # BEGIN BAZEL_DEP
 bazel_dep(
     name = "rules_img",
-    version = "0.2.4",
+    version = "0.2.5",
 )
 local_path_override(
     module_name = "rules_img",
