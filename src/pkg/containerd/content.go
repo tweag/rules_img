@@ -209,7 +209,6 @@ func (w *contentWriter) Commit(ctx context.Context, size int64, expected digest.
 			if resp.Digest != req.Expected {
 				return fmt.Errorf("commit response digest mismatch: %s != %s", resp.Digest, req.Expected)
 			}
-			fmt.Printf("Received commit response for %s\n", req.Expected)
 			break
 		}
 	}
