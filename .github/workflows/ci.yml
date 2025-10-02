@@ -17,7 +17,7 @@ concurrency:
 jobs:
   buildifier_check:
     runs-on: ubuntu-22.04
-    if: ${{ github.actor != 'renovate[bot]' || contains(github.event.pull_request.labels.*.name, 'run-ci') }}
+    if: ${{ github.event_name != 'pull_request' || github.actor != 'renovate[bot]' || contains(github.event.pull_request.labels.*.name, 'run-ci') }}
     steps:
     - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
     - name: Setup Bazel
@@ -32,7 +32,7 @@ jobs:
       matrix:
         runner: [macos-13, macos-15, ubuntu-22.04, windows-2025]
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.actor != 'renovate[bot]' || contains(github.event.pull_request.labels.*.name, 'run-ci') }}
+    if: ${{ github.event_name != 'pull_request' || github.actor != 'renovate[bot]' || contains(github.event.pull_request.labels.*.name, 'run-ci') }}
     steps:
     - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
     - name: Setup Bazel
@@ -50,7 +50,7 @@ jobs:
       matrix:
         runner: [macos-13, macos-15, ubuntu-22.04, windows-2025]
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.actor != 'renovate[bot]' || contains(github.event.pull_request.labels.*.name, 'run-ci') }}
+    if: ${{ github.event_name != 'pull_request' || github.actor != 'renovate[bot]' || contains(github.event.pull_request.labels.*.name, 'run-ci') }}
     permissions:
       id-token: write
       contents: read
