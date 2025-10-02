@@ -124,18 +124,23 @@ def _multi_deploy_impl(ctx):
 
     # Merge environment settings from push and load
     environment = {}
-    inherited_environment = []
+    inherited_environment = [
+        "IMG_REAPI_ENDPOINT",
+        "IMG_CREDENTIAL_HELPER",
+        "LOADER",
+    ]
 
     push_settings = ctx.attr._push_settings[PushSettingsInfo]
     load_settings = ctx.attr._load_settings[LoadSettingsInfo]
 
     if push_settings.remote_cache or load_settings.remote_cache:
         environment["IMG_REAPI_ENDPOINT"] = push_settings.remote_cache or load_settings.remote_cache
-        inherited_environment.append("IMG_REAPI_ENDPOINT")
 
     if push_settings.credential_helper or load_settings.credential_helper:
         environment["IMG_CREDENTIAL_HELPER"] = push_settings.credential_helper or load_settings.credential_helper
-        inherited_environment.append("IMG_CREDENTIAL_HELPER")
+
+    if load_settings.docker_loader_path:
+        environment["LOADER"] = load_settings.docker_loader_path
 
     return [
         DefaultInfo(

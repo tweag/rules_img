@@ -7,6 +7,7 @@ def _load_settings_impl(ctx):
     return [LoadSettingsInfo(
         strategy = ctx.attr._load_strategy[BuildSettingInfo].value,
         daemon = ctx.attr._load_daemon[BuildSettingInfo].value,
+        docker_loader_path = ctx.attr._docker_loader_path[BuildSettingInfo].value,
         remote_cache = ctx.attr._remote_cache[BuildSettingInfo].value,
         credential_helper = ctx.attr._credential_helper[BuildSettingInfo].value,
     )]
@@ -24,6 +25,10 @@ load_settings = rule(
         ),
         "_remote_cache": attr.label(
             default = Label("//img/settings:remote_cache"),
+            providers = [BuildSettingInfo],
+        ),
+        "_docker_loader_path": attr.label(
+            default = Label("//img/settings:docker_loader_path"),
             providers = [BuildSettingInfo],
         ),
         "_credential_helper": attr.label(

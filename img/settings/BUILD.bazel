@@ -63,6 +63,12 @@ string_flag(
 )
 
 string_flag(
+    name = "docker_loader_path",
+    build_setting_default = "docker",
+    visibility = ["//img/private:__subpackages__"],
+)
+
+string_flag(
     name = "remote_cache",
     build_setting_default = "",
     visibility = ["//img/private:__subpackages__"],
