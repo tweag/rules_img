@@ -1,7 +1,8 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//:go_proto_library.bzl", "go_proto_library")
 
-# gazelle:exclude blobcache.go
+# gazelle:exclude blobcache.pb.go
+# gazelle:exclude blobcache_grpc.pb.go
 
 proto_library(
     name = "blobcache_proto",

@@ -1,7 +1,7 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//:go_proto_library.bzl", "go_proto_library")
 
-# gazelle:exclude buildeventstream.go
+# gazelle:exclude build_event_stream.pb.go
 
 proto_library(
     name = "build_event_stream_proto",
@@ -22,6 +22,7 @@ go_proto_library(
     compilers = [
         "@rules_go//proto:go_proto",
     ],
+    filenames = ["build_event_stream.pb.go"],
     importpath = "github.com/bazel-contrib/rules_img/src/pkg/proto/bazel/src/main/java/com/google/devtools/build/lib/buildeventstream",
     proto = ":build_event_stream_proto",
     visibility = ["//visibility:public"],

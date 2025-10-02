@@ -7,6 +7,11 @@ go_proto_library(
     compilers = [
         "@rules_go//proto:go_grpc",
     ],
+    filenames = [
+        "build_events.pb.go",
+        "build_status.pb.go",
+        "publish_build_event.pb.go",
+    ],
     importpath = "github.com/bazel-contrib/rules_img/src/pkg/proto/build_event_service",
     proto = "@googleapis//google/devtools/build/v1:build_proto",
     visibility = ["//visibility:public"],
