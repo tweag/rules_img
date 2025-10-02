@@ -1,7 +1,8 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//:go_proto_library.bzl", "go_proto_library")
 
-# gazelle:exclude v2.go
+# gazelle:exclude remote_execution.pb.go
+# gazelle:exclude remote_execution_grpc.pb.go
 
 proto_library(
     name = "remote_execution_proto",
@@ -25,6 +26,10 @@ go_proto_library(
     compilers = [
         "@rules_go//proto:go_proto",
         "@rules_go//proto:go_grpc_v2",
+    ],
+    filenames = [
+        "remote_execution.pb.go",
+        "remote_execution_grpc.pb.go",
     ],
     importpath = "github.com/bazel-contrib/rules_img/src/pkg/proto/remote-apis/build/bazel/remote/execution/v2",
     proto = ":remote_execution_proto",
