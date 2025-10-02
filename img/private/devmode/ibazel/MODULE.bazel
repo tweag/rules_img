@@ -1,0 +1,9 @@
+# toolchains_protoc needs to be placed at the top to ensure the proto toolchain is registered first
+bazel_dep(name = "toolchains_protoc", version = "0.5.0", dev_dependency = True)
+bazel_dep(name = "bazel_watcher", version = "0.26.10", dev_dependency = True)
+archive_override(
+    module_name = "bazel_watcher",
+    integrity = "sha256-Yh0LWqunbFQ/t+3kf5xZMnZALge5Sd/JRshm+lv1zNQ=",
+    strip_prefix = "bazel-watcher-0.26.10",
+    urls = ["https://github.com/bazelbuild/bazel-watcher/archive/refs/tags/v0.26.10.tar.gz"],
+)

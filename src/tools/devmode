@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+WORKSPACE_ROOT=$(realpath "$(dirname "$0")/../..")
+
+run_ibazel() {
+  if ! command -v ibazel &> /dev/null; then
+    cd "$WORKSPACE_ROOT/img/private/devmode/ibazel"
+    bazel run ibazel --run_under="cd ${WORKSPACE_ROOT};" -- run //img/private/devmode:devmode "$@"
+  fi
+  ibazel "$@"
+}
+
+run_ibazel "$@"

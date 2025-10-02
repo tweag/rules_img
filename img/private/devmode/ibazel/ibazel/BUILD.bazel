@@ -1,0 +1,5 @@
+alias(
+    name = "ibazel",
+    actual = "@bazel_watcher//cmd/ibazel",
+    visibility = ["//visibility:public"],
+)

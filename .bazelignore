@@ -24,6 +24,7 @@ e2e/workspace/bazel-bin
 e2e/workspace/bazel-out
 e2e/workspace/bazel-testlogs
 e2e/workspace/bazel-workspace
+img/private/devmode/ibazel
 src/bazel-bin
 src/bazel-out
 src/bazel-src
