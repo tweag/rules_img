@@ -30,7 +30,7 @@ register_toolchains(
 # ✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂✂
 
 bazel_dep(name = "aspect_bazel_lib", version = "2.21.2", dev_dependency = True)
-bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.7.1", dev_dependency = True)
+bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.8.2", dev_dependency = True)
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.0.2", dev_dependency = True)
 bazel_dep(name = "gazelle", version = "0.45.0", dev_dependency = True)
 bazel_dep(name = "hermetic_cc_toolchain", version = "4.0.1", dev_dependency = True)
