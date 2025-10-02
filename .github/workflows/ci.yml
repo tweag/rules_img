@@ -66,12 +66,3 @@ jobs:
         bazelrc: import %workspace%/.github/workflows/ci.bazelrc
     - name: Execute Integration Tests
       run: bazelisk test "//e2e:integration_tests"
-
-  all_ci_tests:
-    runs-on: ubuntu-22.04
-    needs: [tidy_and_test_matrix, integration_test_matrix]
-    if: ${{ always() }}
-    steps:
-      - uses: cgrindel/gha_join_jobs@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
