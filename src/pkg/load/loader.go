@@ -312,7 +312,7 @@ func (l *loader) connect(ctx context.Context, daemon string) (*containerd.Client
 	}
 	client, err := ConnectToContainerd(ctx)
 	if err != nil {
-		fmt.Printf("Connecting to containerd failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Connecting to containerd failed: %v\n", err)
 		// Print warning about performance impact and digest differences
 		fmt.Fprintln(os.Stderr, "\n\033[33mWARNING: Docker is not using containerd storage backend.\033[0m")
 		fmt.Fprintln(os.Stderr, "This will use 'docker load' which is significantly slower than direct containerd loading.")
