@@ -2,6 +2,8 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@rules_img//img:layer.bzl", "image_layer")
 load(":defs.bzl", "layer_combinations")
 
+# gazelle:exclude_from_release
+
 image_layer(
     name = "large_1GB",
     srcs = {
