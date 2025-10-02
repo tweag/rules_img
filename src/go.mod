@@ -5,7 +5,7 @@ go 1.24.2
 require github.com/opencontainers/image-spec v1.1.1
 
 require (
-	cloud.google.com/go/longrunning v0.6.4
+	cloud.google.com/go/longrunning v0.6.7
 	github.com/aws/aws-sdk-go-v2 v1.36.6
 	github.com/aws/aws-sdk-go-v2/config v1.29.18
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.84.1
@@ -21,7 +21,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250929231259-57b25ae835d4
 	google.golang.org/genproto/googleapis/bytestream v0.0.0-20240730163845-b1a4ccb954bf
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250929231259-57b25ae835d4
-	google.golang.org/grpc v1.71.0
+	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.9
 )
 
