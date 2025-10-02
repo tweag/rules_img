@@ -66,3 +66,19 @@ jobs:
         bazelrc: import %workspace%/.github/workflows/ci.bazelrc
     - name: Execute Integration Tests
       run: bazelisk test "//e2e:integration_tests"
+  sticky-warning:
+    if: ${{ github.actor == 'renovate[bot]' && !contains(github.event.pull_request.labels.*.name, 'run-ci') && (github.event_name == 'pull_request') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update warning comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ⚠️ **Heads up:** An important check was **skipped** for this PR.
+            - Actor: `${{ github.actor }}`
+            - Commit: `${{ github.sha }}`
+            - Reason: Renovate PR (auto-updates)
+
+            _Add the `run-ci` label or re-run the workflow manually to execute the full checks._
+          edit-mode: replace
