@@ -19,7 +19,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	golang.org/x/sync v0.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250929231259-57b25ae835d4
-	google.golang.org/genproto/googleapis/bytestream v0.0.0-20240730163845-b1a4ccb954bf
+	google.golang.org/genproto/googleapis/bytestream v0.0.0-20250929231259-57b25ae835d4
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250929231259-57b25ae835d4
 	google.golang.org/grpc v1.71.0
 	google.golang.org/protobuf v1.36.9
