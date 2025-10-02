@@ -1,0 +1,11 @@
+changelog:
+  categories:
+    - title: ⭐ Highlights
+      labels:
+        - highlight
+    - title: What's Changed
+      labels:
+        - "*"
+    - title: 🏗️ Dependencies
+      labels:
+        - dependencies
