@@ -28,3 +28,7 @@ build --incompatible_config_setting_private_default_visibility
 # enable rule extension API (needed prior to Bazel 8)
 # docs: https://bazel.build/versions/7.4.0/reference/command-line-reference#flag--experimental_rule_extension_api
 build --experimental_rule_extension_api
+
+# enable protobuf toolchain resolution
+# docs: https://bazel.build/reference/command-line-reference#common_options-flag--incompatible_enable_proto_toolchain_resolution
+common --incompatible_enable_proto_toolchain_resolution
