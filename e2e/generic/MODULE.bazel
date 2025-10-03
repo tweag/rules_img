@@ -10,7 +10,7 @@ local_path_override(
 bazel_dep(name = "rules_img_tool")
 local_path_override(
     module_name = "rules_img_tool",
-    path = "../../src",
+    path = "../../img_tool",
 )
 
 register_toolchains("@rules_img_tool//toolchain:all")

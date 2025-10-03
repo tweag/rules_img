@@ -5,7 +5,7 @@ workspaces:
         icon: docker
         label: rules_img
     # TODO(malte): fix and re-enable
-    # src:
+    # img_tool:
     #     label: Go application
     # TODO(malte): enable e2e tests when green
     # e2e/cc:

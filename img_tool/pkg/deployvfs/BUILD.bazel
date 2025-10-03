@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "deployvfs",
+    srcs = [
+        "deployvfs.go",
+        "image.go",
+        "index.go",
+    ],
+    importpath = "github.com/bazel-contrib/rules_img/img_tool/pkg/deployvfs",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api",
+        "//pkg/cas",
+        "@com_github_malt3_go_containerregistry//pkg/name",
+        "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
+        "@com_github_malt3_go_containerregistry//pkg/v1/remote",
+        "@com_github_malt3_go_containerregistry//pkg/v1/types",
+        "@rules_go//go/runfiles",
+    ],
+)

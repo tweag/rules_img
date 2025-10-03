@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "compress",
+    srcs = [
+        "compress.go",
+        "estargz.go",
+        "factory.go",
+        "options.go",
+    ],
+    importpath = "github.com/bazel-contrib/rules_img/img_tool/pkg/compress",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api",
+        "@com_github_containerd_stargz_snapshotter_estargz//:estargz",
+        "@com_github_containerd_stargz_snapshotter_estargz//zstdchunked",
+        "@com_github_klauspost_compress//zstd",
+        "@com_github_klauspost_pgzip//:pgzip",
+    ],
+)

@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "blobcache",
+    srcs = ["blobcache.go"],
+    importpath = "github.com/bazel-contrib/rules_img/img_tool/pkg/serve/blobcache",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/proto/blobcache",
+        "//pkg/proto/remote-apis/build/bazel/remote/execution/v2",
+        "//pkg/serve/registry",
+        "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
+        "@org_golang_google_grpc//:grpc",
+    ],
+)

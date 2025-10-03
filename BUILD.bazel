@@ -15,13 +15,13 @@ filegroup(
 filegroup(
     name = "tool_source_files",
     srcs = glob(
-        ["src/**"],
+        ["img_tool/**"],
         allow_empty = True,
         exclude = [
-            "src/.bazelrc.common",
-            "src/.bazelrc",
-            "src/.vscode/**",
-            "src/tools/**",
+            "img_tool/.bazelrc.common",
+            "img_tool/.bazelrc",
+            "img_tool/.vscode/**",
+            "img_tool/tools/**",
         ],
     ),
     visibility = ["//img/private/release:__subpackages__"],

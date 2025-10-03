@@ -1,0 +1,17 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//:go_proto_library.bzl", "go_proto_library")
+
+proto_library(
+    name = "semver_proto",
+    srcs = ["semver.proto"],
+    strip_import_prefix = "/pkg/proto/remote-apis",
+    visibility = ["//visibility:public"],
+)
+
+go_proto_library(
+    name = "semver",
+    compilers = ["@rules_go//proto:go_proto"],
+    importpath = "github.com/bazel-contrib/rules_img/img_tool/pkg/proto/remote-apis/build/bazel/semver",
+    proto = ":semver_proto",
+    visibility = ["//visibility:public"],
+)
