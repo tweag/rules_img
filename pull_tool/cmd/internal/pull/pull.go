@@ -10,11 +10,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/malt3/go-containerregistry/pkg/name"
-	registryv1 "github.com/malt3/go-containerregistry/pkg/v1"
-	"github.com/malt3/go-containerregistry/pkg/v1/remote"
-
-	reg "github.com/bazel-contrib/rules_img/img_tool/pkg/auth/registry"
+	reg "github.com/bazel-contrib/rules_img/pull_tool/pkg/auth/registry"
+	"github.com/google/go-containerregistry/pkg/name"
+	registryv1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 func PullProcess(ctx context.Context, args []string) {
@@ -28,11 +27,11 @@ func PullProcess(ctx context.Context, args []string) {
 	flagSet := flag.NewFlagSet("pull", flag.ExitOnError)
 	flagSet.Usage = func() {
 		fmt.Fprintf(flagSet.Output(), "Downloads an image from a container registry.\n\n")
-		fmt.Fprintf(flagSet.Output(), "Usage: img pull [OPTIONS]\n")
+		fmt.Fprintf(flagSet.Output(), "Usage: pull_tool pull [OPTIONS]\n")
 		flagSet.PrintDefaults()
 		examples := []string{
-			"img pull --reference sha256:abc123... --repository myapp --output ./outdir",
-			"img pull --reference sha256:abc123... --repository myapp --registry docker.io",
+			"pull_tool pull --reference sha256:abc123... --repository myapp --output ./outdir",
+			"pull_tool pull --reference sha256:abc123... --repository myapp --registry docker.io",
 		}
 		fmt.Fprintf(flagSet.Output(), "\nExamples:\n")
 		for _, example := range examples {
