@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "deploy",
+    srcs = [
+        "merge.go",
+        "metadata.go",
+    ],
+    importpath = "github.com/bazel-contrib/rules_img/img_tool/cmd/deploy",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api",
+        "@com_github_malt3_go_containerregistry//pkg/v1:pkg",
+    ],
+)

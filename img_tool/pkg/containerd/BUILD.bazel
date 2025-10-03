@@ -1,0 +1,29 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "containerd",
+    srcs = [
+        "client.go",
+        "content.go",
+        "images.go",
+        "lease.go",
+        "namespace.go",
+        "support.go",
+    ],
+    importpath = "github.com/bazel-contrib/rules_img/img_tool/pkg/containerd",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_containerd_containerd_api//services/content/v1:content",
+        "@com_github_containerd_containerd_api//services/images/v1:images",
+        "@com_github_containerd_containerd_api//services/leases/v1:leases",
+        "@com_github_containerd_containerd_api//types",
+        "@com_github_opencontainers_go_digest//:go-digest",
+        "@com_github_opencontainers_image_spec//specs-go/v1:specs-go",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//credentials/insecure",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//types/known/fieldmaskpb",
+    ],
+)

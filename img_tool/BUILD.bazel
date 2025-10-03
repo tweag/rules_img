@@ -1,0 +1,3 @@
+# gazelle:lang go,proto,bzl
+# gazelle:resolve_regexp go github.com/bazel-contrib/rules_img/img_tool/(.*) //$1
+# gazelle:map_kind go_proto_library go_proto_library //:go_proto_library.bzl

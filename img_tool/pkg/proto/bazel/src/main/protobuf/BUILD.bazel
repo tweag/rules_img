@@ -1,0 +1,37 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//:go_proto_library.bzl", "go_proto_library")
+
+# gazelle:exclude *.pb.go
+
+proto_library(
+    name = "proto",
+    srcs = [
+        "action_cache.proto",
+        "command_line.proto",
+        "failure_details.proto",
+        "invocation_policy.proto",
+        "option_filters.proto",
+        "strategy_policy.proto",
+    ],
+    strip_import_prefix = "/pkg/proto/bazel",
+    visibility = ["//visibility:public"],
+    deps = ["@protobuf//:descriptor_proto"],
+)
+
+go_proto_library(
+    name = "protobuf",
+    compilers = [
+        "@rules_go//proto:go_proto",
+    ],
+    filenames = [
+        "action_cache.pb.go",
+        "command_line.pb.go",
+        "failure_details.pb.go",
+        "invocation_policy.pb.go",
+        "option_filters.pb.go",
+        "strategy_policy.pb.go",
+    ],
+    importpath = "github.com/bazel-contrib/rules_img/img_tool/pkg/proto/bazel/src/main/protobuf",
+    proto = ":proto",
+    visibility = ["//visibility:public"],
+)

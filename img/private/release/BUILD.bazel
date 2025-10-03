@@ -14,7 +14,7 @@ pkg_tar(
     out = "rules_img_tool.tar.gz",
     extension = "tar.gz",
     mode = "0755",
-    strip_prefix = "/src",
+    strip_prefix = "/img_tool",
     tags = ["manual"],
 )
 

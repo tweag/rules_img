@@ -212,16 +212,16 @@ When adding new public rules:
 
 ### Adding a New Compression Algorithm
 
-1. Implement the compressor in `src/pkg/compress/`
-2. Add it to the factory in `src/pkg/compress/factory.go`
+1. Implement the compressor in `img_tool/pkg/compress/`
+2. Add it to the factory in `img_tool/pkg/compress/factory.go`
 3. Update the compression attribute in `img/private/layer.bzl`
 4. Add the option to `img/settings/BUILD.bazel`
 5. Update documentation
 
 ### Adding a New Push Strategy
 
-1. Implement the pusher in `src/pkg/push/`
-2. Add it to the push command in `src/cmd/push/push.go`
+1. Implement the pusher in `img_tool/pkg/push/`
+2. Add it to the push command in `img_tool/cmd/push/push.go`
 3. Update the push strategy setting in `img/settings/BUILD.bazel`
 4. Document it in `docs/push-strategies.md`
 
@@ -253,7 +253,7 @@ rules_img/                    # Main module - Bazel rules and extensions
 ├── img/                      # Public Bazel rules
 │   └── private/              # Implementation details
 ├── docs/                     # Generated documentation
-├── src/                      # rules_img_tool module - Go code
+├── img_tool/                 # rules_img_tool module - Go code
 │   ├── cmd/                  # Command-line tools
 │   ├── pkg/                  # Go libraries
 │   └── MODULE.bazel          # Separate Bazel module
