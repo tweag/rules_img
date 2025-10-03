@@ -2,8 +2,6 @@ module github.com/bazel-contrib/rules_img/img_tool
 
 go 1.24.2
 
-require github.com/opencontainers/image-spec v1.1.1
-
 require (
 	cloud.google.com/go/longrunning v0.6.7
 	github.com/aws/aws-sdk-go-v2 v1.39.2
@@ -17,6 +15,7 @@ require (
 	github.com/klauspost/pgzip v1.2.6
 	github.com/malt3/go-containerregistry v0.0.0-20250724131542-7e98b20e9b45
 	github.com/opencontainers/go-digest v1.0.0
+	github.com/opencontainers/image-spec v1.1.1
 	golang.org/x/sync v0.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250929231259-57b25ae835d4
 	google.golang.org/genproto/googleapis/bytestream v0.0.0-20250929231259-57b25ae835d4
