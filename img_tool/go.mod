@@ -1,4 +1,4 @@
-module github.com/bazel-contrib/rules_img/src
+module github.com/bazel-contrib/rules_img/img_tool
 
 go 1.24.2
 
